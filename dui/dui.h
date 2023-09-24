@@ -9,6 +9,13 @@
 #include <cairo/cairo.h>
 #include <cairo/cairo-ft.h>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN 
+#include <windows.h>
+#endif 
+
+#include "dui_mempool.h"
+
 #define DUI_DEBUG	1
 #define DUI_OK      0
 
@@ -136,40 +143,6 @@ typedef struct XBitmap
     int   h;
 } XBitmap;
 
-enum XButtonProperty
-{
-    XBUTTON_PROP_NONE = 0x00,
-    XBUTTON_PROP_ROUND = 0x01,
-    XBUTTON_PROP_STATIC = 0x02
-};
-
-enum XButtonState
-{
-    XBUTTON_STATE_HIDDEN = 0,
-    XBUTTON_STATE_NORMAL,
-    XBUTTON_STATE_HOVERED,
-    XBUTTON_STATE_PRESSED,
-    XBUTTON_STATE_ACTIVE
-};
-
-typedef struct XButton
-{
-    U8       id : 6;
-    U8       property  : 2;
-    U8       state : 4;
-    U8       statePrev : 4;
-    int      left;
-    int      top;
-    int      right;
-    int      bottom;
-    // all XBitmpas should have extactly the same size
-    XBitmap* imgNormal;
-    XBitmap* imgHover;
-    XBitmap* imgPress;
-    XBitmap* imgActive;
-    int (*pfAction) (void* obj, U32 uMsg, U64 wParam, U64 lParam);
-} XButton;
-
 // determin if one object is hitted
 #define XWinPointInRect(x, y, OBJ)      (((x) >= ((OBJ)->left)) && ((x) < ((OBJ)->right)) && ((y) >= ((OBJ)->top)) && ((y) < ((OBJ)->bottom)))
 
@@ -191,15 +164,26 @@ int ScreenDrawRectRound(uint32_t* dst, int w, int h, uint32_t* src, int sw, int 
 
 int ScreenFillRectRound(uint32_t* dst, int w, int h, uint32_t color, int sw, int sh, int dx, int dy, uint32_t c1, uint32_t c2);
 
-int SetCursorHand();
+#define XMOUSE_NULL         0
+#define XMOUSE_MOVE         1
+#define XMOUSE_LBDOWN       2
+#define XMOUSE_LBUP         3
+#define XMOUSE_RBDOWN       4
+#define XMOUSE_RBUP         5
 
-int SetCursorIBeam();
+#define XKEYBOARD_NORMAL    0x0000
+#define XKEYBOARD_CTRL      0x0001
+#define XKEYBOARD_SHIF      0x0002
+#define XKEYBOARD_ALT       0x0004
 
 enum XControlProperty
 {
-    XCONTROL_PROP_NONE = 0x00,
-    XCONTROL_PROP_ROUND = 0x01,
-    XCONTROL_PROP_STATIC = 0x02
+    XCONTROL_PROP_NONE   = 0x00000000,
+    XCONTROL_PROP_ROUND  = 0x00000001,
+    XCONTROL_PROP_STATIC = 0x00000002,
+    XCONTROL_PROP_CARET  = 0x00000004,
+    XCONTROL_PROP_EDIT   = 0x00000008,  
+    XCONTROL_PROP_PASSWD = 0x00000010
 };
 
 enum XControlState
@@ -208,13 +192,16 @@ enum XControlState
     XCONTROL_STATE_NORMAL,
     XCONTROL_STATE_HOVERED,
     XCONTROL_STATE_PRESSED,
-    XCONTROL_STATE_ACTIVE
+    XCONTROL_STATE_ACTIVE,
+    XCONTROL_STATE_FOCUSED = XCONTROL_STATE_PRESSED
+
 };
 
 class XControl
 {
 public:
     U8   m_id = 0;
+    U8   m_Index = 0;
     U32* m_data = nullptr;
 
     int  left   = 0;
@@ -233,7 +220,24 @@ public:
     U32  m_Color0 = 0xFFFFFFFF;
     U32  m_Color1 = 0xFFFFFFFF;
 
-    void setId(U8 id) { m_id = id; }
+    void* m_Cursor;
+
+    void setId(U8 id, U8 idx) 
+    { 
+        m_id = id; 
+        m_Index = idx;
+    }
+
+    int ShowCursor()
+    {
+        if (nullptr != m_Cursor)
+        {
+#ifdef _WIN32
+            ::SetCursor((HCURSOR)m_Cursor);
+#endif 
+        }
+        return 0;
+    }
 
     void setRoundColor(U32 c0, U32 c1)
     {
@@ -272,6 +276,18 @@ public:
         left = top = 0;
         right = width;
         bottom = height;
+    }
+
+    void setPosition(int left_, int top_, int right_, int bottom_)
+    {
+        assert(left_ >= 0);
+        assert(top_ >= 0);
+        assert(right_ >= left_);
+        assert(bottom_ >= top_);
+        left = left_;
+        top = top_;
+        right = right_;
+        bottom = bottom_;
     }
 
     void setPosition(int left_, int top_)
@@ -313,12 +329,27 @@ public:
         return bRet;
     }
 
-    int setStatus(U32 newStatus)
+    int setStatus(U32 newStatus, U8 mouse_event = XMOUSE_NULL)
     {
         int r = 0;
         if (!(XCONTROL_PROP_STATIC & m_property))
         {
             U32 oldStatus = m_status;
+
+            if (XCONTROL_PROP_EDIT & m_property) // for edit box
+            {
+                if (XCONTROL_STATE_PRESSED == m_status)
+                {
+                    if (XCONTROL_STATE_NORMAL == newStatus && XMOUSE_LBDOWN != mouse_event)
+                    {
+                        return 0;
+                    }
+                    if (XCONTROL_STATE_HOVERED == newStatus)
+                    {
+                        return 0;
+                    }
+                }
+            }
             m_status = newStatus;
             if (oldStatus != newStatus)
                 r = 1;
@@ -326,10 +357,12 @@ public:
         return r;
     }
 
+    virtual int OnTimer() { return 0; }
+    virtual int OnKeyBoard(U16 flag, U16 keycode) { return 0; }
     virtual int  Draw() = 0;
-    virtual int  Init(void* ptr, U32 flag) = 0;
+    virtual int  Init(void* ptr0 = nullptr, void* ptr1 = nullptr, U32 flag = 0) = 0;
     virtual void Term() = 0;
-    virtual void SetBkgFrontColor(U32 c0, U32 c1) = 0;
+    virtual void setBkgFrontColor(U32 c0, U32 c1) = 0;
 
     int (*pfAction) (void* obj, U32 uMsg, U64 wParam, U64 lParam);
 };
@@ -338,9 +371,13 @@ class XButton2 : public XControl
 {
 public:
     int Draw();
-    int Init(void* ptr, U32 flag) { return 0; }
+    int Init(void* ptr0 = nullptr, void* ptr1 = nullptr, U32 flag = 0)
+    { 
+        m_Cursor = ptr0;
+        return 0; 
+    }
     void Term() {}
-    void SetBkgFrontColor(U32 c0, U32 c1) {}
+    void setBkgFrontColor(U32 c0, U32 c1) {}
 
     // all XBitmpas should have extactly the same size
     XBitmap* imgNormal;
@@ -390,11 +427,11 @@ public:
     }
 
     int Draw();
-    int Init(void* ptr, U32 flag);
+    int Init(void* ptr0 = nullptr, void* ptr1 = nullptr, U32 flag = 0);
     void Term();
     void setText(U16* text);
 
-    void SetBkgFrontColor(U32 c0, U32 c1)
+    void setBkgFrontColor(U32 c0, U32 c1)
     {
         U8 cr;
 
@@ -415,6 +452,125 @@ public:
         cr = (U8)(m_txtColor >> 16);
         m_b1 = (double)cr / 255;
     }
+};
+
+#define DUI_MAX_EDITBOX_STRING    64
+class XEditBox : public XControl
+{
+private:
+    bool m_initialized = false;
+    // cairo/harfbuzz issue to cache to speed up
+    cairo_glyph_t* m_cairo_glyphs = nullptr;
+    cairo_font_face_t* m_cairo_face = nullptr;
+    hb_font_t* m_hb_font = nullptr;
+    hb_buffer_t* m_hb_buffer = nullptr;
+    double m_fontSize = 15;
+    double m_r0 = 1;
+    double m_g0 = 1;
+    double m_b0 = 1;
+    double m_r1 = 0;
+    double m_g1 = 0;
+    double m_b1 = 0;
+    U32  m_txtColor = 0xFF000000;
+    U32  m_bkgColor = 0xFFFFFFFF;
+
+    int  m_lineHeight = 0;  // in pixel
+    U16  m_Text[DUI_MAX_EDITBOX_STRING] = { 0 };
+    U16  m_TextLen = 0;
+    U16  m_cursorPos = 0;
+public:
+    XEditBox(U32 prop = 0)
+    {
+        m_property = XCONTROL_PROP_EDIT | prop;
+    }
+
+    int Draw();
+    int Init(void* ptr0 = nullptr, void* ptr1 = nullptr, U32 flag = 0);
+    void Term();
+
+    int OnTimer() final
+    {
+        static bool firstTime = true;
+        int r = 0;
+        if (XCONTROL_STATE_PRESSED == m_status)
+        {
+            if (!firstTime)
+            {
+                m_property ^= XCONTROL_PROP_CARET;
+            }
+            else
+            {
+                m_property |= XCONTROL_PROP_CARET;
+                firstTime = false;
+            }
+            r = 1;
+        }
+        return r;
+    }
+
+    void setBkgFrontColor(U32 c0, U32 c1)
+    {
+        U8 cr;
+
+        m_bkgColor = c0;
+        m_txtColor = c1;
+
+        cr = (U8)(m_bkgColor >> 0);
+        m_r0 = (double)cr / 255;
+        cr = (U8)(m_bkgColor >> 8);
+        m_g0 = (double)cr / 255;
+        cr = (U8)(m_bkgColor >> 16);
+        m_b0 = (double)cr / 255;
+
+        cr = (U8)(m_txtColor >> 0);
+        m_r1 = (double)cr / 255;
+        cr = (U8)(m_txtColor >> 8);
+        m_g1 = (double)cr / 255;
+        cr = (U8)(m_txtColor >> 16);
+        m_b1 = (double)cr / 255;
+    }
+
+    int OnKeyBoard(U16 flag, U16 keycode) final
+    { 
+        int r = 0;
+        if (XKEYBOARD_NORMAL == flag)
+        {
+            if (m_TextLen < DUI_MAX_EDITBOX_STRING)
+            {
+                m_Text[m_TextLen] = keycode;
+                m_TextLen++;
+                m_cursorPos++;
+                r = 1;
+            }
+        }
+        return r;
+    }
+
+    int MoveCursorLR(int direction)
+    {
+        int r = 0;
+        if (XCONTROL_STATE_FOCUSED == m_status) // we have the focus
+        {
+            if (direction > 0)
+            {
+                if (m_cursorPos < m_TextLen)
+                {
+                    m_cursorPos++;
+                    r = 1;
+                }
+            }
+            else
+            {
+                if (m_cursorPos > 0)
+                {
+                    m_cursorPos--;
+                    r = 1;
+                }
+            }
+        }
+        return r;
+    }
+
 };
 
 #if 0

@@ -75,7 +75,7 @@ public:
 	XWindow5()
 	{
 		m_backgroundColor = 0xFFFFFFFF;
-		m_property |= (DUI_PROP_MOVEWIN | DUI_PROP_HANDLETIMER | DUI_PROP_HANDLEKEYBOARD);
+		//m_property |= (DUI_PROP_MOVEWIN | DUI_PROP_HANDLETIMER | DUI_PROP_HANDLEKEYBOARD);
 		m_message = WM_XWINDOWS05;
 	}
 
@@ -157,7 +157,8 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
+			button->Init(g_hCursorHand);
+			button->setId(id, m_controlCount);
 			bmpN = &m_bitmap[XWIN5_BITMAP_EMOJIN];
 			bmpH = &m_bitmap[XWIN5_BITMAP_EMOJIH];
 			bmpP = &m_bitmap[XWIN5_BITMAP_EMOJIP];
@@ -179,7 +180,8 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
+			button->Init(g_hCursorHand);
+			button->setId(id, m_controlCount);
 			bmpN = &m_bitmap[XWIN5_BITMAP_UPLOADN];
 			bmpH = &m_bitmap[XWIN5_BITMAP_UPLOADH];
 			bmpP = &m_bitmap[XWIN5_BITMAP_UPLOADP];
@@ -201,7 +203,8 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
+			button->Init(g_hCursorHand);
+			button->setId(id, m_controlCount);
 			bmpN = &m_bitmap[XWIN5_BITMAP_CAPTUREN];
 			bmpH = &m_bitmap[XWIN5_BITMAP_CAPTUREH];
 			bmpP = &m_bitmap[XWIN5_BITMAP_CAPTUREP];
@@ -223,7 +226,8 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
+			button->Init(g_hCursorHand);
+			button->setId(id, m_controlCount);
 			bmpN = &m_bitmap[XWIN5_BITMAP_CHATHISTORYN];
 			bmpH = &m_bitmap[XWIN5_BITMAP_CHATHISTORYH];
 			bmpP = &m_bitmap[XWIN5_BITMAP_CHATHISTORYP];
@@ -245,7 +249,8 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
+			button->Init(g_hCursorHand);
+			button->setId(id, m_controlCount);
 			bmpN = &m_bitmap[XWIN5_BITMAP_LIVESTREAMN];
 			bmpH = &m_bitmap[XWIN5_BITMAP_LIVESTREAMH];
 			bmpP = &m_bitmap[XWIN5_BITMAP_LIVESTREAMP];
@@ -267,7 +272,8 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
+			button->Init(g_hCursorHand);
+			button->setId(id, m_controlCount);
 			bmpN = &m_bitmap[XWIN5_BITMAP_VIDEOCALLN];
 			bmpH = &m_bitmap[XWIN5_BITMAP_VIDEOCALLH];
 			bmpP = &m_bitmap[XWIN5_BITMAP_VIDEOCALLP];
@@ -289,7 +295,8 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
+			button->Init(g_hCursorHand);
+			button->setId(id, m_controlCount);
 			bmpN = &m_bitmap[XWIN5_BITMAP_SENDMESSAGEN];
 			bmpH = &m_bitmap[XWIN5_BITMAP_SENDMESSAGEH];
 			bmpP = &m_bitmap[XWIN5_BITMAP_SENDMESSAGEP];
@@ -311,7 +318,8 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
+			button->Init();
+			button->setId(id, m_controlCount);
 			bmpN = &m_bitmap[XWIN5_BITMAP_HINTN];
 			bmpH = &m_bitmap[XWIN5_BITMAP_HINTH];
 			bmpP = &m_bitmap[XWIN5_BITMAP_HINTP];

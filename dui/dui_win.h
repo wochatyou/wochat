@@ -77,10 +77,6 @@ public:
 
     const int m_scrollWidth = 8; // in pixel
 
-    const int m_buttonStartIdx = 0;
-    int       m_buttonEndIdx = -1;
-    int       m_buttonActiveIdx = -1;
-
     bool  m_cursorNormal = true;
 
     XPOINT m_ptOffset = { 0 };
@@ -105,7 +101,6 @@ public:
         MAX_XBUTTON_BITMAPS = (MAX_XBUTTONS << 2)
     };
 
-    XButton  m_button[MAX_XBUTTONS];
     XBitmap  m_bitmap[MAX_XBUTTON_BITMAPS];
 
 public:
@@ -113,7 +108,6 @@ public:
     {
         int i;
         U8 id;
-        XButton* button;
         XBitmap* bmp;
 
         m_controlCount = 0;
@@ -139,17 +133,6 @@ public:
 
         static_assert(MAX_XBUTTONS < (1 << 6));
 
-        // initialize the button's status
-        for (id = 0; id < MAX_XBUTTONS; id++)
-        {
-            button = &m_button[id];
-            button->id = id;
-            button->property = XBUTTON_PROP_NONE;
-            button->statePrev = button->state = XBUTTON_STATE_NORMAL;
-            button->left = button->right = button->top = button->bottom = 0;
-            button->imgNormal = button->imgHover = button->imgPress = button->imgActive = nullptr;
-            button->pfAction = ButtonAction;
-        }
         // initialize the bitmap's status
         for (id = 0; id < MAX_XBUTTON_BITMAPS; id++)
         {
@@ -368,6 +351,7 @@ public:
         return bRet;
     }
 
+#if 0
     void DrawButton(XButton* button)
     {
         U32* dst;
@@ -415,7 +399,7 @@ public:
             }
         }
     }
-
+#endif
     void UpdateControlPosition() {}
     void UpdatePosition() 
     {
@@ -465,7 +449,6 @@ public:
         {
             int w = m_area.right - m_area.left;
             int h = m_area.bottom - m_area.top;
-            XButton* button;
             XControl* xctl;
 
             assert(nullptr != m_screen);
@@ -488,13 +471,6 @@ public:
                 // Draw the vertical scroll bar
                 ScreenFillRect(m_screen, w, h, m_scrollbarColor, m_scrollWidth, h, w - m_scrollWidth, 0);
                 ScreenFillRectRound(m_screen, w, h, m_thumbColor, thumb_width, thumb_height, w - m_scrollWidth + 1, thumb_start, m_scrollbarColor, 0xFFD6D3D2);
-            }
-
-            for (int i = m_buttonStartIdx; i <= m_buttonEndIdx; i++)
-            {
-                button = &m_button[i];
-                DrawButton(button);
-                button->statePrev = button->state;
             }
 
             for (int i = 0; i < m_controlCount; i++)
@@ -679,8 +655,8 @@ public:
                     }
                     if (-1 != hit) // we are hovering on some control
                     {
-                        SetCursorHand();
-                        r0 = xctl->setStatus(XCONTROL_STATE_HOVERED);
+                        r0 = xctl->setStatus(XCONTROL_STATE_HOVERED, XMOUSE_MOVE);
+                        xctl->ShowCursor();
                     }
                     else // we have to scan the whole control array
                     {
@@ -690,9 +666,9 @@ public:
                             xctl = m_control[i];
                             assert(nullptr != xctl);
                             if(i != m_activeControl)
-                                r0 += xctl->setStatus(XCONTROL_STATE_NORMAL);
+                                r0 += xctl->setStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
                             else 
-                                r0 += xctl->setStatus(XCONTROL_STATE_ACTIVE);
+                                r0 += xctl->setStatus(XCONTROL_STATE_ACTIVE, XMOUSE_MOVE);
                         }
                     }
                 }
@@ -727,6 +703,7 @@ public:
     int DoLButtonDown(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int OnLButtonDown(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
+        XControl* xctl;
         int rx = DUI_STATUS_NODRAW;
         int r0 = DUI_STATUS_NODRAW;
         int r1 = DUI_STATUS_NODRAW;
@@ -738,7 +715,6 @@ public:
 
         if (XWinPointInRect(xPos, yPos, &m_area))
         {
-            XControl* xctl;
             int hit = -1;
             int w = m_area.right - m_area.left;
             int h = m_area.bottom - m_area.top;
@@ -814,9 +790,8 @@ public:
             }
             if (-1 != hit) // we are hitting some button
             {
-                r0 = xctl->setStatus(XCONTROL_STATE_PRESSED);
-                if(r0)
-                    SetCursorHand();
+                r0 = xctl->setStatus(XCONTROL_STATE_PRESSED, XMOUSE_LBDOWN);
+                xctl->ShowCursor();
             }
             else
             {  
@@ -826,9 +801,9 @@ public:
                     xctl = m_control[i];
                     assert(nullptr != xctl);
                     if (i != m_activeControl)
-                        r0 += xctl->setStatus(XCONTROL_STATE_NORMAL);
+                        r0 += xctl->setStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
                     else
-                        r0 += xctl->setStatus(XCONTROL_STATE_ACTIVE);
+                        r0 += xctl->setStatus(XCONTROL_STATE_ACTIVE, XMOUSE_LBDOWN);
                 }
                 // if the mouse does not hit the button, we can move the whole real window
                 if (DUI_PROP_MOVEWIN & m_property)
@@ -838,6 +813,17 @@ public:
         else
         {
             m_status &= ~DUI_STATUS_ISFOCUS; // this window lose focus
+
+            for (int i = 0; i < m_controlCount; i++)
+            {
+                xctl = m_control[i];
+                assert(nullptr != xctl);
+                if (i != m_activeControl)
+                    r0 += xctl->setStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
+                else
+                    r0 += xctl->setStatus(XCONTROL_STATE_ACTIVE, XMOUSE_LBDOWN);
+            }
+
             rx = pT->DoFocusLose(uMsg, xPos, yPos, lpData);
         }
 
@@ -885,7 +871,6 @@ public:
                 if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
                 {
                     hit = i;
-                    break;
                 }
             }
             if (-1 != hit) // we are hitting some button
@@ -894,21 +879,20 @@ public:
                 {
                     int oldActive = m_activeControl;
                     m_activeControl = hit;
-                    r0 = xctl->setStatus(XCONTROL_STATE_ACTIVE);
+                    r0 = xctl->setStatus(XCONTROL_STATE_ACTIVE, XMOUSE_LBUP);
                     if (oldActive >= 0)
                     {
                         assert(oldActive < m_controlCount);
                         XControl* xctlOld = m_control[oldActive];
-                        r0 += xctlOld->setStatus(XCONTROL_STATE_NORMAL);
+                        r0 += xctlOld->setStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
                     }
                 }
                 else
                 {
                     m_activeControl = -1;
-                    r0 = xctl->setStatus(XCONTROL_STATE_HOVERED);
+                    r0 = xctl->setStatus(XCONTROL_STATE_HOVERED, XMOUSE_LBUP);
                 }
-                if (r0)
-                    SetCursorHand();
+                xctl->ShowCursor();
             }
             else
             {
@@ -918,9 +902,9 @@ public:
                     xctl = m_control[i];
                     assert(nullptr != xctl);
                     if (i != m_activeControl)
-                        r0 += xctl->setStatus(XCONTROL_STATE_NORMAL);
+                        r0 += xctl->setStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
                     else
-                        r0 += xctl->setStatus(XCONTROL_STATE_ACTIVE);
+                        r0 += xctl->setStatus(XCONTROL_STATE_ACTIVE, XMOUSE_LBUP);
                 }
             }
         }
@@ -1033,7 +1017,6 @@ public:
 
             //ProcessOSMessage pfOSM = m_functionTab[0];
             //r = (pT->*pfOSM)(uMsg, wParam, lParam, lpData);
-
             r = pT->DoChar(uMsg, wParam, lParam, lpData);
             if (DUI_STATUS_NODRAW != r)
                 m_status |= DUI_STATUS_NEEDRAW;
@@ -1060,15 +1043,26 @@ public:
     int DoTimer(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int OnTimer(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
-        int r = DUI_STATUS_NODRAW;
+        int r0 = DUI_STATUS_NODRAW;
+        int r1 = DUI_STATUS_NODRAW;
+
         if (DUI_PROP_HANDLETIMER & m_property)
         {
+            XControl* xctl;
+            for (int i = 0; i < m_controlCount; i++)
+            {
+                xctl = m_control[i];
+                assert(nullptr != xctl);
+                r0 += xctl->OnTimer();
+            }
+
             T* pT = static_cast<T*>(this);
-            r = pT->DoTimer(uMsg, wParam, lParam, lpData);
-            if (DUI_STATUS_NODRAW != r)
+            r1 = pT->DoTimer(uMsg, wParam, lParam, lpData);
+            if (0 != r0 + r1)
                 m_status |= DUI_STATUS_NEEDRAW;
         }
-        return r;
+
+        return (r0 + r1);
     }
 
 

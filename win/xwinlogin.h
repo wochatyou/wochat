@@ -39,7 +39,6 @@ public:
 	XDUILogin()
 	{
 		m_backgroundColor = 0xFFCC5356;
-		m_buttonEndIdx = XWIN6_BUTTON_CREATE;
 		m_message = WM_XWINDOWS00;
 		m_property |= (DUI_PROP_MOVEWIN | DUI_PROP_HANDLETIMER | DUI_PROP_HANDLEKEYBOARD);
 
@@ -77,6 +76,7 @@ public:
 
 	int InitButtons()
 	{
+#if 0
 		U8 id;
 		XButton* button;
 		XBitmap* bitmap;
@@ -100,12 +100,13 @@ public:
 		bitmap = &m_bitmap[XWIN6_BITMAP_CREATEH]; button->imgHover = bitmap;
 		bitmap = &m_bitmap[XWIN6_BITMAP_CREATEP]; button->imgPress = bitmap;
 		bitmap = &m_bitmap[XWIN6_BITMAP_CREATEA]; button->imgActive = bitmap;
-
+#endif
 		return 0;
 	}
 
 	void UpdateButtonPosition()
 	{
+#if 0
 		int id, margin, L, T, R, B;
 		int gap = 30; // pixel
 		int lineH;
@@ -139,6 +140,7 @@ public:
 		button->right = button->left + bmp->w;
 		button->top = buttonPrev->bottom + gap;
 		button->bottom = button->top + bmp->h;
+#endif
 	}
 
 	int DoCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, void* lpData = nullptr)
@@ -159,6 +161,7 @@ public:
 	int DoMouseMove(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{
 		int r = DUI_STATUS_NODRAW;
+#if 0
 		int r0 = DUI_STATUS_NODRAW;
 		int r1 = DUI_STATUS_NODRAW;
 		int xPos = GET_X_LPARAM(lParam);
@@ -186,7 +189,7 @@ public:
 
 		if (r0 || r1)
 			r = DUI_STATUS_NEEDRAW;
-
+#endif
 		return r;
 	}
 
@@ -197,7 +200,7 @@ public:
 		int r1 = DUI_STATUS_NODRAW;
 		int xPos = GET_X_LPARAM(lParam);
 		int yPos = GET_Y_LPARAM(lParam);
-
+#if 0
 		// transfer the coordination from real window to local virutal window
 		xPos -= m_area.left;
 		yPos -= m_area.top;
@@ -220,7 +223,7 @@ public:
 
 		if (r0 || r1)
 			r = DUI_STATUS_NEEDRAW;
-
+#endif
 		return r;
 	}
 

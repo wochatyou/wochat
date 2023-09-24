@@ -3,7 +3,10 @@
 
 #include "dui/dui_win.h"
 
-uint16_t titlewin3[] = { 0x0044,0x0042,0x0041,0x57f9,0x8bad,0x7fa4,0x0028,0x0032,0x0035,0x0037,0x0029, 0 };
+uint16_t titlewin3[] = { 
+	0x79d1,0x5dde,0x534e,0x4eba,0x5b88,0x671b,0x76f8,0x52a9,0x7fa4,
+	0x0028,0x0043,0x006f,0x006c,0x006f,0x0072,0x0061,0x0064,0x006f,0x0029, 
+	0 };
 enum 
 {
 	XWIN3_BUTTON_DOT = 0,
@@ -54,13 +57,14 @@ public:
 
 	void InitControl()
 	{
-		U8* mem;
+		U8 id, *mem;
 		U32 objSize;
 		assert(0 == m_controlCount);
 		assert(nullptr != m_pool);
 
 		InitBitmap(); // inital all bitmap resource
 
+		id = XWIN3_BUTTON_DOT;
 		objSize = sizeof(XButton2);
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
@@ -71,7 +75,8 @@ public:
 			XBitmap* bmpA;
 			XButton2* button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(XWIN3_BUTTON_DOT);
+			button->Init(g_hCursorHand);
+			button->setId(id, m_controlCount);
 			bmpN = &m_bitmap[XWIN3_BITMAP_DOTN];
 			bmpH = &m_bitmap[XWIN3_BITMAP_DOTH];
 			bmpP = &m_bitmap[XWIN3_BITMAP_DOTP];
@@ -82,22 +87,23 @@ public:
 			m_controlCount++;
 		}
 
+		id = XWIN32_LABEL_TITLE;
 		objSize = sizeof(XLabel);
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
 		{
 			XLabel* label = new(mem)XLabel;
 			assert(nullptr != label);
-			if (0 != label->Init(g_ftFace0, 16))
+			if (0 != label->Init(nullptr, g_ftFace0, 16))
 			{
 				pfree(mem);
 			}
 			else
 			{
-				label->setId(XWIN32_LABEL_TITLE);
+				label->setId(id, m_controlCount);
 				label->setText(titlewin3);
 				label->setRoundColor(m_backgroundColor, m_backgroundColor);
-				label->SetBkgFrontColor(m_backgroundColor, 0xFF333333);
+				label->setBkgFrontColor(m_backgroundColor, 0xFF333333);
 				m_control[m_controlCount] = label;
 				m_controlCount++;
 			}

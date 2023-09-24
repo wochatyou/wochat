@@ -179,16 +179,19 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
-			bmpN = &m_bitmap[XWIN0_BITMAP_ME];
-			button->setBitmap(bmpN, bmpN, bmpN, bmpN);
-			sw = button->getWidth(); sh = button->getHeight();
-			left = top = (w - sw) >> 1;
-			button->setPosition(left, top);
-			T = top + sh + 20;
-			button->setRoundColor(m_backgroundColor, m_backgroundColor);
-			m_control[m_controlCount] = button;
-			m_controlCount++;
+			button->Init(g_hCursorHand);
+			{
+				button->setId(id, m_controlCount);
+				bmpN = &m_bitmap[XWIN0_BITMAP_ME];
+				button->setBitmap(bmpN, bmpN, bmpN, bmpN);
+				sw = button->getWidth(); sh = button->getHeight();
+				left = top = (w - sw) >> 1;
+				button->setPosition(left, top);
+				T = top + sh + 20;
+				button->setRoundColor(m_backgroundColor, m_backgroundColor);
+				m_control[m_controlCount] = button;
+				m_controlCount++;
+			}
 		}
 
 		id = XWIN0_BUTTON_TALK;
@@ -197,22 +200,25 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
-			bmpN = &m_bitmap[XWIN0_BITMAP_TALKN];
-			bmpH = &m_bitmap[XWIN0_BITMAP_TALKH];
-			bmpP = &m_bitmap[XWIN0_BITMAP_TALKP];
-			bmpA = &m_bitmap[XWIN0_BITMAP_TALKA];
-			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
-			sw = button->getWidth(); sh = button->getHeight();
-			left = (w - sw) >> 1;
-			top = T;
-			T = top + sh + sh;
-			button->setPosition(left, top);
-			button->setRoundColor(m_backgroundColor, m_backgroundColor);
-			button->setStatus(XCONTROL_STATE_ACTIVE);
-			m_control[m_controlCount] = button;
-			m_activeControl = m_controlCount;
-			m_controlCount++;
+			button->Init(g_hCursorHand);
+			{
+				button->setId(id, m_controlCount);
+				bmpN = &m_bitmap[XWIN0_BITMAP_TALKN];
+				bmpH = &m_bitmap[XWIN0_BITMAP_TALKH];
+				bmpP = &m_bitmap[XWIN0_BITMAP_TALKP];
+				bmpA = &m_bitmap[XWIN0_BITMAP_TALKA];
+				button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+				sw = button->getWidth(); sh = button->getHeight();
+				left = (w - sw) >> 1;
+				top = T;
+				T = top + sh + sh;
+				button->setPosition(left, top);
+				button->setRoundColor(m_backgroundColor, m_backgroundColor);
+				button->setStatus(XCONTROL_STATE_ACTIVE);
+				m_control[m_controlCount] = button;
+				m_activeControl = m_controlCount;
+				m_controlCount++;
+			}
 		}
 
 		id = XWIN0_BUTTON_FRIEND;
@@ -221,20 +227,23 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
-			bmpN = &m_bitmap[XWIN0_BITMAP_FRIENDN];
-			bmpH = &m_bitmap[XWIN0_BITMAP_FRIENDH];
-			bmpP = &m_bitmap[XWIN0_BITMAP_FRIENDP];
-			bmpA = &m_bitmap[XWIN0_BITMAP_FRIENDA];
-			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
-			sw = button->getWidth(); sh = button->getHeight();
-			left = (w - sw) >> 1;
-			top = T;
-			T = top + sh + sh;
-			button->setPosition(left, top);
-			button->setRoundColor(m_backgroundColor, m_backgroundColor);
-			m_control[m_controlCount] = button;
-			m_controlCount++;
+			button->Init(g_hCursorHand);
+			{
+				button->setId(id, m_controlCount);
+				bmpN = &m_bitmap[XWIN0_BITMAP_FRIENDN];
+				bmpH = &m_bitmap[XWIN0_BITMAP_FRIENDH];
+				bmpP = &m_bitmap[XWIN0_BITMAP_FRIENDP];
+				bmpA = &m_bitmap[XWIN0_BITMAP_FRIENDA];
+				button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+				sw = button->getWidth(); sh = button->getHeight();
+				left = (w - sw) >> 1;
+				top = T;
+				T = top + sh + sh;
+				button->setPosition(left, top);
+				button->setRoundColor(m_backgroundColor, m_backgroundColor);
+				m_control[m_controlCount] = button;
+				m_controlCount++;
+			}
 		}
 
 		id = XWIN0_BUTTON_QUAN;
@@ -243,20 +252,23 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
-			bmpN = &m_bitmap[XWIN0_BITMAP_QUANN];
-			bmpH = &m_bitmap[XWIN0_BITMAP_QUANH];
-			bmpP = &m_bitmap[XWIN0_BITMAP_QUANP];
-			bmpA = &m_bitmap[XWIN0_BITMAP_QUANA];
-			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
-			sw = button->getWidth(); sh = button->getHeight();
-			left = (w - sw) >> 1;
-			top = T;
-			T = top + sh + sh;
-			button->setPosition(left, top);
-			button->setRoundColor(m_backgroundColor, m_backgroundColor);
-			m_control[m_controlCount] = button;
-			m_controlCount++;
+			button->Init(g_hCursorHand);
+			{
+				button->setId(id, m_controlCount);
+				bmpN = &m_bitmap[XWIN0_BITMAP_QUANN];
+				bmpH = &m_bitmap[XWIN0_BITMAP_QUANH];
+				bmpP = &m_bitmap[XWIN0_BITMAP_QUANP];
+				bmpA = &m_bitmap[XWIN0_BITMAP_QUANA];
+				button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+				sw = button->getWidth(); sh = button->getHeight();
+				left = (w - sw) >> 1;
+				top = T;
+				T = top + sh + sh;
+				button->setPosition(left, top);
+				button->setRoundColor(m_backgroundColor, m_backgroundColor);
+				m_control[m_controlCount] = button;
+				m_controlCount++;
+			}
 		}
 
 		id = XWIN0_BUTTON_COIN;
@@ -265,20 +277,23 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
-			bmpN = &m_bitmap[XWIN0_BITMAP_COINN];
-			bmpH = &m_bitmap[XWIN0_BITMAP_COINH];
-			bmpP = &m_bitmap[XWIN0_BITMAP_COINP];
-			bmpA = &m_bitmap[XWIN0_BITMAP_COINA];
-			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
-			sw = button->getWidth(); sh = button->getHeight();
-			left = (w - sw) >> 1;
-			top = T;
-			T = top + sh + sh;
-			button->setPosition(left, top);
-			button->setRoundColor(m_backgroundColor, m_backgroundColor);
-			m_control[m_controlCount] = button;
-			m_controlCount++;
+			button->Init(g_hCursorHand);
+			{
+				button->setId(id, m_controlCount);
+				bmpN = &m_bitmap[XWIN0_BITMAP_COINN];
+				bmpH = &m_bitmap[XWIN0_BITMAP_COINH];
+				bmpP = &m_bitmap[XWIN0_BITMAP_COINP];
+				bmpA = &m_bitmap[XWIN0_BITMAP_COINA];
+				button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+				sw = button->getWidth(); sh = button->getHeight();
+				left = (w - sw) >> 1;
+				top = T;
+				T = top + sh + sh;
+				button->setPosition(left, top);
+				button->setRoundColor(m_backgroundColor, m_backgroundColor);
+				m_control[m_controlCount] = button;
+				m_controlCount++;
+			}
 		}
 
 		id = XWIN0_BUTTON_FAVORITE;
@@ -287,20 +302,23 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
-			bmpN = &m_bitmap[XWIN0_BITMAP_FAVORITEN];
-			bmpH = &m_bitmap[XWIN0_BITMAP_FAVORITEH];
-			bmpP = &m_bitmap[XWIN0_BITMAP_FAVORITEP];
-			bmpA = &m_bitmap[XWIN0_BITMAP_FAVORITEA];
-			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
-			sw = button->getWidth(); sh = button->getHeight();
-			left = (w - sw) >> 1;
-			top = T;
-			T = top + sh + sh;
-			button->setPosition(left, top);
-			button->setRoundColor(m_backgroundColor, m_backgroundColor);
-			m_control[m_controlCount] = button;
-			m_controlCount++;
+			button->Init(g_hCursorHand);
+			{
+				button->setId(id, m_controlCount);
+				bmpN = &m_bitmap[XWIN0_BITMAP_FAVORITEN];
+				bmpH = &m_bitmap[XWIN0_BITMAP_FAVORITEH];
+				bmpP = &m_bitmap[XWIN0_BITMAP_FAVORITEP];
+				bmpA = &m_bitmap[XWIN0_BITMAP_FAVORITEA];
+				button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+				sw = button->getWidth(); sh = button->getHeight();
+				left = (w - sw) >> 1;
+				top = T;
+				T = top + sh + sh;
+				button->setPosition(left, top);
+				button->setRoundColor(m_backgroundColor, m_backgroundColor);
+				m_control[m_controlCount] = button;
+				m_controlCount++;
+			}
 		}
 
 		id = XWIN0_BUTTON_FILE;
@@ -309,20 +327,23 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
-			bmpN = &m_bitmap[XWIN0_BITMAP_FILEN];
-			bmpH = &m_bitmap[XWIN0_BITMAP_FILEH];
-			bmpP = &m_bitmap[XWIN0_BITMAP_FILEP];
-			bmpA = &m_bitmap[XWIN0_BITMAP_FILEA];
-			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
-			sw = button->getWidth(); sh = button->getHeight();
-			left = (w - sw) >> 1;
-			top = T;
-			T = top + sh + sh;
-			button->setPosition(left, top);
-			button->setRoundColor(m_backgroundColor, m_backgroundColor);
-			m_control[m_controlCount] = button;
-			m_controlCount++;
+			button->Init(g_hCursorHand);
+			{
+				button->setId(id, m_controlCount);
+				bmpN = &m_bitmap[XWIN0_BITMAP_FILEN];
+				bmpH = &m_bitmap[XWIN0_BITMAP_FILEH];
+				bmpP = &m_bitmap[XWIN0_BITMAP_FILEP];
+				bmpA = &m_bitmap[XWIN0_BITMAP_FILEA];
+				button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+				sw = button->getWidth(); sh = button->getHeight();
+				left = (w - sw) >> 1;
+				top = T;
+				T = top + sh + sh;
+				button->setPosition(left, top);
+				button->setRoundColor(m_backgroundColor, m_backgroundColor);
+				m_control[m_controlCount] = button;
+				m_controlCount++;
+			}
 		}
 
 		id = XWIN0_BUTTON_SETTING;
@@ -331,20 +352,23 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
-			bmpN = &m_bitmap[XWIN0_BITMAP_SETTINGN];
-			bmpH = &m_bitmap[XWIN0_BITMAP_SETTINGH];
-			bmpP = &m_bitmap[XWIN0_BITMAP_SETTINGP];
-			bmpA = &m_bitmap[XWIN0_BITMAP_SETTINGA];
-			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
-			sw = button->getWidth(); sh = button->getHeight();
-			left = (w - sw) >> 1;
-			top = T;
-			T = top + sh + sh;
-			button->setPosition(left, top);
-			button->setRoundColor(m_backgroundColor, m_backgroundColor);
-			m_control[m_controlCount] = button;
-			m_controlCount++;
+			button->Init(g_hCursorHand);
+			{
+				button->setId(id, m_controlCount);
+				bmpN = &m_bitmap[XWIN0_BITMAP_SETTINGN];
+				bmpH = &m_bitmap[XWIN0_BITMAP_SETTINGH];
+				bmpP = &m_bitmap[XWIN0_BITMAP_SETTINGP];
+				bmpA = &m_bitmap[XWIN0_BITMAP_SETTINGA];
+				button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+				sw = button->getWidth(); sh = button->getHeight();
+				left = (w - sw) >> 1;
+				top = T;
+				T = top + sh + sh;
+				button->setPosition(left, top);
+				button->setRoundColor(m_backgroundColor, m_backgroundColor);
+				m_control[m_controlCount] = button;
+				m_controlCount++;
+			}
 		}
 
 		id = XWIN0_BUTTON_NETWORK;
@@ -353,21 +377,24 @@ public:
 		{
 			button = new(mem)XButton2;
 			assert(nullptr != button);
-			button->setId(id);
-			bmpN = &m_bitmap[XWIN0_BITMAP_NETWORKN];
-			bmpH = &m_bitmap[XWIN0_BITMAP_NETWORKH];
-			bmpP = &m_bitmap[XWIN0_BITMAP_NETWORKP];
-			bmpA = &m_bitmap[XWIN0_BITMAP_NETWORKA];
-			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
-			sw = button->getWidth(); sh = button->getHeight();
-			left = (w - sw) >> 1;
-			top = T;
-			T = top + sh + sh;
-			button->setPosition(left, top);
-			button->setProperty(XCONTROL_PROP_STATIC);
-			button->setRoundColor(m_backgroundColor, m_backgroundColor);
-			m_control[m_controlCount] = button;
-			m_controlCount++;
+			button->Init();
+			{
+				button->setId(id, m_controlCount);
+				bmpN = &m_bitmap[XWIN0_BITMAP_NETWORKN];
+				bmpH = &m_bitmap[XWIN0_BITMAP_NETWORKH];
+				bmpP = &m_bitmap[XWIN0_BITMAP_NETWORKP];
+				bmpA = &m_bitmap[XWIN0_BITMAP_NETWORKA];
+				button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+				sw = button->getWidth(); sh = button->getHeight();
+				left = (w - sw) >> 1;
+				top = T;
+				T = top + sh + sh;
+				button->setPosition(left, top);
+				button->setProperty(XCONTROL_PROP_STATIC);
+				button->setRoundColor(m_backgroundColor, m_backgroundColor);
+				m_control[m_controlCount] = button;
+				m_controlCount++;
+			}
 		}
 	}
 };

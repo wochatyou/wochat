@@ -252,7 +252,7 @@ public:
 		}
 
 		m_nDPI = GetDpiForWindow(m_hWnd);
-		SetTimer(XWIN_666MS_TIMER, 666);
+		SetTimer(XWIN_666MS_TIMER, 500);
 
 		return 0;
 	}
