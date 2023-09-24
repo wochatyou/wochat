@@ -112,6 +112,7 @@ public:
 
 		assert(m_pool);
 		size_t size = sizeof(txtdata)/sizeof(U16*);
+		//size = 6;
 		for (i = 0; i < (U16)size; i++)
 		{
 			p = (XChatMessage*)palloc0(m_pool, sizeof(XChatMessage));
@@ -160,6 +161,8 @@ public:
 	{
 		int ret = 0;
 		hb_bool_t hs = 0;
+
+		assert(nullptr != m_pool);
 
 		assert(nullptr == m_cairo_glyphs);
 		m_cairo_glyphs = cairo_glyph_allocate(1024);
@@ -243,12 +246,6 @@ public:
 			return(-1);
 
 		m_sizeLine.cy = m_lineHeight0;
-
-		if(nullptr == m_pool)
-			m_pool = mempool_create(0, 0, 0);
-
-		if (nullptr == m_pool)
-			return (-2);
 
 		LoadChatHistory();
 

@@ -14,8 +14,6 @@
 #include <windows.h>
 #endif 
 
-#include "dui_mempool.h"
-
 #define DUI_DEBUG	1
 #define DUI_OK      0
 
@@ -145,7 +143,6 @@ typedef struct XBitmap
 
 // determin if one object is hitted
 #define XWinPointInRect(x, y, OBJ)      (((x) >= ((OBJ)->left)) && ((x) < ((OBJ)->right)) && ((y) >= ((OBJ)->top)) && ((y) < ((OBJ)->bottom)))
-
 
 extern U8 DUIMessageOSMap[MESSAGEMAP_TABLE_SIZE];
 

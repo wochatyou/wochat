@@ -75,7 +75,7 @@ public:
 	XWindow5()
 	{
 		m_backgroundColor = 0xFFFFFFFF;
-		//m_property |= (DUI_PROP_MOVEWIN | DUI_PROP_HANDLETIMER | DUI_PROP_HANDLEKEYBOARD);
+		m_property |= (DUI_PROP_MOVEWIN | DUI_PROP_HANDLETIMER | DUI_PROP_HANDLEKEYBOARD);
 		m_message = WM_XWINDOWS05;
 	}
 
@@ -376,55 +376,6 @@ public:
 		xctl->setPosition(dx, dy);
 	}
 
-#if 0
-	void UpdateButtonPosition()
-	{
-		int id, top0, top1;
-		int gap = 10; // pixel
-		XButton* button;
-		XButton* buttonPrev;
-		XBitmap* bmp;
-		int w = m_area.right - m_area.left;
-		int h = m_area.bottom - m_area.top;
-
-		id = XWIN5_BUTTON_HINT;  button = &m_button[id]; bmp = button->imgNormal;
-		button->left = 10;
-		button->bottom = h - 10;
-		button->right = button->left + bmp->w;
-		button->top = button->bottom - bmp->h;
-		top0 = button->top;
-
-		id = XWIN5_BUTTON_SENDMESSAGE;  button = &m_button[id]; bmp = button->imgNormal;
-		button->right = w - 5;
-		button->bottom = h - 5;
-		button->left = button->right - bmp->w;
-		button->top = button->bottom - bmp->h;
-		top1 = button->top;
-
-		id = XWIN5_BUTTON_VIDEOCALL;  button = &m_button[id]; bmp = button->imgNormal;
-		button->right = w - (gap << 1);
-		button->left = button->right - bmp->w;
-		button->top = gap;
-		button->bottom = button->top + bmp->h;
-
-		buttonPrev = button;
-		id = XWIN5_BUTTON_LIVESTREAM;  button = &m_button[id]; bmp = button->imgNormal;
-		button->right = buttonPrev->left - gap;
-		button->left = button->right - bmp->w;
-		button->top = gap;
-		button->bottom = button->top + bmp->h;
-#if 0
-		m_editBox.top = button->bottom + 4;
-		m_editBox.bottom = ((top1 < top0) ? top1 : top0) - 4;
-		m_editBox.left = 0;
-		m_editBox.right = w;
-
-		U32 size = (U32)((m_editBox.right - m_editBox.left) * (m_editBox.bottom - m_editBox.top));
-		m_editBox.AttachScreenBuffer(m_screen + m_editBox.top * w, size);
-#endif
-	}
-#endif
-
 public:
 
 	void PostWindowHide()
@@ -440,24 +391,12 @@ public:
 		int w = m_area.right - m_area.left;
 		int h = m_area.bottom - m_area.top;
 
-		if (nullptr != m_screen)
-		{
-			//m_editBox.Draw();
-		}
-
 		return 0;
 	}
 
 	int DoTimer(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{
 		int r = DUI_STATUS_NODRAW;
-#if 0
-		if(m_editBox.IsFocused())
-		{
-			m_editBox.FlipCaret();
-			r = DUI_STATUS_NEEDRAW;
-		}
-#endif
 		return r;
 	}
 
@@ -471,12 +410,6 @@ public:
 		// transfer the coordination from real window to local virutal window
 		xPos -= m_area.left;
 		yPos -= m_area.top;
-#if 0
-		if (XWinPointInRect(xPos, yPos, &m_editBox))
-		{
-			SetCursorIBeam();
-		}
-#endif
 		return 0; 
 	}
 
@@ -492,18 +425,6 @@ public:
 
 		xPos -= m_area.left;
 		yPos -= m_area.top;
-#if 0
-		bool isFocused = m_editBox.IsFocused();
-		m_editBox.ClearFocusedStatus();
-
-		if (XWinPointInRect(xPos, yPos, &m_editBox))
-		{
-			assert(DUI_STATUS_ISFOCUS & m_status);
-			m_editBox.SetFocusedStatus();
-	    	if(!isFocused)
-	    		r = DUI_STATUS_NEEDRAW;
-		}
-#endif
     	return r; 
     }
 

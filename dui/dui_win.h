@@ -77,8 +77,6 @@ public:
 
     const int m_scrollWidth = 8; // in pixel
 
-    bool  m_cursorNormal = true;
-
     XPOINT m_ptOffset = { 0 };
     XPOINT m_ptOffsetOld = { 0 };
     XSIZE  m_sizeAll = { 0 };
@@ -264,6 +262,7 @@ public:
         return ret;
     }
 
+#if 0
     int ClearButtonStatus() 
     { 
         int ret = DUI_STATUS_NODRAW;
@@ -294,6 +293,7 @@ public:
 
         return ret;
     }
+#endif
 
     U32* GetScreenBuffer()
     {
@@ -351,55 +351,6 @@ public:
         return bRet;
     }
 
-#if 0
-    void DrawButton(XButton* button)
-    {
-        U32* dst;
-        U32* src;
-        int dx = button->left;
-        int dy = button->top;
-        int w = m_area.right - m_area.left;
-        int h = m_area.bottom - m_area.top;
-
-        dst = m_screen;
-        assert(nullptr != dst);
-        assert(nullptr != button);
-
-        if (XBUTTON_STATE_HIDDEN != button->state) // this button is visible
-        {
-
-            XBitmap* bitmap = button->imgNormal;
-            switch (button->state)
-            {
-            case XBUTTON_STATE_PRESSED:
-                bitmap = button->imgPress;
-                break;
-            case XBUTTON_STATE_HOVERED:
-                bitmap = button->imgHover;
-                break;
-            case XBUTTON_STATE_ACTIVE:
-                bitmap = button->imgActive;
-                break;
-            default:
-                break;
-            }
-
-            assert(nullptr != bitmap);
-
-            src = bitmap->data;
-            assert(nullptr != src);
-
-            if (XBUTTON_PROP_ROUND & button->property)
-            {
-                ScreenDrawRectRound(dst, w, h, src, bitmap->w, bitmap->h, dx, dy, m_backgroundColor, m_backgroundColor);
-            }
-            else
-            {
-                ScreenDrawRect(dst, w, h, src, bitmap->w, bitmap->h, dx, dy);
-            }
-        }
-    }
-#endif
     void UpdateControlPosition() {}
     void UpdatePosition() 
     {
@@ -590,6 +541,7 @@ public:
     int DoMouseMove(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int OnMouseMove(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
+        int rx  = DUI_STATUS_NODRAW;
         int r0  = DUI_STATUS_NODRAW;
         int r1  = DUI_STATUS_NODRAW;
         int xPos = GET_X_LPARAM(lParam);
@@ -626,11 +578,11 @@ public:
                             m_thumbColor = DEFAULT_SCROLLTHUMB_COLORA;
 
                         if(thumbColor != m_thumbColor)
-                            r0 = DUI_STATUS_NEEDRAW;
+                            rx = DUI_STATUS_NEEDRAW;
                     }
 
                     if ((DUI_STATUS_VSCROLL & status) != (DUI_STATUS_VSCROLL & m_status))
-                        r0 = DUI_STATUS_NEEDRAW;
+                        rx = DUI_STATUS_NEEDRAW;
                 }
 
                 if (GetWindowCapture() != m_hWnd)
@@ -689,7 +641,7 @@ public:
             r1 = pT->DoMouseMove(uMsg, wParam, lParam, lpData);
         }
 
-        if (DUI_STATUS_NODRAW != r0 || DUI_STATUS_NODRAW != r1 || XDragMode::DragNone != m_DragMode)
+        if (r0 || r1 || rx || XDragMode::DragNone != m_DragMode)
         {
             m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
             return DUI_STATUS_NEEDRAW;
@@ -1064,8 +1016,6 @@ public:
 
         return (r0 + r1);
     }
-
-
 };
 
 #endif  /* __DUI_WIN_H__ */
