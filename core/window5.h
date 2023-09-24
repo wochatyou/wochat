@@ -3,7 +3,7 @@
 
 #include "dui/dui_win.h"
 
-uint16_t inputMessage[XWIN_MAX_INPUTSTRING + 1] = { 0 };
+//uint16_t inputMessage[XWIN_MAX_INPUTSTRING + 1] = { 0 };
 
 enum {
 	XWIN5_BUTTON_EMOJI = 0
@@ -72,29 +72,15 @@ private:
 	};
 
 public:
-	//XEditBox m_editBox;
-
 	XWindow5()
 	{
 		m_backgroundColor = 0xFFFFFFFF;
-		m_buttonEndIdx = XWIN5_BUTTON_HINT;
 		m_property |= (DUI_PROP_MOVEWIN | DUI_PROP_HANDLETIMER | DUI_PROP_HANDLEKEYBOARD);
 		m_message = WM_XWINDOWS05;
-
-		InitButtons();
 	}
 
 	~XWindow5()
 	{
-	}
-
-	static int ButtonAction(void* obj, U32 uMsg, U64 wParam, U64 lParam)
-	{
-		int ret = 0;
-		XWindow5* xw = (XWindow5*)obj;
-		if (nullptr != xw)
-			ret = xw->NotifyParent(uMsg, wParam, lParam);
-		return ret;
 	}
 
 	void InitBitmap()
@@ -147,93 +133,242 @@ public:
 		id = XWIN5_BITMAP_HINTA; bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpHint; bmp->w = w; bmp->h = h;
 	}
 
-	int InitButtons()
+	void InitControl()
 	{
-		int offset = 10, gap = 20;
-		U16 w, h;
 		U8 id;
-		U32 i, size, bytes;
-		XButton* button;
-		XBitmap* bitmap;
+		int offsetX = 10, offsetY = 20, gap = 20;
+		int dx, dy, sw, sh;
+		U32 objSize = sizeof(XButton2);
+		U8* mem;
+		XBitmap* bmpN;
+		XBitmap* bmpH;
+		XBitmap* bmpP;
+		XBitmap* bmpA;
+		XButton2* button;
+
+		assert(0 == m_controlCount);
+		assert(nullptr != m_pool);
 
 		InitBitmap(); // inital all bitmap resource
 
-		// Initialize All buttons
-		for (int i = m_buttonStartIdx; i <= m_buttonEndIdx; i++)
+		id = XWIN5_BUTTON_EMOJI;
+		mem = (U8*)palloc(m_pool, objSize);
+		if (NULL != mem)
 		{
-			button = &m_button[i];
-			button->top = offset;
-			m_button[i].pfAction = ButtonAction;
+			button = new(mem)XButton2;
+			assert(nullptr != button);
+			button->setId(id);
+			bmpN = &m_bitmap[XWIN5_BITMAP_EMOJIN];
+			bmpH = &m_bitmap[XWIN5_BITMAP_EMOJIH];
+			bmpP = &m_bitmap[XWIN5_BITMAP_EMOJIP];
+			bmpA = &m_bitmap[XWIN5_BITMAP_EMOJIA];
+			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+			sw = button->getWidth(); sh = button->getHeight();
+			dx = offsetX;
+			dy = offsetY;
+			offsetX = dx + sw + gap;
+			button->setPosition(dx, dy);
+			button->setRoundColor(m_backgroundColor, m_backgroundColor);
+			m_control[m_controlCount] = button;
+			m_controlCount++;
 		}
 
-		id = XWIN5_BUTTON_EMOJI; button = &m_button[id]; button->id = id;
-		bitmap = &m_bitmap[XWIN5_BITMAP_EMOJIN];  button->imgNormal = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_EMOJIH]; button->imgHover = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_EMOJIP]; button->imgPress = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_EMOJIA]; button->imgActive = bitmap;
-		button->left = offset;
-		button->right = button->left + bitmap->w;
-		button->bottom = button->top + bitmap->h;
+		id = XWIN5_BUTTON_UPLOAD;
+		mem = (U8*)palloc(m_pool, objSize);
+		if (NULL != mem)
+		{
+			button = new(mem)XButton2;
+			assert(nullptr != button);
+			button->setId(id);
+			bmpN = &m_bitmap[XWIN5_BITMAP_UPLOADN];
+			bmpH = &m_bitmap[XWIN5_BITMAP_UPLOADH];
+			bmpP = &m_bitmap[XWIN5_BITMAP_UPLOADP];
+			bmpA = &m_bitmap[XWIN5_BITMAP_UPLOADA];
+			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+			sw = button->getWidth(); sh = button->getHeight();
+			dx = offsetX;
+			dy = offsetY;
+			offsetX = dx + sw + gap;
+			button->setPosition(dx, dy);
+			button->setRoundColor(m_backgroundColor, m_backgroundColor);
+			m_control[m_controlCount] = button;
+			m_controlCount++;
+		}
 
-		offset = button->right + gap;
-		id = XWIN5_BUTTON_UPLOAD; button = &m_button[id]; button->id = id;
-		bitmap = &m_bitmap[XWIN5_BITMAP_UPLOADN];  button->imgNormal = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_UPLOADH]; button->imgHover = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_UPLOADP]; button->imgPress = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_UPLOADA]; button->imgActive = bitmap;
-		button->left = offset;
-		button->right = button->left + bitmap->w;
-		button->bottom = button->top + bitmap->h;
+		id = XWIN5_BUTTON_CAPTURE;
+		mem = (U8*)palloc(m_pool, objSize);
+		if (NULL != mem)
+		{
+			button = new(mem)XButton2;
+			assert(nullptr != button);
+			button->setId(id);
+			bmpN = &m_bitmap[XWIN5_BITMAP_CAPTUREN];
+			bmpH = &m_bitmap[XWIN5_BITMAP_CAPTUREH];
+			bmpP = &m_bitmap[XWIN5_BITMAP_CAPTUREP];
+			bmpA = &m_bitmap[XWIN5_BITMAP_CAPTUREA];
+			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+			sw = button->getWidth(); sh = button->getHeight();
+			dx = offsetX;
+			dy = offsetY;
+			offsetX = dx + sw + gap;
+			button->setPosition(dx, dy);
+			button->setRoundColor(m_backgroundColor, m_backgroundColor);
+			m_control[m_controlCount] = button;
+			m_controlCount++;
+		}
 
-		offset = button->right + gap;
-		id = XWIN5_BUTTON_CAPTURE; button = &m_button[id]; button->id = id;
-		bitmap = &m_bitmap[XWIN5_BITMAP_CAPTUREN];  button->imgNormal = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_CAPTUREH]; button->imgHover = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_CAPTUREP]; button->imgPress = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_CAPTUREA]; button->imgActive = bitmap;
-		button->left = offset;
-		button->right = button->left + bitmap->w;
-		button->bottom = button->top + bitmap->h;
+		id = XWIN5_BUTTON_CHATHISTORY;
+		mem = (U8*)palloc(m_pool, objSize);
+		if (NULL != mem)
+		{
+			button = new(mem)XButton2;
+			assert(nullptr != button);
+			button->setId(id);
+			bmpN = &m_bitmap[XWIN5_BITMAP_CHATHISTORYN];
+			bmpH = &m_bitmap[XWIN5_BITMAP_CHATHISTORYH];
+			bmpP = &m_bitmap[XWIN5_BITMAP_CHATHISTORYP];
+			bmpA = &m_bitmap[XWIN5_BITMAP_CHATHISTORYA];
+			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+			sw = button->getWidth(); sh = button->getHeight();
+			dx = offsetX;
+			dy = offsetY;
+			offsetX = dx + sw + gap;
+			button->setPosition(dx, dy);
+			button->setRoundColor(m_backgroundColor, m_backgroundColor);
+			m_control[m_controlCount] = button;
+			m_controlCount++;
+		}
 
-		offset = button->right + gap;
-		id = XWIN5_BUTTON_CHATHISTORY; button = &m_button[id]; button->id = id;
-		bitmap = &m_bitmap[XWIN5_BITMAP_CHATHISTORYN];  button->imgNormal = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_CHATHISTORYH]; button->imgHover = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_CHATHISTORYP]; button->imgPress = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_CHATHISTORYA]; button->imgActive = bitmap;
-		button->left = offset;
-		button->right = button->left + bitmap->w;
-		button->bottom = button->top + bitmap->h;
+		id = XWIN5_BUTTON_LIVESTREAM;
+		mem = (U8*)palloc(m_pool, objSize);
+		if (NULL != mem)
+		{
+			button = new(mem)XButton2;
+			assert(nullptr != button);
+			button->setId(id);
+			bmpN = &m_bitmap[XWIN5_BITMAP_LIVESTREAMN];
+			bmpH = &m_bitmap[XWIN5_BITMAP_LIVESTREAMH];
+			bmpP = &m_bitmap[XWIN5_BITMAP_LIVESTREAMP];
+			bmpA = &m_bitmap[XWIN5_BITMAP_LIVESTREAMA];
+			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+			sw = button->getWidth(); sh = button->getHeight();
+			dx = offsetX;
+			dy = offsetY;
+			offsetX = dx + sw + gap;
+			button->setPosition(dx, dy);
+			button->setRoundColor(m_backgroundColor, m_backgroundColor);
+			m_control[m_controlCount] = button;
+			m_controlCount++;
+		}
 
-		// the below 4 buttons have dynamtic position which will be determined later
-		id = XWIN5_BUTTON_LIVESTREAM; button = &m_button[id]; button->id = id;
-		bitmap = &m_bitmap[XWIN5_BITMAP_LIVESTREAMN];  button->imgNormal = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_LIVESTREAMH]; button->imgHover = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_LIVESTREAMP]; button->imgPress = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_LIVESTREAMA]; button->imgActive = bitmap;
+		id = XWIN5_BUTTON_VIDEOCALL;
+		mem = (U8*)palloc(m_pool, objSize);
+		if (NULL != mem)
+		{
+			button = new(mem)XButton2;
+			assert(nullptr != button);
+			button->setId(id);
+			bmpN = &m_bitmap[XWIN5_BITMAP_VIDEOCALLN];
+			bmpH = &m_bitmap[XWIN5_BITMAP_VIDEOCALLH];
+			bmpP = &m_bitmap[XWIN5_BITMAP_VIDEOCALLP];
+			bmpA = &m_bitmap[XWIN5_BITMAP_VIDEOCALLA];
+			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+			sw = button->getWidth(); sh = button->getHeight();
+			dx = offsetX;
+			dy = offsetY;
+			offsetX = dx + sw + gap;
+			button->setPosition(dx, dy);
+			button->setRoundColor(m_backgroundColor, m_backgroundColor);
+			m_control[m_controlCount] = button;
+			m_controlCount++;
+		}
 
-		id = XWIN5_BUTTON_VIDEOCALL; button = &m_button[id]; button->id = id;
-		bitmap = &m_bitmap[XWIN5_BITMAP_VIDEOCALLN];  button->imgNormal = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_VIDEOCALLH]; button->imgHover = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_VIDEOCALLP]; button->imgPress = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_VIDEOCALLA]; button->imgActive = bitmap;
+		id = XWIN5_BUTTON_SENDMESSAGE;
+		mem = (U8*)palloc(m_pool, objSize);
+		if (NULL != mem)
+		{
+			button = new(mem)XButton2;
+			assert(nullptr != button);
+			button->setId(id);
+			bmpN = &m_bitmap[XWIN5_BITMAP_SENDMESSAGEN];
+			bmpH = &m_bitmap[XWIN5_BITMAP_SENDMESSAGEH];
+			bmpP = &m_bitmap[XWIN5_BITMAP_SENDMESSAGEP];
+			bmpA = &m_bitmap[XWIN5_BITMAP_SENDMESSAGEA];
+			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+			sw = button->getWidth(); sh = button->getHeight();
+			dx = offsetX;
+			dy = offsetY;
+			offsetX = dx + sw + gap;
+			button->setPosition(dx, dy);
+			button->setRoundColor(m_backgroundColor, m_backgroundColor);
+			m_control[m_controlCount] = button;
+			m_controlCount++;
+		}
 
-		id = XWIN5_BUTTON_SENDMESSAGE; button = &m_button[id]; button->id = id;
-		bitmap = &m_bitmap[XWIN5_BITMAP_SENDMESSAGEN]; button->imgNormal = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_SENDMESSAGEH]; button->imgHover = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_SENDMESSAGEP]; button->imgPress = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_SENDMESSAGEA]; button->imgActive = bitmap;
+		id = XWIN5_BUTTON_HINT;
+		mem = (U8*)palloc(m_pool, objSize);
+		if (NULL != mem)
+		{
+			button = new(mem)XButton2;
+			assert(nullptr != button);
+			button->setId(id);
+			bmpN = &m_bitmap[XWIN5_BITMAP_HINTN];
+			bmpH = &m_bitmap[XWIN5_BITMAP_HINTH];
+			bmpP = &m_bitmap[XWIN5_BITMAP_HINTP];
+			bmpA = &m_bitmap[XWIN5_BITMAP_HINTA];
+			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+			sw = button->getWidth(); sh = button->getHeight();
+			dx = offsetX;
+			dy = offsetY;
+			offsetX = dx + sw + gap;
+			button->setPosition(dx, dy);
+			button->setProperty(XCONTROL_PROP_STATIC);
+			button->setRoundColor(m_backgroundColor, m_backgroundColor);
+			m_control[m_controlCount] = button;
+			m_controlCount++;
+		}
 
-		id = XWIN5_BUTTON_HINT; button = &m_button[id]; button->id = id;
-		button->property |= XBUTTON_PROP_STATIC;
-		bitmap = &m_bitmap[XWIN5_BITMAP_HINTN]; button->imgNormal = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_HINTH]; button->imgHover = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_HINTP]; button->imgPress = bitmap;
-		bitmap = &m_bitmap[XWIN5_BITMAP_HINTA]; button->imgActive = bitmap;
-
-		return 0;
 	}
 
+	void UpdateControlPosition()
+	{
+		XControl* xctl;
+		int sw, sh, dx, dy, gap = 10; // pixel
+		int w = m_area.right - m_area.left;
+		int h = m_area.bottom - m_area.top;
+
+		xctl = m_control[XWIN5_BUTTON_HINT];
+		assert(nullptr != xctl);
+		sw = xctl->getWidth();
+		sh = xctl->getHeight();
+		dx = gap; dy = h - gap - sh;
+		xctl->setPosition(dx, dy);
+
+		xctl = m_control[XWIN5_BUTTON_SENDMESSAGE];
+		assert(nullptr != xctl);
+		sw = xctl->getWidth();
+		sh = xctl->getHeight();
+		dx = w - sw - gap/2; dy = h - sh - gap/2;
+		xctl->setPosition(dx, dy);
+
+		xctl = m_control[XWIN5_BUTTON_VIDEOCALL];
+		assert(nullptr != xctl);
+		sw = xctl->getWidth();
+		sh = xctl->getHeight();
+		dy = xctl->getTop(); 
+		dx = w -sw - gap;
+		xctl->setPosition(dx, dy);
+
+		xctl = m_control[XWIN5_BUTTON_LIVESTREAM];
+		assert(nullptr != xctl);
+		sw = xctl->getWidth();
+		sh = xctl->getHeight();
+		dy = xctl->getTop();
+		dx = dx - sw - gap;
+		xctl->setPosition(dx, dy);
+	}
+
+#if 0
 	void UpdateButtonPosition()
 	{
 		int id, top0, top1;
@@ -280,7 +415,7 @@ public:
 		m_editBox.AttachScreenBuffer(m_screen + m_editBox.top * w, size);
 #endif
 	}
-
+#endif
 
 public:
 
@@ -290,12 +425,6 @@ public:
 
 	void PostWindowShow()
 	{
-	}
-
-	void UpdatePosition()
-	{
-		UpdateButtonPosition();
-		UpdateEditorWindowPosition();
 	}
 
 	int Draw()
@@ -308,31 +437,6 @@ public:
 			//m_editBox.Draw();
 		}
 
-		return 0;
-	}
-
-	int UpdateEditorWindowPosition()
-	{
-		return 0;
-	}
-
-	int DoCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, void* lpData = nullptr)
-	{
-		int ret = 0;
-		//ret = m_editBox.Init(g_ftFace0);
-		return ret;
-	}
-
-	int DoDestroy(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
-	{
-		//m_editBox.Term();
-		return 0;
-	}
-
-	int DoSize(UINT uMsg, WPARAM wParam, LPARAM lParam, void* lpData = nullptr)
-	{
-		UpdateButtonPosition();
-		UpdateEditorWindowPosition();
 		return 0;
 	}
 
@@ -363,22 +467,6 @@ public:
 		if (XWinPointInRect(xPos, yPos, &m_editBox))
 		{
 			SetCursorIBeam();
-		}
-#endif
-		return 0; 
-	}
-	
-	int DoSetCursor(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
-	{ 
-		int xPos = (int)wParam;
-		int yPos = (int)lParam;
-
-		xPos -= m_area.left;
-		yPos -= m_area.top;
-#if 0
-		if (XWinPointInRect(xPos, yPos, &m_editBox))
-		{
-			return 1;
 		}
 #endif
 		return 0; 

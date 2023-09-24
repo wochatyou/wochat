@@ -65,7 +65,7 @@ public:
 		U32* q;
 		m_backgroundColor = 0xFFF5F5F5;
 		m_message = WM_XWINDOWS04;
-		m_property |= (DUI_PROP_HASVSCROLL | DUI_PROP_HANDLEVWHEEL);
+		m_property |= (DUI_PROP_HASVSCROLL | DUI_PROP_HANDLEVWHEEL | DUI_PROP_LARGEMEMPOOL);
 
 		p = (U32*)xbmpXMeArrow;
 		q = (U32*)littleArrowMe;
@@ -244,8 +244,9 @@ public:
 
 		m_sizeLine.cy = m_lineHeight0;
 
+		if(nullptr == m_pool)
+			m_pool = mempool_create(0, 0, 0);
 
-		m_pool = mempool_create(0, 0, 0);
 		if (nullptr == m_pool)
 			return (-2);
 

@@ -1,25 +1,25 @@
-#include "duiapp.h"
+#include "wochat.h"
 #include "xbitmapdata.h"
 #include "resource.h"
 #include "xwindef.h"
 #include "xwinlogin.h"
 #include "xwindow.h"
 
-
 #if !defined(_WIN64)
-#error DUIAPP can only compiled in X64 mode
+#error WoChat App can only compiled in X64 mode
 #endif
 
 #define XWIN_DEFAULT_DPI	96
-///////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
 // global variables
+////////////////////////////////////////////////////////////////
 LONG 				g_threadCount = 0;
-UINT				g_Quit = 0;
-HINSTANCE			g_hInstance = nullptr;
-FT_Library			g_ftLibrary = nullptr;
-FT_Face				g_ftFace0 = nullptr;
-FT_Face				g_ftFace1 = nullptr;
-FT_Face				g_ftFace2 = nullptr;
+UINT				g_Quit        = 0;
+HINSTANCE			g_hInstance   = nullptr;
+FT_Library			g_ftLibrary   = nullptr;
+FT_Face				g_ftFace0     = nullptr;
+FT_Face				g_ftFace1     = nullptr;
+FT_Face				g_ftFace2     = nullptr;
 ID2D1Factory*       g_pD2DFactory = nullptr;
 
 HCURSOR g_hCursorWE    = nullptr;
@@ -27,10 +27,9 @@ HCURSOR g_hCursorNS    = nullptr;
 HCURSOR g_hCursorHand  = nullptr;
 HCURSOR g_hCursorIBeam = nullptr;
 
-
 static CAtlWinModule _Module;
 
-class CDUIThreadManager
+class CWoChatThreadManager
 {
 public:
 	// the main UI thread proc
@@ -70,7 +69,7 @@ public:
 	DWORD m_dwCount = 0;
 	HANDLE m_arrThreadHandles[MAXIMUM_WAIT_OBJECTS - 1];
 
-	CDUIThreadManager()
+	CWoChatThreadManager()
 	{ 
 		for (int i = 0; i < (MAXIMUM_WAIT_OBJECTS - 1); i++)
 			m_arrThreadHandles[i] = nullptr;
@@ -163,7 +162,7 @@ static int InitInstance(HINSTANCE hInstance)
 
 	if (NULL == g_hCursorWE || NULL == g_hCursorNS || NULL == g_hCursorHand || NULL == g_hCursorIBeam)
 	{
-		MessageBox(NULL, _T("The calling of LoadCursor() is failed"), _T("DUI Error"), MB_OK);
+		MessageBox(NULL, _T("The calling of LoadCursor() is failed"), _T("WoChat Error"), MB_OK);
 		return (-1);
 	}
 
@@ -171,7 +170,7 @@ static int InitInstance(HINSTANCE hInstance)
 	hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &g_pD2DFactory);
 	if (S_OK != hr || nullptr == g_pD2DFactory)
 	{
-		MessageBox(NULL, _T("The calling of D2D1CreateFactory() is failed"), _T("DUI Error"), MB_OK);
+		MessageBox(NULL, _T("The calling of D2D1CreateFactory() is failed"), _T("WoChat Error"), MB_OK);
 		return (-1);
 	}
 
@@ -341,6 +340,7 @@ static void ExitInstance(HINSTANCE hInstance)
 
 int DoLogin()
 {
+	return 0;
 	int ret;
 	XWinLogin loginWin;
 	RECT rw = { 0 };
@@ -399,7 +399,7 @@ int WINAPI  _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmd
 
 	// BLOCK: Run application
 	{
-		CDUIThreadManager mgr;
+		CWoChatThreadManager mgr;
 		iRet = mgr.Run(lpCmdLine, nShowCmd);
 	}
 

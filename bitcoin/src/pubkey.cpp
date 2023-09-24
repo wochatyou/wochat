@@ -2,7 +2,7 @@
 // Copyright (c) 2017 The Zcash developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
+#if 0
 #include <pubkey.h>
 
 #include <hash.h>
@@ -396,3 +396,5 @@ bool CExtPubKey::Derive(CExtPubKey &out, unsigned int _nChild) const {
     }
     return (!secp256k1_ecdsa_signature_normalize(secp256k1_context_static, nullptr, &sig));
 }
+
+#endif

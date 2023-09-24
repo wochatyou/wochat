@@ -1,11 +1,8 @@
-#ifndef __WOCHAT_XWINDEF_H__
-#define __WOCHAT_XWINDEF_H__
+#ifndef __WOCHAT_WINDEF_H__
+#define __WOCHAT_WINDEF_H__
 
 #define DEFAULT_BACKGROUND_COLOR	0xFFF9F3F1
 #define DEFAULT_SEPERATELINE_COLOR	0xFFECECEC
-
-#define XWIN_MAX_STRING				128
-#define XWIN_MAX_INPUTSTRING		(1<<16)		// maximu input string
 
 #define XWIN0_WIDTH		60
 #define XWIN1_WIDTH		300
@@ -25,7 +22,6 @@
 
 #define DEFAULT_MQTT_SERVER		("im.wochat.org")
 #define DEFAULT_MQTT_PORT		1883
-
 
 #define DECLARE_XWND_CLASS(WndClassName, uIcon, uIconSmall) \
 static ATL::CWndClassInfo& GetWndClassInfo() \
@@ -53,5 +49,5 @@ void SafeRelease(T** ppT)
 	}
 }
 
-#endif  /* __WOCHAT_XWINDEF_H__ */
+#endif  /* __WOCHAT_WINDEF_H__ */
 

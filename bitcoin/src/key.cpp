@@ -9,7 +9,7 @@
 #include <crypto/hmac_sha512.h>
 #include <hash.h>
 #include <random.h>
-
+#if 0
 #include "secp256k1//include/secp256k1.h"
 #include "secp256k1//include/secp256k1_ellswift.h"
 #include "secp256k1//include/secp256k1_extrakeys.h"
@@ -468,3 +468,4 @@ void ECC_Stop() {
         secp256k1_context_destroy(ctx);
     }
 }
+#endif

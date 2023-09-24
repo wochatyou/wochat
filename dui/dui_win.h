@@ -5,6 +5,13 @@
 #include "dui_editbox.h"
 #include "dui_mempool.h"
 
+#define DUI_MAX_CONTROLS    64
+#define DUI_ALLOCSET_DEFAULT_INITSIZE  (8 * 1024)
+#define DUI_ALLOCSET_DEFAULT_MAXSIZE   (8 * 1024 * 1024)
+#define DUI_ALLOCSET_SMALL_INITSIZE    (1 * 1024)
+#define DUI_ALLOCSET_SMALL_MAXSIZE	   (8 * 1024)
+
+
 typedef U32(*ThreadFunc)(void* lpData);
 
 enum
@@ -20,15 +27,16 @@ enum
 
 enum
 {
-    DUI_PROP_NONE             = 0x00,   // None Properties
-    DUI_PROP_MOVEWIN          = 0x01,   // Move the whole window while LButton is pressed
-    DUI_PROP_BTNACTIVE        = 0x02,   // have active button on this virutal window
-    DUI_PROP_HASVSCROLL       = 0x04,    // have vertical scroll bar
-    DUI_PROP_HASHSCROLL       = 0x08,
-    DUI_PROP_HANDLEVWHEEL     = 0x10,   // does this window need to handle mouse wheel?
-    DUI_PROP_HANDLEHWHEEL     = 0x20,
-    DUI_PROP_HANDLETIMER      = 0x40,
-    DUI_PROP_HANDLEKEYBOARD   = 0x80
+    DUI_PROP_NONE             = 0x00000000,   // None Properties
+    DUI_PROP_MOVEWIN          = 0x00000001,   // Move the whole window while LButton is pressed
+    DUI_PROP_BTNACTIVE        = 0x00000002,   // have active button on this virutal window
+    DUI_PROP_HASVSCROLL       = 0x00000004,    // have vertical scroll bar
+    DUI_PROP_HASHSCROLL       = 0x00000008,
+    DUI_PROP_HANDLEVWHEEL     = 0x00000010,   // does this window need to handle mouse wheel?
+    DUI_PROP_HANDLEHWHEEL     = 0x00000020,
+    DUI_PROP_HANDLETIMER      = 0x00000040,
+    DUI_PROP_HANDLEKEYBOARD   = 0x00000080,
+    DUI_PROP_LARGEMEMPOOL     = 0x00000100
 };
 
 enum
@@ -60,6 +68,10 @@ public:
     XRECT   m_area = { 0 };  // the area of this window in the client area of parent window
 
     MemoryContext m_pool = nullptr;
+    
+    XControl* m_control[DUI_MAX_CONTROLS];
+    U8  m_controlCount = 0;
+    int m_activeControl = -1;
 
     ProcessOSMessage m_messageFuncPointerTab[256] = { 0 };  // we only handle 255 messages that should be enough
 
@@ -99,11 +111,18 @@ public:
 public:
     XWindowT()
     {
+        int i;
         U8 id;
         XButton* button;
         XBitmap* bmp;
 
-        m_messageFuncPointerTab[DUI_NULL] = nullptr;
+        m_controlCount = 0;
+        for (i = 0; i < DUI_MAX_CONTROLS; i++)
+            m_control[i] = nullptr;
+        
+        //m_messageFuncPointerTab[DUI_NULL] = nullptr;
+        for (i = 0; i < 256; i++) 
+            m_messageFuncPointerTab[i] = nullptr;
 
         ProcessOSMessage* pf = m_messageFuncPointerTab;
         pf[DUI_CREATE]      = &T::OnCreate;
@@ -143,12 +162,22 @@ public:
 
     ~XWindowT()
     {
+        XControl* xctl;
+        for (int i = 0; i < m_controlCount; i++)
+        {
+            xctl = m_control[i];
+            assert(nullptr != xctl);
+            xctl->Term();
+        }
+
         if (nullptr != m_pool)
         {
             mempool_destroy(m_pool);
             m_pool = nullptr;
         }
     }
+
+    void InitControl() {}
 
     // < 0 : I do not handle this message
     // = 0 : I handled, but I do not need to upgrade the screen
@@ -387,11 +416,11 @@ public:
         }
     }
 
-    void UpdateButtonPosition() {}
+    void UpdateControlPosition() {}
     void UpdatePosition() 
     {
         T* pT = static_cast<T*>(this);
-        pT->UpdateButtonPosition();
+        pT->UpdateControlPosition();
     }
 
     void SetPosition(RECT* r, U32* screen, U32 size = 0)
@@ -437,6 +466,7 @@ public:
             int w = m_area.right - m_area.left;
             int h = m_area.bottom - m_area.top;
             XButton* button;
+            XControl* xctl;
 
             assert(nullptr != m_screen);
             // fill the whole screen of this virutal window with a single color
@@ -465,6 +495,13 @@ public:
                 button = &m_button[i];
                 DrawButton(button);
                 button->statePrev = button->state;
+            }
+
+            for (int i = 0; i < m_controlCount; i++)
+            {
+                xctl = m_control[i];
+                assert(nullptr != xctl);
+                xctl->Draw();
             }
 
             T* pT = static_cast<T*>(this);
@@ -496,7 +533,6 @@ public:
             m_area.left = m_area.top = m_area.right = m_area.bottom = 0;
             m_size = 0;
         }
-
         m_screen = (U32*)lpData;
         if (nullptr == m_screen)
         {
@@ -506,8 +542,16 @@ public:
 
         if (nullptr != r && nullptr != m_screen)
         {
+            XControl* xctl;
+            for (U8 i = 0; i < m_controlCount; i++)
+            {
+                xctl = m_control[i];
+                assert(nullptr != xctl);
+                xctl->AttachParent(m_screen, r->right - r->left, r->bottom - r->top);
+            }
+
             T* pT = static_cast<T*>(this);
-            pT->UpdateButtonPosition();
+            pT->UpdateControlPosition();
             pT->DoSize(uMsg, wParam, lParam, lpData);
         }
 
@@ -570,7 +614,6 @@ public:
     int DoMouseMove(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int OnMouseMove(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
-        XButton* button;
         int r0  = DUI_STATUS_NODRAW;
         int r1  = DUI_STATUS_NODRAW;
         int xPos = GET_X_LPARAM(lParam);
@@ -578,31 +621,10 @@ public:
         int w = m_area.right - m_area.left;
         int h = m_area.bottom - m_area.top;
 
-        m_ptMouse.x = xPos; m_ptMouse.y = yPos;
-
-        if (GetWindowCapture() != m_hWnd) // we are not in drage mode
-        {
-            for (int i = m_buttonStartIdx; i <= m_buttonEndIdx; i++)
-            {
-                button = &m_button[i];
-                button->state = XBUTTON_STATE_NORMAL;
-            }
-
-            if (m_buttonActiveIdx >= m_buttonStartIdx)
-            {
-                assert(0 == m_buttonStartIdx);
-                assert(m_buttonActiveIdx <= m_buttonEndIdx);
-                button = &m_button[m_buttonActiveIdx];
-                button->state = XBUTTON_STATE_ACTIVE;
-            }
-        }
-
         if (XDragMode::DragVertical == m_DragMode)
         {
             m_status |= DUI_STATUS_VSCROLL;
-
             m_ptOffset.y = m_ptOffsetOld.y + ((yPos - m_cxyDragOffset) * m_sizeAll.cy) / h;
-
             if (m_ptOffset.y < 0)
                 m_ptOffset.y = 0;
             if (m_ptOffset.y > (m_sizeAll.cy - h))
@@ -612,8 +634,6 @@ public:
         {
             if (XWinPointInRect(xPos, yPos, &m_area)) // the mosue is in this area
             {
-                int hit = -1;  // no hit so far
-
                 if (DUI_PROP_HASVSCROLL & m_property) // handle the vertical bar
                 {
                     U32 status = m_status;  // save previous state
@@ -639,36 +659,41 @@ public:
 
                 if (GetWindowCapture() != m_hWnd)
                 {
+                    XControl* xctl;
+                    int hit = -1;  // no hit so far
                     // transfer the coordination from real window to local virutal window
                     xPos -= m_area.left;
                     yPos -= m_area.top;
                     assert(xPos >= 0);
                     assert(yPos >= 0);
 
-                    for (int i = m_buttonStartIdx; i <= m_buttonEndIdx; i++)
+                    for (int i = 0; i < m_controlCount; i++)
                     {
-                        button = &m_button[i];
-                        if (XWinPointInRect(xPos, yPos, button)) // the mouse is over this button
+                        xctl = m_control[i];
+                        assert(nullptr != xctl);
+                        if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
                         {
                             hit = i;
                             break;
                         }
                     }
-                    if (-1 != hit) // we are hovering on some button
+                    if (-1 != hit) // we are hovering on some control
                     {
-                        assert(0 == m_buttonStartIdx);
-                        assert(m_buttonEndIdx >= m_buttonStartIdx);
-
-                        button = &m_button[hit];
-                        if (0 == (XBUTTON_PROP_STATIC & button->property)) // it is not a static button
+                        SetCursorHand();
+                        r0 = xctl->setStatus(XCONTROL_STATE_HOVERED);
+                    }
+                    else // we have to scan the whole control array
+                    {
+                        r0 = 0;
+                        for (int i = 0; i < m_controlCount; i++)
                         {
-                            SetCursorHand();
-                            m_cursorNormal = false;
-                            button->state = XBUTTON_STATE_HOVERED;
-                            r0 = DUI_STATUS_NEEDRAW;
+                            xctl = m_control[i];
+                            assert(nullptr != xctl);
+                            if(i != m_activeControl)
+                                r0 += xctl->setStatus(XCONTROL_STATE_NORMAL);
+                            else 
+                                r0 += xctl->setStatus(XCONTROL_STATE_ACTIVE);
                         }
-                        else
-                            m_cursorNormal = true;
                     }
                 }
             }
@@ -680,17 +705,6 @@ public:
                     m_status &= (~DUI_STATUS_VSCROLL); // we should not dispaly the vertical bar
                     r0 = DUI_STATUS_NEEDRAW;
                 }
-            }
-        }
-
-        // if the state is not equal to the previous state, we need to redraw it
-        for (int i = m_buttonStartIdx; i <= m_buttonEndIdx; i++)
-        {
-            button = &m_button[i];
-            if (button->state != button->statePrev)
-            {
-                r0 = DUI_STATUS_NEEDRAW;
-                break;
             }
         }
 
@@ -716,38 +730,21 @@ public:
         int rx = DUI_STATUS_NODRAW;
         int r0 = DUI_STATUS_NODRAW;
         int r1 = DUI_STATUS_NODRAW;
-
-        XButton* button;
         int xPos = GET_X_LPARAM(lParam);
         int yPos = GET_Y_LPARAM(lParam);
-        m_ptMouse.x = xPos; m_ptMouse.y = yPos;
+        T* pT = static_cast<T*>(this);
 
         m_DragMode = XDragMode::DragNone;
-        
-        for (int i = m_buttonStartIdx; i <= m_buttonEndIdx; i++)
-        {
-            button = &m_button[i];
-            button->state = XBUTTON_STATE_NORMAL;
-        }
-
-        if (m_buttonActiveIdx >= m_buttonStartIdx)
-        {
-            assert(0 == m_buttonStartIdx);
-            assert(m_buttonActiveIdx <= m_buttonEndIdx);
-            button = &m_button[m_buttonActiveIdx];
-            button->state = XBUTTON_STATE_ACTIVE;
-        }
 
         if (XWinPointInRect(xPos, yPos, &m_area))
         {
+            XControl* xctl;
             int hit = -1;
             int w = m_area.right - m_area.left;
             int h = m_area.bottom - m_area.top;
 
             // the mouse click my area, so I have the focus
             m_status |= DUI_STATUS_ISFOCUS; 
-            
-            T* pT = static_cast<T*>(this);
             rx = pT->DoFocusGet(uMsg, xPos, yPos, lpData);
 
             // handle the vertical bar
@@ -798,10 +795,6 @@ public:
                         r0 = DUI_STATUS_NEEDRAW;
                 }
             }
-            else if (DUI_PROP_HASHSCROLL & m_property) // handle the horizonal bar
-            {
-                // TODO
-            }
 
             // transfer the coordination from real window to local virutal window
             xPos -= m_area.left; 
@@ -809,10 +802,11 @@ public:
             assert(xPos >= 0);
             assert(yPos >= 0);
 
-            for (int i = m_buttonStartIdx; i <= m_buttonEndIdx; i++)
+            for (int i = 0; i < m_controlCount; i++)
             {
-                button = &m_button[i];
-                if (XWinPointInRect(xPos, yPos, button))
+                xctl = m_control[i];
+                assert(nullptr != xctl);
+                if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
                 {
                     hit = i;
                     break;
@@ -820,19 +814,23 @@ public:
             }
             if (-1 != hit) // we are hitting some button
             {
-                button = &m_button[hit];
-                if (0 == (XBUTTON_PROP_STATIC & button->property)) // it is not a static button
-                {
+                r0 = xctl->setStatus(XCONTROL_STATE_PRESSED);
+                if(r0)
                     SetCursorHand();
-                    m_cursorNormal = false;
-                    button->state = XBUTTON_STATE_PRESSED;
-                    r0 = DUI_STATUS_NEEDRAW;
-                }
-                else
-                    m_cursorNormal = true;
             }
             else
-            {   // if the mouse does not hit the button, we can move the whole real window
+            {  
+                r0 = 0;
+                for (int i = 0; i < m_controlCount; i++)
+                {
+                    xctl = m_control[i];
+                    assert(nullptr != xctl);
+                    if (i != m_activeControl)
+                        r0 += xctl->setStatus(XCONTROL_STATE_NORMAL);
+                    else
+                        r0 += xctl->setStatus(XCONTROL_STATE_ACTIVE);
+                }
+                // if the mouse does not hit the button, we can move the whole real window
                 if (DUI_PROP_MOVEWIN & m_property)
                     PostWindowMessage(WM_NCLBUTTONDOWN, HTCAPTION, lParam);
             }
@@ -840,25 +838,10 @@ public:
         else
         {
             m_status &= ~DUI_STATUS_ISFOCUS; // this window lose focus
-            T* pT = static_cast<T*>(this);
             rx = pT->DoFocusLose(uMsg, xPos, yPos, lpData);
         }
 
-        // if the state is not equal to the previous state, we need to redraw it
-        for (int i = m_buttonStartIdx; i <= m_buttonEndIdx; i++)
-        {
-            button = &m_button[i];
-            if (button->state != button->statePrev)
-            {
-                r0 = DUI_STATUS_NEEDRAW;
-                break;
-            }
-        }
-
-        {
-            T* pT = static_cast<T*>(this);
-            r1 = pT->DoLButtonDown(uMsg, wParam, lParam, lpData);
-        }
+        r1 = pT->DoLButtonDown(uMsg, wParam, lParam, lpData);
 
         if (DUI_STATUS_NODRAW != r0 || DUI_STATUS_NODRAW != r1 || DUI_STATUS_NODRAW != rx)
         {
@@ -874,45 +857,32 @@ public:
     {
         int r0 = DUI_STATUS_NODRAW;
         int r1 = DUI_STATUS_NODRAW;
-        XButton* button;
         int xPos = GET_X_LPARAM(lParam);
         int yPos = GET_Y_LPARAM(lParam);
-        m_ptMouse.x = xPos; m_ptMouse.y = yPos;
 
         if (GetWindowCapture() == m_hWnd)
         {
             ReleaseWindowCapture();
         }
-
         m_DragMode = XDragMode::DragNone;
+
         m_ptOffsetOld.x = -1, m_ptOffsetOld.y = -1;
-
-        for (int i = m_buttonStartIdx; i <= m_buttonEndIdx; i++)
-        {
-            button = &m_button[i];
-            button->state = XBUTTON_STATE_NORMAL;
-        }
-
-        if (m_buttonActiveIdx >= m_buttonStartIdx)
-        {
-            assert(0 == m_buttonStartIdx);
-            assert(m_buttonActiveIdx <= m_buttonEndIdx);
-            button = &m_button[m_buttonActiveIdx];
-            button->state = XBUTTON_STATE_ACTIVE;
-        }
 
         if (XWinPointInRect(xPos, yPos, &m_area))
         {
+            XControl* xctl;
             int hit = -1;
             // transfer the coordination from real window to local virutal window
             xPos -= m_area.left;
             yPos -= m_area.top;
             assert(xPos >= 0);
             assert(yPos >= 0);
-            for (int i = m_buttonStartIdx; i <= m_buttonEndIdx; i++)
+
+            for (int i = 0; i < m_controlCount; i++)
             {
-                button = &m_button[i];
-                if (XWinPointInRect(xPos, yPos, button))
+                xctl = m_control[i];
+                assert(nullptr != xctl);
+                if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
                 {
                     hit = i;
                     break;
@@ -920,43 +890,38 @@ public:
             }
             if (-1 != hit) // we are hitting some button
             {
-                button = &m_button[hit];
-                if (0 == (XBUTTON_PROP_STATIC & button->property)) // it is not a static button
+                if (DUI_PROP_BTNACTIVE & m_property)
                 {
-                    SetCursorHand();
-                    m_cursorNormal = false;
-                    if (m_buttonActiveIdx >= m_buttonStartIdx)
-                        m_button[m_buttonActiveIdx].state = XBUTTON_STATE_NORMAL;
-
-                    if (DUI_PROP_BTNACTIVE & m_property)
+                    int oldActive = m_activeControl;
+                    m_activeControl = hit;
+                    r0 = xctl->setStatus(XCONTROL_STATE_ACTIVE);
+                    if (oldActive >= 0)
                     {
-                        m_buttonActiveIdx = hit;
-                        button->state = XBUTTON_STATE_ACTIVE;
+                        assert(oldActive < m_controlCount);
+                        XControl* xctlOld = m_control[oldActive];
+                        r0 += xctlOld->setStatus(XCONTROL_STATE_NORMAL);
                     }
-                    else
-                    {
-                        m_buttonActiveIdx = -1;
-                        button->state = XBUTTON_STATE_HOVERED;
-                    }
-                    r0 = DUI_STATUS_NEEDRAW;
-
-                    // call the Action binded to this button
-                    if (nullptr != button->pfAction)
-                        button->pfAction(this, m_message, (WPARAM)hit , 0);
                 }
-                else 
-                    m_cursorNormal = true;
+                else
+                {
+                    m_activeControl = -1;
+                    r0 = xctl->setStatus(XCONTROL_STATE_HOVERED);
+                }
+                if (r0)
+                    SetCursorHand();
             }
-        }
-
-        // if the state is not equal to the previous state, we need to redraw it
-        for (int i = m_buttonStartIdx; i <= m_buttonEndIdx; i++)
-        {
-            button = &m_button[i];
-            if (button->state != button->statePrev)
+            else
             {
-                r0 = DUI_STATUS_NEEDRAW;
-                break;
+                r0 = 0;
+                for (int i = 0; i < m_controlCount; i++)
+                {
+                    xctl = m_control[i];
+                    assert(nullptr != xctl);
+                    if (i != m_activeControl)
+                        r0 += xctl->setStatus(XCONTROL_STATE_NORMAL);
+                    else
+                        r0 += xctl->setStatus(XCONTROL_STATE_ACTIVE);
+                }
             }
         }
 
@@ -991,7 +956,10 @@ public:
     int DoCreate(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0;  }
     int OnCreate(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
-        int ret = DUI_STATUS_NODRAW;
+        int ret = 0;
+        U32 initSize = DUI_ALLOCSET_SMALL_INITSIZE;
+        U32 maxSize = DUI_ALLOCSET_SMALL_MAXSIZE;
+
 #ifdef _WIN32
         m_hWnd = (HWND)wParam;
 #else
@@ -999,11 +967,18 @@ public:
 #endif
         assert(IsRealWindow(m_hWnd));
 
-        T* pT = static_cast<T*>(this);
-        ret = pT->DoCreate(uMsg, wParam, lParam, lpData);
+        if (DUI_PROP_LARGEMEMPOOL & m_property)
+        {
+            initSize = DUI_ALLOCSET_DEFAULT_INITSIZE;
+            maxSize = DUI_ALLOCSET_DEFAULT_MAXSIZE;
+        }
+        m_pool = mempool_create(0, initSize, maxSize);
+        if (nullptr == m_pool)
+            return 1;
 
-        if (DUI_STATUS_NODRAW != ret)
-            m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
+        T* pT = static_cast<T*>(this);
+        pT->InitControl();
+        ret = pT->DoCreate(uMsg, wParam, lParam, lpData);
 
         return ret;
     }
@@ -1019,10 +994,32 @@ public:
     int DoSetCursor(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int OnSetCursor(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
-        int r = DUI_STATUS_NODRAW;
+        XControl* xctl;
+        int r = 0;
+        int r0 = 0;
+        int r1 = 0;
+        int xPos = (int)wParam;
+        int yPos = (int)lParam;
+
+        // the original xPos/yPos is related to the client area system of the host window. 
+        xPos -= m_area.left;
+        yPos -= m_area.top;
+
+        for (int i = 0; i < m_controlCount; i++)
+        {
+            xctl = m_control[i];
+            assert(nullptr != xctl);
+            if (xctl->IsOverMe(xPos, yPos))
+            {
+                r0 = 1;
+                break;
+            }
+        }
 
         T* pT = static_cast<T*>(this);
-        r = pT->DoSetCursor(uMsg, wParam, lParam, lpData);
+        r1 = pT->DoSetCursor(uMsg, wParam, lParam, lpData);
+        if (r0 || r1)
+            r = 1;
         return r;
     }
 

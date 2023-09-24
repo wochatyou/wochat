@@ -26,10 +26,8 @@ public:
 	XWindow1()
 	{
 		m_backgroundColor = 0xFFEAECED;
-		m_buttonEndIdx = XWIN1_BUTTON_SEARCH;
 		m_property |= DUI_PROP_MOVEWIN;
 		m_message = WM_XWINDOWS01;
-		InitButtons();
 	}
 
 	~XWindow1()	{}
@@ -49,48 +47,54 @@ public:
 		id = XWIN1_BITMAP_SEARCHA; bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpSerachH; bmp->w = w; bmp->h = h;
 	}
 
-	int InitButtons()
+	void InitControl()
 	{
-		int offset = 10, gap = 20;
-		U16 w, h;
-		U8 id;
-		U32 size, bytes;
-		XButton* button;
-		XBitmap* bitmap;
-		
-		InitBitmap(); // inital all bitmap resource
+		assert(0 == m_controlCount);
+		assert(nullptr != m_pool);
 
-		id = XWIN1_BUTTON_SEARCH; button = &m_button[id]; button->id = id;
-		bitmap = &m_bitmap[XWIN1_BITMAP_SEARCHN]; button->imgNormal = bitmap;
-		bitmap = &m_bitmap[XWIN1_BITMAP_SEARCHH]; button->imgHover  = bitmap;
-		bitmap = &m_bitmap[XWIN1_BITMAP_SEARCHP]; button->imgPress  = bitmap;
-		bitmap = &m_bitmap[XWIN1_BITMAP_SEARCHA]; button->imgActive = bitmap;
-		return 0;
+		InitBitmap(); // inital all bitmap resource
+		U32 objSize = sizeof(XButton2);
+		assert(nullptr != m_pool);
+		U8* mem = (U8*)palloc(m_pool, objSize);
+		if (NULL != mem)
+		{
+			XBitmap* bmpN;
+			XBitmap* bmpH;
+			XBitmap* bmpP;
+			XBitmap* bmpA;
+			XButton2* button = new(mem)XButton2;
+			assert(nullptr != button);
+			button->setId(XWIN1_BUTTON_SEARCH);
+			bmpN = &m_bitmap[XWIN1_BITMAP_SEARCHN];
+			bmpH = &m_bitmap[XWIN1_BITMAP_SEARCHH];
+			bmpP = &m_bitmap[XWIN1_BITMAP_SEARCHP];
+			bmpA = &m_bitmap[XWIN1_BITMAP_SEARCHA];
+			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
+			button->setRoundColor(m_backgroundColor, m_backgroundColor);
+			m_control[m_controlCount] = button;
+			m_controlCount++;
+		}
 	}
 
+
 public:
-	void UpdateButtonPosition()
+	void UpdateControlPosition()
 	{
 		int gap = 10; // pixel
 		int w = m_area.right - m_area.left;
 		int h = m_area.bottom - m_area.top;
 
-		XButton* button = &m_button[XWIN1_BUTTON_SEARCH];
-		XBitmap* bmp = button->imgNormal;
-		if (w > bmp->w + gap && h > bmp->h)
-		{
-			button->top = (h - bmp->h) >> 1;
-			button->bottom = button->top + bmp->h;
-			button->right = w - gap;
-			button->left = button->right - bmp->w;
-		}
-	}
+		XControl* xctl = m_control[XWIN1_BUTTON_SEARCH];
+		assert(nullptr != xctl);
+		int sw = xctl->getWidth();
+		int sh = xctl->getHeight();
 
-	int Draw()
-	{
-		int w = m_area.right - m_area.left;
-		int h = m_area.bottom - m_area.top;
-		return 0;
+		if (w > sw + gap && h > sh)
+		{
+			int top = (h - sh) >> 1;
+			int left = w - gap - sw;
+			xctl->setPosition(left, top);
+		}
 	}
 };
 

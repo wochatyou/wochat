@@ -2,6 +2,12 @@
 #define __DUI_H__
 
 #include <stdint.h>
+#include <assert.h>
+
+#include <harfbuzz/hb.h>
+#include <harfbuzz/hb-ft.h>
+#include <cairo/cairo.h>
+#include <cairo/cairo-ft.h>
 
 #define DUI_DEBUG	1
 #define DUI_OK      0
@@ -188,6 +194,228 @@ int ScreenFillRectRound(uint32_t* dst, int w, int h, uint32_t color, int sw, int
 int SetCursorHand();
 
 int SetCursorIBeam();
+
+enum XControlProperty
+{
+    XCONTROL_PROP_NONE = 0x00,
+    XCONTROL_PROP_ROUND = 0x01,
+    XCONTROL_PROP_STATIC = 0x02
+};
+
+enum XControlState
+{
+    XCONTROL_STATE_HIDDEN = 0,
+    XCONTROL_STATE_NORMAL,
+    XCONTROL_STATE_HOVERED,
+    XCONTROL_STATE_PRESSED,
+    XCONTROL_STATE_ACTIVE
+};
+
+class XControl
+{
+public:
+    U8   m_id = 0;
+    U32* m_data = nullptr;
+
+    int  left   = 0;
+    int  top    = 0;
+    int  right  = 0;
+    int  bottom = 0;
+
+    U32  m_property   = XCONTROL_PROP_NONE;
+    U32  m_status     = XCONTROL_STATE_NORMAL;
+    U32  m_statusPrev = XCONTROL_STATE_NORMAL;
+
+    U32* m_parentBuf = nullptr;
+    int  m_parentW = 0;
+    int  m_parentH = 0;
+
+    U32  m_Color0 = 0xFFFFFFFF;
+    U32  m_Color1 = 0xFFFFFFFF;
+
+    void setId(U8 id) { m_id = id; }
+
+    void setRoundColor(U32 c0, U32 c1)
+    {
+        m_Color0 = c0;
+        m_Color1 = c1;
+    }
+
+    int getLeft()
+    {
+        assert(left >= 0);
+        return left;
+    }
+
+    int getTop()
+    {
+        assert(top >= 0);
+        return top;
+    }
+
+    int getWidth()
+    {
+        assert(right > left);
+        return(right - left);
+    }
+
+    int getHeight()
+    {
+        assert(bottom > top);
+        return(bottom - top);
+    }
+
+    void setSize(int width, int height)
+    {
+        assert(width > 0);
+        assert(height > 0);
+        left = top = 0;
+        right = width;
+        bottom = height;
+    }
+
+    void setPosition(int left_, int top_)
+    {
+        int w = right - left;
+        int h = bottom - top;
+
+        assert(left_ >= 0);
+        assert(top_ >= 0);
+        assert(w > 0);
+        assert(h > 0);
+
+        left = left_;
+        top = top_;
+        right = left + w;
+        bottom = top + h;
+    }
+
+    void setProperty(U32 property)
+    {
+        m_property |= property;
+    }
+
+    void AttachParent(U32* parentBuf, int parentW, int parentH)
+    {
+        m_parentBuf = parentBuf;
+        m_parentW   = parentW;
+        m_parentH   = parentH;
+    }
+
+    bool IsOverMe(int xPos, int yPos)
+    {
+        bool bRet = false;
+        if (!(XCONTROL_PROP_STATIC & m_property)) // this is not a static control
+        {
+            if (xPos >= left && xPos < right && yPos >= top && yPos < bottom)
+                bRet = true;
+        }
+        return bRet;
+    }
+
+    int setStatus(U32 newStatus)
+    {
+        int r = 0;
+        if (!(XCONTROL_PROP_STATIC & m_property))
+        {
+            U32 oldStatus = m_status;
+            m_status = newStatus;
+            if (oldStatus != newStatus)
+                r = 1;
+        }
+        return r;
+    }
+
+    virtual int  Draw() = 0;
+    virtual int  Init(void* ptr, U32 flag) = 0;
+    virtual void Term() = 0;
+    virtual void SetBkgFrontColor(U32 c0, U32 c1) = 0;
+
+    int (*pfAction) (void* obj, U32 uMsg, U64 wParam, U64 lParam);
+};
+
+class XButton2 : public XControl
+{
+public:
+    int Draw();
+    int Init(void* ptr, U32 flag) { return 0; }
+    void Term() {}
+    void SetBkgFrontColor(U32 c0, U32 c1) {}
+
+    // all XBitmpas should have extactly the same size
+    XBitmap* imgNormal;
+    XBitmap* imgHover;
+    XBitmap* imgPress;
+    XBitmap* imgActive;
+
+    void setBitmap(XBitmap* n, XBitmap* h, XBitmap* p, XBitmap* a)
+    {
+        assert(nullptr != n);
+        assert(nullptr != h);
+        assert(nullptr != p);
+        assert(nullptr != a);
+        imgNormal = n; imgHover = h; imgPress = p; imgActive = a;
+        setSize(imgNormal->w, imgNormal->h);
+    }
+
+};
+
+#define DUI_MAX_LABEL_STRING    64
+class XLabel : public XControl
+{
+private:
+    bool m_initialized = false;
+    // cairo/harfbuzz issue to cache to speed up
+    cairo_glyph_t* m_cairo_glyphs = nullptr;
+    cairo_font_face_t* m_cairo_face = nullptr;
+    hb_font_t* m_hb_font = nullptr;
+    hb_buffer_t* m_hb_buffer = nullptr;
+    double m_fontSize = 16;
+    double m_r0 = 1;
+    double m_g0 = 1;
+    double m_b0 = 1;
+    double m_r1 = 0;
+    double m_g1 = 0;
+    double m_b1 = 0;
+    U32  m_txtColor = 0xFF000000;
+    U32  m_bkgColor = 0xFFFFFFFF;
+
+    int  m_lineHeight = 0;  // in pixel
+    U16  m_Text[DUI_MAX_LABEL_STRING + 1] = { 0 };
+    U16  m_TextLen = 0;
+public:
+    XLabel()
+    {
+        m_property = XCONTROL_PROP_STATIC;
+    }
+
+    int Draw();
+    int Init(void* ptr, U32 flag);
+    void Term();
+    void setText(U16* text);
+
+    void SetBkgFrontColor(U32 c0, U32 c1)
+    {
+        U8 cr;
+
+        m_bkgColor = c0;
+        m_txtColor = c1;
+        
+        cr = (U8)(m_bkgColor >> 0);
+        m_r0 = (double)cr / 255;
+        cr = (U8)(m_bkgColor >> 8);
+        m_g0 = (double)cr / 255;
+        cr = (U8)(m_bkgColor >> 16);
+        m_b0 = (double)cr / 255;
+
+        cr = (U8)(m_txtColor >> 0);
+        m_r1 = (double)cr / 255;
+        cr = (U8)(m_txtColor >> 8);
+        m_g1 = (double)cr / 255;
+        cr = (U8)(m_txtColor >> 16);
+        m_b1 = (double)cr / 255;
+    }
+};
 
 #if 0
 // dear imgui, v1.90 WIP
