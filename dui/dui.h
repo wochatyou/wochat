@@ -151,7 +151,7 @@ void DUI_Term();
 
 int ScreenClear(uint32_t* dst, uint32_t size, uint32_t color);
 
-int ScreenDrawHLine(uint32_t* dst, int w, int h, int position, int stroke, uint32_t color);
+//int ScreenDrawHLine(uint32_t* dst, int w, int h, int position, int stroke, uint32_t color);
 
 int ScreenDrawRect(uint32_t* dst, int w, int h, uint32_t* src, int sw, int sh, int dx, int dy);
 
@@ -191,7 +191,6 @@ enum XControlState
     XCONTROL_STATE_PRESSED,
     XCONTROL_STATE_ACTIVE,
     XCONTROL_STATE_FOCUSED = XCONTROL_STATE_PRESSED
-
 };
 
 class XControl
@@ -199,7 +198,6 @@ class XControl
 public:
     U8   m_id = 0;
     U8   m_Index = 0;
-    U32* m_data = nullptr;
 
     int  left   = 0;
     int  top    = 0;
@@ -364,7 +362,7 @@ public:
     int (*pfAction) (void* obj, U32 uMsg, U64 wParam, U64 lParam);
 };
 
-class XButton2 : public XControl
+class XButton : public XControl
 {
 public:
     int Draw();

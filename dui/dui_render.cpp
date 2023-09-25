@@ -250,6 +250,7 @@ int ScreenFillRectRound(uint32_t* dst, int w, int h, uint32_t color, int sw, int
 	return 0;
 }
 
+#if 0
 int ScreenDrawHLine(uint32_t* dst, int w, int h, int position, int stroke, uint32_t color)
 {
 	uint64_t newColor = (uint64_t)(color);
@@ -270,3 +271,4 @@ int ScreenDrawHLine(uint32_t* dst, int w, int h, int position, int stroke, uint3
 
 	return 0;
 }
+#endif

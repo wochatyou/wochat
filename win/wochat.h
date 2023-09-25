@@ -58,7 +58,7 @@ extern HCURSOR g_hCursorHand;
 extern HCURSOR g_hCursorIBeam;
 
 
-#define XFONT_SIZE0		16
+#define XFONT_SIZE0		14
 #define XFONT_SIZE1		13
 
 extern FT_Library		g_ftLibrary;

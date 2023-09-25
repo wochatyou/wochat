@@ -217,7 +217,7 @@ public:
 
     bool IsVisible() const
     {
-        return (0 != (m_status & DUI_STATUS_VISIBLE));
+        return (m_status & DUI_STATUS_VISIBLE);
     }
 
     XRECT* GetWindowArea()
@@ -228,7 +228,7 @@ public:
     void PostWindowHide() {}
     void WindowHide()
     {
-        m_status &= (~DUI_STATUS_VISIBLE);
+        m_status &= ~DUI_STATUS_VISIBLE;
 
         T* pT = static_cast<T*>(this);
         pT->PostWindowHide();
@@ -352,11 +352,6 @@ public:
     }
 
     void UpdateControlPosition() {}
-    void UpdatePosition() 
-    {
-        T* pT = static_cast<T*>(this);
-        pT->UpdateControlPosition();
-    }
 
     void SetPosition(RECT* r, U32* screen, U32 size = 0)
     {
@@ -384,7 +379,7 @@ public:
         if (nullptr != r)
         {
             T* pT = static_cast<T*>(this);
-            pT->UpdatePosition();
+            pT->UpdateControlPosition();
         }
     }
 

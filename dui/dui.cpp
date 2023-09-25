@@ -57,7 +57,7 @@ void DUI_Term()
 
 }
 
-int XButton2::Draw()
+int XButton::Draw()
 {
     if (nullptr != m_parentBuf)
     {

@@ -58,7 +58,7 @@ public:
 		InitBitmap(); // inital all bitmap resource
 
 		id = XWIN1_BUTTON_SEARCH;
-		objSize = sizeof(XButton2);
+		objSize = sizeof(XButton);
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
 		{
@@ -66,7 +66,7 @@ public:
 			XBitmap* bmpH;
 			XBitmap* bmpP;
 			XBitmap* bmpA;
-			XButton2* button = new(mem)XButton2;
+			XButton* button = new(mem)XButton;
 			assert(nullptr != button);
 			button->Init(g_hCursorHand);
 			{

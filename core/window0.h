@@ -159,14 +159,14 @@ public:
 		U8 id;
 		int	w = XWIN0_WIDTH;
 		int left, top, sw, sh, T;
-		U32 objSize = sizeof(XButton2);
+		U32 objSize = sizeof(XButton);
 
 		U8* mem;
 		XBitmap* bmpN;
 		XBitmap* bmpH;
 		XBitmap* bmpP;
 		XBitmap* bmpA;
-		XButton2* button;
+		XButton* button;
 
 		assert(0 == m_controlCount);
 		assert(nullptr != m_pool);
@@ -177,7 +177,7 @@ public:
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
 		{
-			button = new(mem)XButton2;
+			button = new(mem)XButton;
 			assert(nullptr != button);
 			button->Init(g_hCursorHand);
 			{
@@ -198,7 +198,7 @@ public:
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
 		{
-			button = new(mem)XButton2;
+			button = new(mem)XButton;
 			assert(nullptr != button);
 			button->Init(g_hCursorHand);
 			{
@@ -225,7 +225,7 @@ public:
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
 		{
-			button = new(mem)XButton2;
+			button = new(mem)XButton;
 			assert(nullptr != button);
 			button->Init(g_hCursorHand);
 			{
@@ -250,7 +250,7 @@ public:
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
 		{
-			button = new(mem)XButton2;
+			button = new(mem)XButton;
 			assert(nullptr != button);
 			button->Init(g_hCursorHand);
 			{
@@ -275,7 +275,7 @@ public:
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
 		{
-			button = new(mem)XButton2;
+			button = new(mem)XButton;
 			assert(nullptr != button);
 			button->Init(g_hCursorHand);
 			{
@@ -300,7 +300,7 @@ public:
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
 		{
-			button = new(mem)XButton2;
+			button = new(mem)XButton;
 			assert(nullptr != button);
 			button->Init(g_hCursorHand);
 			{
@@ -325,7 +325,7 @@ public:
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
 		{
-			button = new(mem)XButton2;
+			button = new(mem)XButton;
 			assert(nullptr != button);
 			button->Init(g_hCursorHand);
 			{
@@ -350,7 +350,7 @@ public:
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
 		{
-			button = new(mem)XButton2;
+			button = new(mem)XButton;
 			assert(nullptr != button);
 			button->Init(g_hCursorHand);
 			{
@@ -375,7 +375,7 @@ public:
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
 		{
-			button = new(mem)XButton2;
+			button = new(mem)XButton;
 			assert(nullptr != button);
 			button->Init();
 			{
