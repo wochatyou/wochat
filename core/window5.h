@@ -6,11 +6,12 @@
 //uint16_t inputMessage[XWIN_MAX_INPUTSTRING + 1] = { 0 };
 
 enum {
-	XWIN5_BUTTON_EMOJI = 0
+	  XWIN5_EDITBOX2_INPUT = 0
+	, XWIN5_BUTTON_EMOJI
 	, XWIN5_BUTTON_UPLOAD
 	, XWIN5_BUTTON_CAPTURE
 	, XWIN5_BUTTON_CHATHISTORY
-	, XWIN5_BUTTON_LIVESTREAM
+	, XWIN5_BUTTON_AUDIOCALL
 	, XWIN5_BUTTON_VIDEOCALL
 	, XWIN5_BUTTON_SENDMESSAGE
 	, XWIN5_BUTTON_HINT
@@ -49,10 +50,10 @@ private:
 		, XWIN5_BITMAP_CHATHISTORYA			// Press
 		, XWIN5_BITMAP_CHATHISTORYP			// Active
 
-		, XWIN5_BITMAP_LIVESTREAMN			// Normal
-		, XWIN5_BITMAP_LIVESTREAMH			// Hover
-		, XWIN5_BITMAP_LIVESTREAMP			// Press
-		, XWIN5_BITMAP_LIVESTREAMA			// Active
+		, XWIN5_BITMAP_AUDIOCALLN			// Normal
+		, XWIN5_BITMAP_AUDIOCALLH			// Hover
+		, XWIN5_BITMAP_AUDIOCALLP			// Press
+		, XWIN5_BITMAP_AUDIOCALLA			// Active
 
 		, XWIN5_BITMAP_VIDEOCALLN			// Normal
 		, XWIN5_BITMAP_VIDEOCALLH			// Hover
@@ -110,10 +111,10 @@ public:
 		id = XWIN5_BITMAP_CHATHISTORYP; bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpChatHistoryP; bmp->w = w; bmp->h = h;
 		id = XWIN5_BITMAP_CHATHISTORYA; bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpChatHistoryN; bmp->w = w; bmp->h = h;
 
-		id = XWIN5_BITMAP_LIVESTREAMN;  bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpLiveStreamN;  bmp->w = w; bmp->h = h;
-		id = XWIN5_BITMAP_LIVESTREAMH;  bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpLiveStreamH;  bmp->w = w; bmp->h = h;
-		id = XWIN5_BITMAP_LIVESTREAMP;  bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpLiveStreamP;  bmp->w = w; bmp->h = h;
-		id = XWIN5_BITMAP_LIVESTREAMA;  bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpLiveStreamN;  bmp->w = w; bmp->h = h;
+		id = XWIN5_BITMAP_AUDIOCALLN;  bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpAudioCallN;  bmp->w = w; bmp->h = h;
+		id = XWIN5_BITMAP_AUDIOCALLH;  bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpAudioCallH;  bmp->w = w; bmp->h = h;
+		id = XWIN5_BITMAP_AUDIOCALLP;  bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpAudioCallP;  bmp->w = w; bmp->h = h;
+		id = XWIN5_BITMAP_AUDIOCALLA;  bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpAudioCallN;  bmp->w = w; bmp->h = h;
 
 		id = XWIN5_BITMAP_VIDEOCALLN;   bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpVideoCallN;   bmp->w = w; bmp->h = h;
 		id = XWIN5_BITMAP_VIDEOCALLH;   bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpVideoCallH;   bmp->w = w; bmp->h = h;
@@ -136,7 +137,7 @@ public:
 	void InitControl()
 	{
 		U8 id;
-		int offsetX = 10, offsetY = 20, gap = 20;
+		int offsetX = 10, offsetY = 5, gap = 20;
 		int dx, dy, sw, sh;
 		U32 objSize = sizeof(XButton);
 		U8* mem;
@@ -151,6 +152,28 @@ public:
 
 		InitBitmap(); // inital all bitmap resource
 
+		id = XWIN5_EDITBOX2_INPUT;
+		objSize = sizeof(XEditBox2);
+		mem = (U8*)palloc(m_pool, objSize);
+		if (NULL != mem)
+		{
+			XEditBox2* eb2 = new(mem)XEditBox2;
+			assert(nullptr != eb2);
+			if (0 != eb2->Init(g_hCursorIBeam, g_ftFace0, 16))
+			{
+				pfree(mem);
+			}
+			else
+			{
+				eb2->setId(id, m_controlCount);
+				eb2->setRoundColor(m_backgroundColor, m_backgroundColor);
+				eb2->setBkgFrontColor(0xFFBBBBBB, 0xFF555555);
+				m_control[m_controlCount] = eb2;
+				m_controlCount++;
+			}
+		}
+
+		objSize = sizeof(XButton);
 		id = XWIN5_BUTTON_EMOJI;
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
@@ -243,7 +266,7 @@ public:
 			m_controlCount++;
 		}
 
-		id = XWIN5_BUTTON_LIVESTREAM;
+		id = XWIN5_BUTTON_AUDIOCALL;
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
 		{
@@ -251,10 +274,10 @@ public:
 			assert(nullptr != button);
 			button->Init(g_hCursorHand);
 			button->setId(id, m_controlCount);
-			bmpN = &m_bitmap[XWIN5_BITMAP_LIVESTREAMN];
-			bmpH = &m_bitmap[XWIN5_BITMAP_LIVESTREAMH];
-			bmpP = &m_bitmap[XWIN5_BITMAP_LIVESTREAMP];
-			bmpA = &m_bitmap[XWIN5_BITMAP_LIVESTREAMA];
+			bmpN = &m_bitmap[XWIN5_BITMAP_AUDIOCALLN];
+			bmpH = &m_bitmap[XWIN5_BITMAP_AUDIOCALLH];
+			bmpP = &m_bitmap[XWIN5_BITMAP_AUDIOCALLP];
+			bmpA = &m_bitmap[XWIN5_BITMAP_AUDIOCALLA];
 			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
 			sw = button->getWidth(); sh = button->getHeight();
 			dx = offsetX;
@@ -341,7 +364,7 @@ public:
 	void UpdateControlPosition()
 	{
 		XControl* xctl;
-		int sw, sh, dx, dy, gap = 10; // pixel
+		int sw, sh, dx, dy, top, bottom, gap = 10; // pixel
 		int w = m_area.right - m_area.left;
 		int h = m_area.bottom - m_area.top;
 
@@ -358,22 +381,27 @@ public:
 		sh = xctl->getHeight();
 		dx = w - sw - gap/2; dy = h - sh - gap/2;
 		xctl->setPosition(dx, dy);
+		bottom = dy - gap / 2;
 
 		xctl = m_control[XWIN5_BUTTON_VIDEOCALL];
 		assert(nullptr != xctl);
 		sw = xctl->getWidth();
 		sh = xctl->getHeight();
 		dy = xctl->getTop(); 
-		dx = w -sw - gap;
+		dx = w - sw - gap;
 		xctl->setPosition(dx, dy);
+		top = dy + sh + gap / 2;
 
-		xctl = m_control[XWIN5_BUTTON_LIVESTREAM];
+		xctl = m_control[XWIN5_BUTTON_AUDIOCALL];
 		assert(nullptr != xctl);
 		sw = xctl->getWidth();
 		sh = xctl->getHeight();
 		dy = xctl->getTop();
 		dx = dx - sw - gap;
 		xctl->setPosition(dx, dy);
+
+		xctl = m_control[XWIN5_EDITBOX2_INPUT];
+		xctl->setPosition(0, top, w, bottom);
 	}
 
 public:
@@ -419,47 +447,41 @@ public:
 		return r; 
 	}
 
-    int DoFocusGet(U32 uMsg, int xPos, int yPos, void* lpData = nullptr) 
-    { 
-    	int r = DUI_STATUS_NODRAW;
-
-		xPos -= m_area.left;
-		yPos -= m_area.top;
-    	return r; 
-    }
-
-    int DoFocusLose(U32 uMsg, int xPos, int yPos, void* lpData = nullptr) 
-    { 
-#if 0
-    	m_editBox.ClearFocusedStatus();
-#endif
-    	return DUI_STATUS_NEEDRAW;
-    } 
 
 	int DoChar(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) 
 	{ 
 		int r = DUI_STATUS_NODRAW;
-
 		U16 charCode = static_cast<U16>(wParam);
-#if 0
-		bool isFocused = m_editBox.IsFocused();
-		if (isFocused)
+
+		XEditBox2* eb2 = (XEditBox2*)m_control[XWIN5_EDITBOX2_INPUT];
+		assert(nullptr != eb2);
+
+		if (DUI_KEY_RETURN == charCode)
 		{
-			m_editBox.OnChar(charCode);
+			U16 msgLen = 0;
+			U16* msg = eb2->getText(&msgLen);
+			
 			r = DUI_STATUS_NEEDRAW;
 		}
-#endif
-		return r; 
+		else
+		{
+			r = eb2->OnKeyBoard(XKEYBOARD_NORMAL, charCode);
+		}
+
+		return r;
 	}
 
 	int DoKeyPress(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) 
 	{ 
 		int r = DUI_STATUS_NODRAW;
-#if 0
+
 		U32 keyCode = static_cast<U32>(wParam);
 
 		bool heldShift = (GetKeyState(VK_SHIFT) & 0x80) != 0;
 		bool heldControl = (GetKeyState(VK_CONTROL) & 0x80) != 0;
+
+		XEditBox2* eb2 = (XEditBox2*)m_control[XWIN5_EDITBOX2_INPUT];
+		assert(nullptr != eb2);
 
 		switch (keyCode)
 		{
@@ -468,12 +490,10 @@ public:
 		case VK_DELETE:
 		case VK_TAB:
 		case VK_LEFT:
-			m_editBox.MoveCursorLR(-1);
-			r = DUI_STATUS_NEEDRAW;
+			r = eb2->MoveCursorLR(-1);
 			break;
 		case VK_RIGHT:
-			m_editBox.MoveCursorLR(1);
-			r = DUI_STATUS_NEEDRAW;
+			r = eb2->MoveCursorLR(1);
 			break;
 		case VK_UP:
 		case VK_DOWN:
@@ -487,7 +507,6 @@ public:
 		default:
 			break;
 		}
-#endif
 		return r;
 	}
 

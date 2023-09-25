@@ -371,10 +371,17 @@ public:
 						for (i = 0; i < glyphLen; i++)
 						{
 							m_cairo_glyphs[i].index = hbinfo[i].codepoint;
+#if 0
 							m_cairo_glyphs[i].x = current_x + (DUI_ALIGN_TRUETYPE(hbpos[i].x_offset) >> 6);
 							m_cairo_glyphs[i].y = -(current_y + (DUI_ALIGN_TRUETYPE(hbpos[i].y_offset) >> 6));
 							current_x += ((DUI_ALIGN_TRUETYPE(hbpos[i].x_advance) >> 6) + delta1);
 							current_y += (DUI_ALIGN_TRUETYPE(hbpos[i].y_advance) >> 6);
+#endif
+							m_cairo_glyphs[i].x = current_x + hbpos[i].x_offset / 64.0;
+							m_cairo_glyphs[i].y = -(current_y + hbpos[i].y_offset / 64.0);
+							current_x += hbpos[i].x_advance / 64.0;
+							current_y += hbpos[i].y_advance / 64.0;
+
 						}
 						cairo_translate(cr, 0, 20);
 						//cairo_set_font_size(cr, XFONT_SIZE1);

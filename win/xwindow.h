@@ -159,6 +159,7 @@ public:
 
 	BEGIN_MSG_MAP(XWindow)
 		MESSAGE_HANDLER(WM_ERASEBKGND, OnEraseBkgnd)
+		MESSAGE_HANDLER(WM_NCPAINT, OnNCPaint)
 		MESSAGE_HANDLER(WM_PAINT, OnPaint)
 		MESSAGE_HANDLER(WM_TIMER, OnTimer)
 		MESSAGE_HANDLER(WM_MOUSEMOVE, OnMouseMove)
@@ -305,6 +306,7 @@ public:
 			RECT* r = &area;
 
 			GetClientRect(&m_rectClient);
+			GetWindowRect(&area);
 			ATLASSERT(0 == m_rectClient.left);
 			ATLASSERT(0 == m_rectClient.top);
 			ATLASSERT(m_rectClient.right > 0);
@@ -836,6 +838,62 @@ public:
 		return 0;
 	}
 
+	LRESULT OnNCPaint(UINT /*uMsg*/, WPARAM wParam, LPARAM /*lParam*/, BOOL& bHandled)
+	{
+#if 0
+		int w, h;
+		HDC hdc;
+		RECT rc, rw, rn;
+
+		GetWindowRect(&rw);
+		GetClientRect(&rc);
+
+		w = rw.right - rw.left;
+		h = rw.bottom - rw.top - (rc.bottom - rc.top);
+		rn.left = rw.left; rn.right = rw.right;
+		rn.top = rw.top; rn.bottom = rn.top + h;
+
+		bHandled = FALSE;
+		//hdc = GetDCEx((HRGN)wParam, DCX_WINDOW | DCX_INTERSECTRGN);
+		hdc = GetWindowDC();
+		if (NULL != hdc)
+		{
+			HDC hdcMem = ::CreateCompatibleDC(hdc);
+			if (NULL != hdcMem)
+			{
+				HBITMAP hBitmapMem = ::CreateCompatibleBitmap(hdc, w, h);
+				if (NULL != hBitmapMem)
+				{
+					HBITMAP hBitmapOld = (HBITMAP)::SelectObject(hdcMem, hBitmapMem);
+					if (NULL != hBitmapOld)
+					{
+						HBRUSH brush = ::CreateSolidBrush(RGB(255, 0, 0));
+						if (NULL != brush)
+						{
+							int ret = ::FillRect(hdcMem, &rn, brush);
+							if (0 != ret)
+							{
+								BOOL bRet = ::BitBlt(hdc, 0, 0, w, h, hdcMem, 0, 0, SRCCOPY);
+								if (bRet)
+								{
+									bHandled = TRUE;
+								}
+							}
+							::DeleteObject(brush);
+						}
+						::DeleteObject(hBitmapOld);
+					}
+				}
+				::DeleteDC(hdcMem);
+			}
+			ReleaseDC(hdc);
+		}
+#endif
+		bHandled = FALSE;
+		return 0;
+	}
+
+
 	LRESULT OnPaint(UINT /*uMsg*/, WPARAM wParam, LPARAM /*lParam*/, BOOL& bHandled)
 	{
 		HRESULT hr = S_OK;
@@ -884,18 +942,19 @@ public:
 					D2D1_RECT_F rect = D2D1::RectF(
 						static_cast<FLOAT>(m_splitterVPos),
 						static_cast<FLOAT>(m_rectClient.top),
-						static_cast<FLOAT>(m_splitterVPos + SPLITLINE_WIDTH), // m_cxySplitBar),
+						static_cast<FLOAT>(m_splitterVPos + 2), // m_cxySplitBar),
 						static_cast<FLOAT>(m_rectClient.bottom)
 					);
 					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap, &rect);
 				}
+
 				if (m_splitterHPosfix0 > 0)
 				{
 					D2D1_RECT_F rect = D2D1::RectF(
 						static_cast<FLOAT>(XWIN0_WIDTH),
 						static_cast<FLOAT>(m_splitterHPosfix0),
 						static_cast<FLOAT>(m_splitterVPos),
-						static_cast<FLOAT>(m_splitterHPosfix0 + SPLITLINE_WIDTH)
+						static_cast<FLOAT>(m_splitterHPosfix0 + 2)
 					);
 					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap, &rect);
 				}
@@ -903,10 +962,10 @@ public:
 				if (m_splitterHPosfix1 > 0)
 				{
 					D2D1_RECT_F rect = D2D1::RectF(
-						static_cast<FLOAT>(m_splitterVPos + SPLITLINE_WIDTH),
+						static_cast<FLOAT>(m_splitterVPos + 2),
 						static_cast<FLOAT>(m_splitterHPosfix1),
 						static_cast<FLOAT>(m_rectClient.right),
-						static_cast<FLOAT>(m_splitterHPosfix1 + SPLITLINE_WIDTH)
+						static_cast<FLOAT>(m_splitterHPosfix1 + 2)
 					);
 					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap, &rect);
 				}
@@ -914,10 +973,10 @@ public:
 				if (m_splitterHPos > 0)
 				{
 					D2D1_RECT_F rect = D2D1::RectF(
-						static_cast<FLOAT>(m_splitterVPos + SPLITLINE_WIDTH),
+						static_cast<FLOAT>(m_splitterVPos + 2),
 						static_cast<FLOAT>(m_splitterHPos),
 						static_cast<FLOAT>(m_rectClient.right),
-						static_cast<FLOAT>(m_splitterHPos + SPLITLINE_WIDTH)
+						static_cast<FLOAT>(m_splitterHPos + 2)
 					);
 					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap, &rect);
 				}

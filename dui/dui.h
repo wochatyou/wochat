@@ -106,6 +106,10 @@
 
 #endif 
 
+
+#define DUI_KEY_RETURN      0x0D
+
+
 #ifdef _MSC_VER
 #define DUI_NO_VTABLE __declspec(novtable)
 #else
@@ -566,6 +570,132 @@ public:
         return r;
     }
 
+};
+
+
+#define DUI_MAX_EDITBOX2_STRING    (1<<16)
+class XEditBox2 : public XControl
+{
+private:
+    bool m_initialized = false;
+    // cairo/harfbuzz issue to cache to speed up
+    cairo_glyph_t* m_cairo_glyphs = nullptr;
+    cairo_font_face_t* m_cairo_face = nullptr;
+    hb_font_t* m_hb_font = nullptr;
+    hb_buffer_t* m_hb_buffer = nullptr;
+    double m_fontSize = 15;
+    double m_r0 = .7;
+    double m_g0 = .7;
+    double m_b0 = .7;
+    double m_r1 = 0;
+    double m_g1 = 0;
+    double m_b1 = 0;
+    U32  m_txtColor = 0xFF000000;
+    U32  m_bkgColor = 0xFFBBBBBB;
+
+    int  m_lineHeight = 0;  // in pixel
+    U16  m_Text[DUI_MAX_EDITBOX2_STRING] = { 0 };
+    U16  m_TextLen = 0;
+    U16  m_cursorPos = 0;
+public:
+    XEditBox2(U32 prop = 0)
+    {
+        m_property = XCONTROL_PROP_EDIT | prop;
+    }
+
+    U16* getText(U16* len)
+    {
+        if (nullptr != len)
+            *len = m_TextLen;
+        return (U16*)m_Text;
+    }
+
+    int Draw();
+    int Init(void* ptr0 = nullptr, void* ptr1 = nullptr, U32 flag = 0);
+    void Term();
+
+    int OnTimer() final
+    {
+        static bool firstTime = true;
+        int r = 0;
+        if (XCONTROL_STATE_PRESSED == m_status)
+        {
+            if (!firstTime)
+            {
+                m_property ^= XCONTROL_PROP_CARET;
+            }
+            else
+            {
+                m_property |= XCONTROL_PROP_CARET;
+                firstTime = false;
+            }
+            r = 1;
+        }
+        return r;
+    }
+
+    void setBkgFrontColor(U32 c0, U32 c1)
+    {
+        U8 cr;
+
+        m_bkgColor = c0;
+        m_txtColor = c1;
+
+        cr = (U8)(m_bkgColor >> 0);
+        m_r0 = (double)cr / 255;
+        cr = (U8)(m_bkgColor >> 8);
+        m_g0 = (double)cr / 255;
+        cr = (U8)(m_bkgColor >> 16);
+        m_b0 = (double)cr / 255;
+
+        cr = (U8)(m_txtColor >> 0);
+        m_r1 = (double)cr / 255;
+        cr = (U8)(m_txtColor >> 8);
+        m_g1 = (double)cr / 255;
+        cr = (U8)(m_txtColor >> 16);
+        m_b1 = (double)cr / 255;
+    }
+
+    int OnKeyBoard(U16 flag, U16 keycode) final
+    {
+        int r = 0;
+        if (XKEYBOARD_NORMAL == flag)
+        {
+            if (m_TextLen < DUI_MAX_EDITBOX2_STRING)
+            {
+                m_Text[m_TextLen] = keycode;
+                m_TextLen++;
+                m_cursorPos++;
+                r = 1;
+            }
+        }
+        return r;
+    }
+
+    int MoveCursorLR(int direction)
+    {
+        int r = 0;
+        if (XCONTROL_STATE_FOCUSED == m_status) // we have the focus
+        {
+            if (direction > 0)
+            {
+                if (m_cursorPos < m_TextLen)
+                {
+                    m_cursorPos++;
+                    r = 1;
+                }
+            }
+            else
+            {
+                if (m_cursorPos > 0)
+                {
+                    m_cursorPos--;
+                    r = 1;
+                }
+            }
+        }
+        return r;
+    }
 };
 
 #if 0
