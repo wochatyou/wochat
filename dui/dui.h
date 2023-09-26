@@ -221,6 +221,8 @@ public:
     U32  m_Color0 = 0xFFFFFFFF;
     U32  m_Color1 = 0xFFFFFFFF;
 
+    U16  m_tipMessage[32];
+
     void* m_Cursor;
 
     void setId(U8 id, U8 idx) 

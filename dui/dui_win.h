@@ -184,7 +184,7 @@ public:
         return r;
     }
 
-    static int ButtonAction(void* obj, U32 uMsg, U64 wParam, U64 lParam)
+    static int XControlAction(void* obj, U32 uMsg, U64 wParam, U64 lParam)
     {
         int ret = 0;
 
@@ -425,6 +425,12 @@ public:
             T* pT = static_cast<T*>(this);
             pT->UpdateControlPosition();
             pT->DoSize(uMsg, wParam, lParam, lpData);
+        }
+
+        // enable tool tips
+        if (m_controlCount > 0 && m_message != DUI_NULL)
+        {
+            PostWindowMessage(m_message, (U64)m_controlCount, (U64)m_control);
         }
 
         m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window

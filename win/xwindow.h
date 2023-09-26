@@ -216,14 +216,45 @@ public:
 		if (pToolTipInfo) 
 		{
 			UINT id = pToolTipInfo->hdr.idFrom;
-			pToolTipInfo->lpszText = L"This is a tip!!!";
+			pToolTipInfo->lpszText = L"This is a button tip!!!";
 		}
 		return 0;
 	}
 
 	LRESULT OnWin0Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
-		U8 buttonId = (U8)wParam;
+		if (wParam > 0)
+		{
+			U8 ctlCount = (U8)wParam;
+			XControl** pxCtl = (XControl**)lParam;
+			if (nullptr != pxCtl)
+			{
+				UINT id = 0x0100;
+				RECT area, *r;
+				XControl* xctl;
+				XRECT* xr = m_win0.GetWindowArea();
+				ATLASSERT(xr->left >= 0);
+				ATLASSERT(xr->top >= 0);
+				ATLASSERT(xr->right > xr->left);
+				ATLASSERT(xr->bottom > xr->top);
+				r = &area;
+				for (U8 i = 0; i < ctlCount; i++)
+				{
+					xctl = pxCtl[i];
+					ATLASSERT(nullptr != xctl);
+					ATLASSERT(xctl->right > xctl->left);
+					ATLASSERT(xctl->bottom > xctl->top);
+
+					r->left = xctl->left + xr->left;
+					r->top = xctl->top + xr->top;
+					r->right = r->left + (xctl->right - xctl->left);
+					r->bottom = r->top + (xctl->bottom - xctl->top);
+					id |= xctl->m_id;
+					m_tooltip.DelTool(m_hWnd, id);
+					m_tooltip.AddTool(m_hWnd, LPSTR_TEXTCALLBACK, r, id);
+				}
+			}
+		}
 		return 0; 
 	}
 
@@ -302,13 +333,6 @@ public:
 			m_tooltip.SetDelayTime(TTDT_AUTOPOP, ::GetDoubleClickTime() * 20);
 			m_tooltip.SetDelayTime(TTDT_RESHOW, ::GetDoubleClickTime() / 5);
 			m_tooltip.Activate(TRUE);
-
-			m_tooltip.AddTool(m_hWnd, LPSTR_TEXTCALLBACK, &rcDefault, 123);
-			area.left = 0;
-			area.right = 100;
-			area.top = 0;
-			area.bottom = 100;
-			m_tooltip.SetToolRect(m_hWnd, 123, &area);
 		}
 
 		SetTimer(XWIN_666MS_TIMER, 500);
