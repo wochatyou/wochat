@@ -6,7 +6,7 @@ set(WOCHATAPP_DIR "${CMAKE_CURRENT_LIST_DIR}"
 
 add_executable(${PROJECT_NAME} WIN32 main.cpp wochat.cpp wochat.rc)
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR} ${CMAKE_SOURCE_DIR} {LIBDUI_SOURCE_DIR})
+target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/wtl ${CMAKE_SOURCE_DIR} {LIBDUI_SOURCE_DIR})
 target_link_libraries(${PROJECT_NAME} libdui)
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY

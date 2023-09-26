@@ -168,7 +168,7 @@ public:
 			{
 				eb2->setId(id, m_controlCount);
 				eb2->setRoundColor(m_backgroundColor, m_backgroundColor);
-				eb2->setBkgFrontColor(0xFFBBBBBB, 0xFF555555);
+				//eb2->setBkgFrontColor(0xFFBBBBBB, 0xFF555555);
 				m_control[m_controlCount] = eb2;
 				m_controlCount++;
 			}

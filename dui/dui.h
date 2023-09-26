@@ -586,9 +586,9 @@ private:
     hb_font_t* m_hb_font = nullptr;
     hb_buffer_t* m_hb_buffer = nullptr;
     double m_fontSize = 15;
-    double m_r0 = .7;
-    double m_g0 = .7;
-    double m_b0 = .7;
+    double m_r0 = 1;
+    double m_g0 = 1;
+    double m_b0 = 1;
     double m_r1 = 0;
     double m_g1 = 0;
     double m_b1 = 0;

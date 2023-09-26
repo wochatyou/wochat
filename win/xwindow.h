@@ -58,6 +58,7 @@ private:
 		SPLITLINE_WIDTH = 1 
 	};
 
+	CToolTipCtrl m_tooltip;
 	enum class DrapMode { dragModeNone, dragModeV, dragModeH };
 
 	DrapMode m_dragMode = DrapMode::dragModeNone;
@@ -164,6 +165,8 @@ public:
 		MESSAGE_HANDLER(WM_NCPAINT, OnNCPaint)
 		MESSAGE_HANDLER(WM_PAINT, OnPaint)
 		MESSAGE_HANDLER(WM_TIMER, OnTimer)
+		MESSAGE_RANGE_HANDLER(WM_MOUSEFIRST, WM_MOUSELAST, OnMouseMessage)
+		NOTIFY_CODE_HANDLER(TTN_GETDISPINFO, OnGetToolTipInfo)
 		MESSAGE_HANDLER(WM_MOUSEMOVE, OnMouseMove)
 		MESSAGE_HANDLER(WM_MOUSEWHEEL, OnMouseWheel)
 		MESSAGE_HANDLER(WM_MOUSELEAVE, OnMouseLeave)
@@ -193,6 +196,29 @@ public:
 	LRESULT OnEraseBkgnd(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 	{
 		return 0; // don't want flicker
+	}
+
+	LRESULT OnMouseMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		if (m_tooltip.IsWindow()) 
+		{
+			MSG msg = { m_hWnd, uMsg, wParam, lParam };
+			m_tooltip.RelayEvent(&msg);
+		}
+		bHandled = FALSE; // allow further mouse event process. It is important.
+		return 0;
+	}
+
+	LRESULT OnGetToolTipInfo(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/)
+	{
+		LPNMTTDISPINFO pToolTipInfo = (LPNMTTDISPINFO)pnmh;
+
+		if (pToolTipInfo) 
+		{
+			UINT id = pToolTipInfo->hdr.idFrom;
+			pToolTipInfo->lpszText = L"This is a tip!!!";
+		}
+		return 0;
 	}
 
 	LRESULT OnWin0Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
@@ -242,6 +268,12 @@ public:
 		DoDUIMessageProcess(uMsg, wParam, lParam);
 		SafeRelease(&m_pixelBitmap);
 		SafeRelease(&m_pD2DRenderTarget);
+
+		if (m_tooltip.IsWindow()) 
+		{
+			m_tooltip.DestroyWindow();
+		}
+
 		PostQuitMessage(0);
 		return 0;
 	}
@@ -256,6 +288,28 @@ public:
 			return 0;
 		}
 		m_nDPI = GetDpiForWindow(m_hWnd);
+
+		/* Initialize Tooltips */
+		ATLASSERT(FALSE == m_tooltip.IsWindow());
+		// Be sure InitCommonControlsEx is called before this, 
+		// with one of the flags that includes the tooltip control
+		m_tooltip.Create(m_hWnd, NULL, NULL, WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP /* | TTS_BALLOON */, WS_EX_TOOLWINDOW);
+		if (m_tooltip.IsWindow()) 
+		{
+			RECT area = { 0 };
+			m_tooltip.SetWindowPos(HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+			m_tooltip.SetDelayTime(TTDT_INITIAL, ::GetDoubleClickTime());
+			m_tooltip.SetDelayTime(TTDT_AUTOPOP, ::GetDoubleClickTime() * 20);
+			m_tooltip.SetDelayTime(TTDT_RESHOW, ::GetDoubleClickTime() / 5);
+			m_tooltip.Activate(TRUE);
+
+			m_tooltip.AddTool(m_hWnd, LPSTR_TEXTCALLBACK, &rcDefault, 123);
+			area.left = 0;
+			area.right = 100;
+			area.top = 0;
+			area.bottom = 100;
+			m_tooltip.SetToolRect(m_hWnd, 123, &area);
+		}
 
 		SetTimer(XWIN_666MS_TIMER, 500);
 

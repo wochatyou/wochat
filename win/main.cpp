@@ -32,7 +32,8 @@ HCURSOR g_hCursorIBeam = nullptr;
 
 wchar_t g_AppPath[MAX_PATH + 1] = { 0 };
 
-static CAtlWinModule _Module;
+//static CAtlWinModule _Module;
+CAppModule _Module;
 
 class CWoChatThreadManager
 {
@@ -429,9 +430,11 @@ int WINAPI  _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmd
 	// for security exploits.
 	HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
 		
-	hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+	hr = ::CoInitializeEx(NULL, COINIT_MULTITHREADED);
 	if(S_OK != hr) 
 		return 0;
+
+	AtlInitCommonControls(ICC_COOL_CLASSES | ICC_BAR_CLASSES | ICC_LINK_CLASS);	// add flags to support other controls
 
 	iRet = InitInstance(hInstance);
 	if (0 != iRet)
