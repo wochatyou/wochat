@@ -55,7 +55,7 @@ class XWindow : public ATL::CWindowImpl<XWindow>
 private:
 	enum { 
 		STEPXY = 1, 
-		SPLITLINE_WIDTH = 2 
+		SPLITLINE_WIDTH = 1 
 	};
 
 	enum class DrapMode { dragModeNone, dragModeV, dragModeH };
@@ -107,6 +107,8 @@ private:
 	U32 m3 = 0;
 	U32 m4 = 0;
 	U32 m5 = 0;
+	U32 m6 = 0;
+	U32 m7 = 0;
 #endif
 	ID2D1HwndRenderTarget* m_pD2DRenderTarget = nullptr;
 	ID2D1Bitmap*           m_pixelBitmap = nullptr;
@@ -164,6 +166,8 @@ public:
 		MESSAGE_HANDLER(WM_TIMER, OnTimer)
 		MESSAGE_HANDLER(WM_MOUSEMOVE, OnMouseMove)
 		MESSAGE_HANDLER(WM_MOUSEWHEEL, OnMouseWheel)
+		MESSAGE_HANDLER(WM_MOUSELEAVE, OnMouseLeave)
+		MESSAGE_HANDLER(WM_MOUSEHOVER, OnMouseHover)
 		MESSAGE_HANDLER(WM_LBUTTONDOWN, OnLButtonDown)
 		MESSAGE_HANDLER(WM_LBUTTONUP, OnLButtonUp)
 		MESSAGE_HANDLER(WM_LBUTTONDBLCLK, OnLButtonDoubleClick)
@@ -251,8 +255,8 @@ public:
 			PostMessage(WM_CLOSE);
 			return 0;
 		}
-
 		m_nDPI = GetDpiForWindow(m_hWnd);
+
 		SetTimer(XWIN_666MS_TIMER, 500);
 
 		return 0;
@@ -509,6 +513,23 @@ public:
 		m_win5.SetPosition(r, dst, size);
 	}
 
+	LRESULT OnMouseLeave(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+#ifdef _DEBUG
+		m7++;
+#endif
+		int r = DoDUIMessageProcess(uMsg, wParam, lParam);
+		return r;
+	}
+
+	LRESULT OnMouseHover(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+#ifdef _DEBUG
+		m6++;
+#endif
+		int r = DoDUIMessageProcess(uMsg, wParam, lParam);
+		return r;
+	}
 	
 	LRESULT OnMouseWheel(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
@@ -532,6 +553,16 @@ public:
 
 		int xPos = GET_X_LPARAM(lParam);
 		int yPos = GET_Y_LPARAM(lParam);
+
+		{
+			TRACKMOUSEEVENT tme;
+			tme.cbSize = sizeof(TRACKMOUSEEVENT);
+			tme.dwFlags = TME_HOVER | TME_LEAVE;
+			tme.hwndTrack = m_hWnd;
+			tme.dwHoverTime = HOVER_DEFAULT;
+			BOOL b = TrackMouseEvent(&tme);
+			ATLASSERT(FALSE != b);
+		}
 
 		if(::GetCapture() == m_hWnd)
 		{
@@ -606,6 +637,16 @@ public:
 		int xPos = GET_X_LPARAM(lParam);
 		int yPos = GET_Y_LPARAM(lParam);
 
+		DoDUIMessageProcess(uMsg, wParam, lParam);
+		if (XWindowInDragMode())
+		{
+			if (::GetCapture() != m_hWnd)
+			{
+				SetCapture();
+			}
+		}
+
+#if 0
 		DrapMode mode = IsOverSplitterBar(xPos, yPos);
 		if(::GetCapture() != m_hWnd)
 		{
@@ -629,7 +670,6 @@ public:
 			m_dragMode = mode;
 			if(DrapMode::dragModeNone != mode)
 				SetCapture();
-
 		}
 		else
 		{
@@ -642,12 +682,19 @@ public:
 		{
 			DoDUIMessageProcess(uMsg, wParam, lParam);
 		}
-
+#endif
 		return 0;
 	}
 
 	LRESULT OnLButtonUp(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
+		DoDUIMessageProcess(uMsg, wParam, lParam);
+		ATLASSERT(!XWindowInDragMode());
+		if (::GetCapture() == m_hWnd)
+		{
+			::ReleaseCapture();
+		}
+#if 0
 		if(::GetCapture() == m_hWnd)
 		{
 			::ReleaseCapture();
@@ -666,9 +713,7 @@ public:
 		}
 
 		m_dragMode = DrapMode::dragModeNone;
-
-		DoDUIMessageProcess(uMsg, wParam, lParam);
-
+#endif
 		return 0;
 	}
 
@@ -679,6 +724,7 @@ public:
 
 	LRESULT OnCaptureChanged(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 	{
+#if 0
 		bool bChanged = false;
 		if((m_splitterVPosNew != -1) && (m_splitterVPos != m_splitterVPosNew))
 		{
@@ -718,7 +764,7 @@ public:
 			AdjustDUIWindowPosition();
 			Invalidate();
 		}
-
+#endif
 		return 0;
 	}
 
@@ -942,41 +988,38 @@ public:
 					D2D1_RECT_F rect = D2D1::RectF(
 						static_cast<FLOAT>(m_splitterVPos),
 						static_cast<FLOAT>(m_rectClient.top),
-						static_cast<FLOAT>(m_splitterVPos + 2), // m_cxySplitBar),
+						static_cast<FLOAT>(m_splitterVPos + SPLITLINE_WIDTH), // m_cxySplitBar),
 						static_cast<FLOAT>(m_rectClient.bottom)
 					);
 					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap, &rect);
 				}
-
 				if (m_splitterHPosfix0 > 0)
 				{
 					D2D1_RECT_F rect = D2D1::RectF(
 						static_cast<FLOAT>(XWIN0_WIDTH),
 						static_cast<FLOAT>(m_splitterHPosfix0),
 						static_cast<FLOAT>(m_splitterVPos),
-						static_cast<FLOAT>(m_splitterHPosfix0 + 2)
+						static_cast<FLOAT>(m_splitterHPosfix0 + SPLITLINE_WIDTH)
 					);
 					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap, &rect);
 				}
-
 				if (m_splitterHPosfix1 > 0)
 				{
 					D2D1_RECT_F rect = D2D1::RectF(
 						static_cast<FLOAT>(m_splitterVPos + 2),
 						static_cast<FLOAT>(m_splitterHPosfix1),
 						static_cast<FLOAT>(m_rectClient.right),
-						static_cast<FLOAT>(m_splitterHPosfix1 + 2)
+						static_cast<FLOAT>(m_splitterHPosfix1 + SPLITLINE_WIDTH)
 					);
 					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap, &rect);
 				}
-
 				if (m_splitterHPos > 0)
 				{
 					D2D1_RECT_F rect = D2D1::RectF(
-						static_cast<FLOAT>(m_splitterVPos + 2),
+						static_cast<FLOAT>(m_splitterVPos + SPLITLINE_WIDTH),
 						static_cast<FLOAT>(m_splitterHPos),
 						static_cast<FLOAT>(m_rectClient.right),
-						static_cast<FLOAT>(m_splitterHPos + 2)
+						static_cast<FLOAT>(m_splitterHPos + SPLITLINE_WIDTH)
 					);
 					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap, &rect);
 				}
@@ -1113,7 +1156,7 @@ public:
 		EndPaint(&ps);
 
 #ifdef _DEBUG
-		swprintf((wchar_t*)xtitle, 255, L"WoChat ~ OnPaint Call :  W0: %04d - W1: %04d  - W2: %04d - W3: %04d - W4: %04d - W5: %04d", m0, m1, m2, m3, m4, m5);
+		swprintf((wchar_t*)xtitle, 255, L"WoChat ~ [H:%d|L:%d]OnPaint Call :  W0: %04d - W1: %04d  - W2: %04d - W3: %04d - W4: %04d - W5: %04d", m6, m7, m0, m1, m2, m3, m4, m5);
 		::SetWindowTextW(m_hWnd, (LPCWSTR)xtitle);
 #endif
 		return 0;
@@ -1201,19 +1244,19 @@ public:
 
 	DrapMode IsOverSplitterBar(int x, int y) const
 	{
+		int width = SPLITLINE_WIDTH << 1;
 		if(!IsOverSplitterRect(x, y))
 			return DrapMode::dragModeNone;
 
 		ATLASSERT(m_splitterVPos > 0);
-		if((x >= m_splitterVPos) && (x < (m_splitterVPos + SPLITLINE_WIDTH)))
+		if((x >= m_splitterVPos) && (x < (m_splitterVPos + width)))
 			return DrapMode::dragModeV;
 
 		if (m_splitterHPos > 0)
 		{
-			if ((x > m_splitterVPos + SPLITLINE_WIDTH) && (y >= m_splitterHPos) && (y < (m_splitterHPos + SPLITLINE_WIDTH)))
+			if ((x >= m_splitterVPos + width) && (y >= m_splitterHPos) && (y < (m_splitterHPos + width)))
 				return DrapMode::dragModeH;
 		}
-	
 		return DrapMode::dragModeNone;
 	}
 };

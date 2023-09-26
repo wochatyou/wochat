@@ -116,6 +116,7 @@ public:
 		id = XWIN5_BITMAP_AUDIOCALLP;  bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpAudioCallP;  bmp->w = w; bmp->h = h;
 		id = XWIN5_BITMAP_AUDIOCALLA;  bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpAudioCallN;  bmp->w = w; bmp->h = h;
 
+		w = 21; h = 19;
 		id = XWIN5_BITMAP_VIDEOCALLN;   bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpVideoCallN;   bmp->w = w; bmp->h = h;
 		id = XWIN5_BITMAP_VIDEOCALLH;   bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpVideoCallH;   bmp->w = w; bmp->h = h;
 		id = XWIN5_BITMAP_VIDEOCALLP;   bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpVideoCallP;   bmp->w = w; bmp->h = h;
@@ -388,7 +389,7 @@ public:
 		sw = xctl->getWidth();
 		sh = xctl->getHeight();
 		dy = xctl->getTop(); 
-		dx = w - sw - gap;
+		dx = w - sw - gap - 1;
 		xctl->setPosition(dx, dy);
 		top = dy + sh + gap / 2;
 

@@ -57,6 +57,9 @@ extern HCURSOR g_hCursorNS;
 extern HCURSOR g_hCursorHand;
 extern HCURSOR g_hCursorIBeam;
 
+extern uint8_t  g_SKey[32];
+extern uint8_t  g_PKey[33];
+extern uint8_t  g_PKey1[33];
 
 #define XFONT_SIZE0		16
 #define XFONT_SIZE1		13

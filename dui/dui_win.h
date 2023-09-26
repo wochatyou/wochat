@@ -2,28 +2,37 @@
 #define __DUI_WIN_H__
 
 #include "dui.h"
-#include "dui_editbox.h"
 #include "dui_mempool.h"
 
-#define DUI_MAX_CONTROLS    64
-#define DUI_ALLOCSET_DEFAULT_INITSIZE  (8 * 1024)
-#define DUI_ALLOCSET_DEFAULT_MAXSIZE   (8 * 1024 * 1024)
-#define DUI_ALLOCSET_SMALL_INITSIZE    (1 * 1024)
-#define DUI_ALLOCSET_SMALL_MAXSIZE	   (8 * 1024)
-
+// how many controls can be placed in this virtual window?
+#define DUI_MAX_CONTROLS                16 
+#define DUI_MAX_XBUTTON_BITMAPS         (DUI_MAX_CONTROLS << 2)
 #define DUI_MINIMAL_THUMB_SIZE          32
+
+#define DUI_ALLOCSET_DEFAULT_INITSIZE   (8 * 1024)
+#define DUI_ALLOCSET_DEFAULT_MAXSIZE    (8 * 1024 * 1024)
+#define DUI_ALLOCSET_SMALL_INITSIZE     (1 * 1024)
+#define DUI_ALLOCSET_SMALL_MAXSIZE	    (8 * 1024)
+
+
+#define DUI_GLOBAL_STATE_IN_NONE_MODE   0x00000000
+#define DUI_GLOBAL_STATE_IN_DRAG_MODE   0x00000001
+
+// this gloable variable is shared by all virtual windows so they can know each other
+static U32 x_status = DUI_GLOBAL_STATE_IN_NONE_MODE;
+
+bool XWindowInDragMode() { return (DUI_GLOBAL_STATE_IN_DRAG_MODE & x_status); }
 
 typedef U32(*ThreadFunc)(void* lpData);
 
 enum
 {
-    DUI_STATUS_NODRAW    = 0x00,    // do not need to draw      
+    DUI_STATUS_NODRAW    = 0x00,    // do not need to draw, any value not zero need redraw      
     DUI_STATUS_VISIBLE   = 0x01,    // is this virtual window visible?
     DUI_STATUS_VSCROLL   = 0x02,    // is this virtual window has vertical scroll bar?
     DUI_STATUS_HSCROLL   = 0x04,    // is this virtual window has horizonal scroll bar?
     DUI_STATUS_ISFOCUS   = 0x08,    // is the input redirected into this virutal window?
-    DUI_STATUS_NEEDRAW   = 0x10,    // does this virtual windows need to be redraw?
-    DUI_STATUS_HASCARET  = 0x20,    // is this virutal window has a caret?
+    DUI_STATUS_NEEDRAW   = 0x10     // does this virtual windows need to be redraw?
 };
 
 enum
@@ -62,7 +71,6 @@ public:
 #else
     void* m_hWnd = nullptr;
 #endif
-
     U32*    m_screen = nullptr;  // the memory block that will be rendered to the screen by the platform
     U32     m_size = 0;
     U8      m_Id[8] = { 0 }; // for debugging 
@@ -70,6 +78,7 @@ public:
 
     MemoryContext m_pool = nullptr;
     
+    XBitmap   m_bitmap[DUI_MAX_XBUTTON_BITMAPS];
     XControl* m_control[DUI_MAX_CONTROLS];
     U8  m_controlCount = 0;
     int m_activeControl = -1;
@@ -84,23 +93,15 @@ public:
     XSIZE  m_sizeLine = { 0 };
     XSIZE  m_sizePage = { 0 };
     int    m_cxyDragOffset = 0;
-    XPOINT m_ptMouse = { 0 };
 
     XDragMode  m_DragMode = XDragMode::DragNone;
 
-    U32  m_status = DUI_STATUS_VISIBLE;
+    U32  m_status   = DUI_STATUS_VISIBLE;
     U32  m_property = DUI_PROP_NONE;
-    U32  m_message = DUI_NULL;
+    U32  m_message  = DUI_NULL;
     U32  m_backgroundColor = DEFAULT_BACKGROUND_COLOR;
-    U32  m_scrollbarColor = DEFAULT_SCROLLBKG_COLOR;
-    U32  m_thumbColor = DEFAULT_SCROLLTHUMB_COLOR;
-
-    enum {
-        MAX_XBUTTONS = 16,
-        MAX_XBUTTON_BITMAPS = (MAX_XBUTTONS << 2)
-    };
-
-    XBitmap  m_bitmap[MAX_XBUTTON_BITMAPS];
+    U32  m_scrollbarColor  = DEFAULT_SCROLLBKG_COLOR;
+    U32  m_thumbColor      = DEFAULT_SCROLLTHUMB_COLOR;
 
 public:
     XWindowT()
@@ -108,10 +109,6 @@ public:
         int i;
         U8 id;
         XBitmap* bmp;
-
-        m_controlCount = 0;
-        for (i = 0; i < DUI_MAX_CONTROLS; i++)
-            m_control[i] = nullptr;
         
         //m_messageFuncPointerTab[DUI_NULL] = nullptr;
         for (i = 0; i < 256; i++) 
@@ -129,11 +126,14 @@ public:
         pf[DUI_KEYDOWN]     = &T::OnKeyPress;
         pf[DUI_CHAR]        = &T::OnChar;
         pf[DUI_SETCURSOR]   = &T::OnSetCursor;
+        pf[DUI_MOUSELEAVE]  = &T::On_DUI_MOUSELEAVE;
+        pf[DUI_MOUSEHOVER]  = &T::On_DUI_MOUSEHOVER;
 
-        static_assert(MAX_XBUTTONS < (1 << 6));
-
+        m_controlCount = 0;
+        for (i = 0; i < DUI_MAX_CONTROLS; i++)
+            m_control[i] = nullptr;
         // initialize the bitmap's status
-        for (id = 0; id < MAX_XBUTTON_BITMAPS; id++)
+        for (id = 0; id < DUI_MAX_XBUTTON_BITMAPS; id++)
         {
             bmp = &m_bitmap[id];
             bmp->id = id;
@@ -285,41 +285,6 @@ public:
         return m_screen;
     }
 
-    void* SetWindowCapture()
-    {
-        void* winhandle = nullptr;
-
-        assert(IsRealWindow(m_hWnd));
-        
-        if (IsRealWindow(m_hWnd))
-        {
-#if defined(_WIN32)
-            winhandle = ::SetCapture((HWND)m_hWnd);
-#endif
-        }
-
-        return winhandle;
-    }
-
-    void* GetWindowCapture()
-    {
-        void* winhandle = nullptr;
-        
-        assert(IsRealWindow(m_hWnd));
-
-#if defined(_WIN32)
-        winhandle = ::GetCapture();
-#endif
-        return winhandle;
-    }
-
-    void ReleaseWindowCapture()
-    {
-#if defined(_WIN32)
-        ::ReleaseCapture();
-#endif
-    }
-
     bool PostWindowMessage(U32 message, U64 wParam = 0, U64 lParam = 0)
     {
         bool bRet = false;
@@ -353,19 +318,15 @@ public:
         }
 
         m_screen = screen;
-        
-        if(0 != size)
-            m_size = size;
-        else
-            m_size = (U32)((m_area.right - m_area.left) * (m_area.bottom - m_area.top));
-
-        m_status |= DUI_STATUS_NEEDRAW;
+        m_size = (size != 0)? size : (U32)((m_area.right - m_area.left) * (m_area.bottom - m_area.top));
         
         if (nullptr != r)
         {
             T* pT = static_cast<T*>(this);
             pT->UpdateControlPosition();
         }
+
+        m_status |= DUI_STATUS_NEEDRAW;
     }
 
     int Draw() { return 0; }
@@ -450,11 +411,15 @@ public:
         if (nullptr != r && nullptr != m_screen)
         {
             XControl* xctl;
+            int w = r->right - r->left;
+            int h = r->bottom - r->top;
+            assert(w > 0);
+            assert(h > 0);
             for (U8 i = 0; i < m_controlCount; i++)
             {
                 xctl = m_control[i];
                 assert(nullptr != xctl);
-                xctl->AttachParent(m_screen, r->right - r->left, r->bottom - r->top);
+                xctl->AttachParent(m_screen, w, h);
             }
 
             T* pT = static_cast<T*>(this);
@@ -470,10 +435,10 @@ public:
     int DoMouseWheel(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int OnMouseWheel(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
-        if (DUI_PROP_HANDLEVWHEEL & m_property)
+        int r = DUI_STATUS_NODRAW;
+
+        if ((DUI_PROP_HANDLEVWHEEL & m_property) && !(DUI_GLOBAL_STATE_IN_DRAG_MODE & x_status))
         {
-            int r0 = DUI_STATUS_NODRAW;
-            int r1 = DUI_STATUS_NODRAW;
             int xPos = GET_X_LPARAM(lParam);
             int yPos = GET_Y_LPARAM(lParam);
 
@@ -498,33 +463,23 @@ public:
                         m_ptOffset.y = m_sizeAll.cy - h;
 
                     if(yOld != m_ptOffset.y)
-                        r0 = DUI_STATUS_NEEDRAW;
+                        r++;
                 }
 
                 {  // let the derived class to do its stuff
                     T* pT = static_cast<T*>(this);
-                    r1 = pT->DoMouseWheel(uMsg, wParam, lParam, lpData);
+                    r += pT->DoMouseWheel(uMsg, wParam, lParam, lpData);
                 }
             }
-
-            if (DUI_STATUS_NODRAW != r0 || DUI_STATUS_NODRAW != r1)
-            {
-                m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
-                return DUI_STATUS_NEEDRAW;
-            }
         }
-
-        return DUI_STATUS_NODRAW;
-
+        m_status = (DUI_STATUS_NODRAW == r) ? m_status : (m_status | DUI_STATUS_NEEDRAW);
+        return r;
     }
 
     int DoMouseMove(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int OnMouseMove(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
-        int r0  = DUI_STATUS_NODRAW;
-        int r1  = DUI_STATUS_NODRAW;
-        int r2  = DUI_STATUS_NODRAW;
-        int r3  = DUI_STATUS_NODRAW;
+        int r  = DUI_STATUS_NODRAW;
 
         int xPos = GET_X_LPARAM(lParam);
         int yPos = GET_Y_LPARAM(lParam);
@@ -533,20 +488,23 @@ public:
 
         if (XDragMode::DragVertical == m_DragMode)
         {
+            assert(DUI_GLOBAL_STATE_IN_DRAG_MODE & x_status);
             m_status |= DUI_STATUS_VSCROLL;
             m_ptOffset.y = m_ptOffsetOld.y + ((yPos - m_cxyDragOffset) * m_sizeAll.cy) / h;
             if (m_ptOffset.y < 0)
                 m_ptOffset.y = 0;
             if (m_ptOffset.y > (m_sizeAll.cy - h))
                 m_ptOffset.y = m_sizeAll.cy - h;
-            r0 = DUI_STATUS_NEEDRAW;
+            r++;
         }
         else 
         {
             U32 ctlStatus;
             XControl* xctl;
-            if (XWinPointInRect(xPos, yPos, &m_area)) // the mosue is in this area
+            if (XWinPointInRect(xPos, yPos, &m_area) && !(DUI_GLOBAL_STATE_IN_DRAG_MODE & x_status)) // the mosue is in this area
             {
+                assert(XDragMode::DragNone == m_DragMode);
+
                 if (DUI_PROP_HASVSCROLL & m_property) // handle the vertical bar
                 {
                     U32 statusOld = m_status;  // save previous state
@@ -562,15 +520,13 @@ public:
                         if(xPos >= (m_area.right - m_scrollWidth))
                             m_thumbColor = DEFAULT_SCROLLTHUMB_COLORA;
 
-                        if(thumbColor != m_thumbColor) // the thumb color has been changed, we need to redraw
-                            r0 = DUI_STATUS_NEEDRAW;
+                        if (thumbColor != m_thumbColor) // the thumb color has been changed, we need to redraw
+                            r++;
                     }
-
                     if ((DUI_STATUS_VSCROLL & statusOld) != (DUI_STATUS_VSCROLL & m_status))
-                        r0 = DUI_STATUS_NEEDRAW;
+                        r++;
                 }
 
-                //if (GetWindowCapture() != m_hWnd)
                 {
                     int hit = -1;  // no hit so far
                     // transfer the coordination from real window to local virutal window
@@ -578,7 +534,6 @@ public:
                     yPos -= m_area.top;
                     assert(xPos >= 0);
                     assert(yPos >= 0);
-
                     for (int i = 0; i < m_controlCount; i++)
                     {
                         xctl = m_control[i];
@@ -591,12 +546,12 @@ public:
                     }
                     if (-1 != hit) // we are hovering on some control
                     {
-                        r1 = xctl->setStatus(XCONTROL_STATE_HOVERED, XMOUSE_MOVE);
+                        r += xctl->setStatus(XCONTROL_STATE_HOVERED, XMOUSE_MOVE);
                         xctl->ShowCursor();
                     }
                     else // we have to scan the whole control array
                     {
-                        r1 = SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
+                        r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
                     }
                 }
             }
@@ -606,44 +561,38 @@ public:
                 if (DUI_STATUS_VSCROLL & m_status)
                 {
                     m_status &= (~DUI_STATUS_VSCROLL); // we should not dispaly the vertical bar
-                    r2 = DUI_STATUS_NEEDRAW;
+                    r++;
                 }
-                if (DUI_STATUS_NODRAW == r2)
+                if (DUI_STATUS_NODRAW == r)
                 {
-                    r2 = SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
+                    r = SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
                 }
             }
         }
 
-        {  // let the derived class to do its stuff
-            T* pT = static_cast<T*>(this);
-            r3 = pT->DoMouseMove(uMsg, wParam, lParam, lpData);
-        }
-
-        if (r0 || r1 || r2 || r3)
+          // let the derived class to do its stuff
+        if (!(DUI_GLOBAL_STATE_IN_DRAG_MODE & x_status))
         {
-            m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
-            return DUI_STATUS_NEEDRAW;
+            T* pT = static_cast<T*>(this);
+            r += pT->DoMouseMove(uMsg, wParam, lParam, lpData);
         }
-        return DUI_STATUS_NODRAW;
+        m_status = (DUI_STATUS_NODRAW == r) ? m_status : (m_status | DUI_STATUS_NEEDRAW);
+        return r;
     }
 
     int DoLButtonDown(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int OnLButtonDown(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
+        int r = DUI_STATUS_NODRAW;
         U32 statusOld = m_status;
         XControl* xctl;
-        int r0 = DUI_STATUS_NODRAW;
-        int r1 = DUI_STATUS_NODRAW;
-        int r2 = DUI_STATUS_NODRAW;
-        int r3 = DUI_STATUS_NODRAW;
 
         int xPos = GET_X_LPARAM(lParam);
         int yPos = GET_Y_LPARAM(lParam);
 
         m_DragMode = XDragMode::DragNone;
 
-        if (XWinPointInRect(xPos, yPos, &m_area))
+        if (XWinPointInRect(xPos, yPos, &m_area) && !(DUI_GLOBAL_STATE_IN_DRAG_MODE & x_status))
         {
             int hit = -1;
             int w = m_area.right - m_area.left;
@@ -676,6 +625,7 @@ public:
                             m_cxyDragOffset = yPos;
                             m_ptOffsetOld.y = m_ptOffset.y;
                             m_DragMode = XDragMode::DragVertical;
+                            x_status |= DUI_GLOBAL_STATE_IN_DRAG_MODE;
                             //SetWindowCapture();
                         } 
                         else
@@ -693,16 +643,14 @@ public:
                         return DUI_STATUS_NEEDRAW;
                     }
                     if ((DUI_STATUS_VSCROLL & statusOld) != (DUI_STATUS_VSCROLL & m_status))
-                        r0 = DUI_STATUS_NEEDRAW;
+                        r++;
                 }
             }
-
             // transfer the coordination from real window to local virutal window
             xPos -= m_area.left; 
             yPos -= m_area.top;
             assert(xPos >= 0);
             assert(yPos >= 0);
-
             for (int i = 0; i < m_controlCount; i++)
             {
                 xctl = m_control[i];
@@ -715,12 +663,12 @@ public:
             }
             if (-1 != hit) // we are hitting some button
             {
-                r0 = xctl->setStatus(XCONTROL_STATE_PRESSED, XMOUSE_LBDOWN);
+                r += xctl->setStatus(XCONTROL_STATE_PRESSED, XMOUSE_LBDOWN);
                 xctl->ShowCursor();
             }
             else // we do not hit any control of this virtual window
             {  
-                r0 = SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
+                r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
                 // if the mouse does not hit the button, we can move the whole real window
                 if (DUI_PROP_MOVEWIN & m_property)
                     PostWindowMessage(WM_NCLBUTTONDOWN, HTCAPTION, lParam);
@@ -730,37 +678,27 @@ public:
         {
             m_status &= ~(DUI_STATUS_ISFOCUS| DUI_STATUS_VSCROLL); // this window lose focus
             if ((DUI_STATUS_VSCROLL & statusOld) != (DUI_STATUS_VSCROLL & m_status))
-                r0 = DUI_STATUS_NEEDRAW;
-
-            r1 = SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
+                r++;
+            r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
         }
         // let the derived class to do its stuff
+        if (!(DUI_GLOBAL_STATE_IN_DRAG_MODE & x_status))
         {
             T* pT = static_cast<T*>(this);
-            r2 = pT->DoLButtonDown(uMsg, wParam, lParam, lpData);
+            r += pT->DoLButtonDown(uMsg, wParam, lParam, lpData);
         }
-        if (r0 || r1 || r2)
-        {
-            m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
-            return DUI_STATUS_NEEDRAW;
-        }
-        return DUI_STATUS_NODRAW;
+        m_status = (DUI_STATUS_NODRAW == r) ? m_status : (m_status | DUI_STATUS_NEEDRAW);
+        return r;
     }
 
     int DoLButtonUp(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int OnLButtonUp(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
-        int r0 = DUI_STATUS_NODRAW;
-        int r1 = DUI_STATUS_NODRAW;
+        int r = DUI_STATUS_NODRAW;
         int xPos = GET_X_LPARAM(lParam);
         int yPos = GET_Y_LPARAM(lParam);
 
-#if 0
-        if (GetWindowCapture() == m_hWnd)
-        {
-            ReleaseWindowCapture();
-        }
-#endif
+        x_status &= ~DUI_GLOBAL_STATE_IN_DRAG_MODE;
         m_DragMode = XDragMode::DragNone;
         m_ptOffsetOld.x = -1, m_ptOffsetOld.y = -1;
 
@@ -790,41 +728,47 @@ public:
                 {
                     int oldActive = m_activeControl;
                     m_activeControl = hit;
-                    r0 = xctl->setStatus(XCONTROL_STATE_ACTIVE, XMOUSE_LBUP);
+                    r += xctl->setStatus(XCONTROL_STATE_ACTIVE, XMOUSE_LBUP);
                     if (oldActive >= 0)
                     {
                         assert(oldActive < m_controlCount);
                         XControl* xctlOld = m_control[oldActive];
-                        r0 += xctlOld->setStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
+                        r += xctlOld->setStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
                     }
                 }
                 else
                 {
                     m_activeControl = -1;
-                    r0 = xctl->setStatus(XCONTROL_STATE_HOVERED, XMOUSE_LBUP);
+                    r += xctl->setStatus(XCONTROL_STATE_HOVERED, XMOUSE_LBUP);
                 }
                 xctl->ShowCursor();
             }
             else
             {
-                r0 = SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
+                r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
             }
         }
         else // the mouse is not in our area
         {
+            r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
+            if (DUI_PROP_HASVSCROLL & m_property)
+            {
+                if (DUI_STATUS_VSCROLL & m_status)
+                {
+                    m_status &= ~DUI_STATUS_VSCROLL;
+                    r++;
+                }
+            }
         }
 
+        if (!(DUI_GLOBAL_STATE_IN_DRAG_MODE & x_status))
         {
             T* pT = static_cast<T*>(this);
-            r1 = pT->DoLButtonUp(uMsg, wParam, lParam, lpData);
+            r += pT->DoLButtonUp(uMsg, wParam, lParam, lpData);
         }
 
-        if (r0 || r1)
-        {
-            m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
-            return DUI_STATUS_NEEDRAW;
-        }
-        return DUI_STATUS_NODRAW;
+        m_status = (DUI_STATUS_NODRAW == r) ? m_status : (m_status | DUI_STATUS_NEEDRAW);
+        return r;
     }
 
     int DoLButtonDoubleClick(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
@@ -863,10 +807,11 @@ public:
         m_pool = mempool_create(0, initSize, maxSize);
         if (nullptr == m_pool)
             return 1;
-
-        T* pT = static_cast<T*>(this);
-        pT->InitControl();
-        ret = pT->DoCreate(uMsg, wParam, lParam, lpData);
+        {
+            T* pT = static_cast<T*>(this);
+            pT->InitControl();
+            ret = pT->DoCreate(uMsg, wParam, lParam, lpData);
+        }
 
         return ret;
     }
@@ -882,32 +827,26 @@ public:
     int DoSetCursor(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int OnSetCursor(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
-        XControl* xctl;
         int r = 0;
-        int r0 = 0;
-        int r1 = 0;
         int xPos = (int)wParam;
         int yPos = (int)lParam;
+        XControl* xctl;
 
         // the original xPos/yPos is related to the client area system of the host window. 
         xPos -= m_area.left;
         yPos -= m_area.top;
-
         for (int i = 0; i < m_controlCount; i++)
         {
             xctl = m_control[i];
             assert(nullptr != xctl);
             if (xctl->IsOverMe(xPos, yPos))
             {
-                r0 = 1;
+                r++;
                 break;
             }
         }
-
         T* pT = static_cast<T*>(this);
-        r1 = pT->DoSetCursor(uMsg, wParam, lParam, lpData);
-        if (r0 || r1)
-            r = 1;
+        r += pT->DoSetCursor(uMsg, wParam, lParam, lpData);
         return r;
     }
 
@@ -915,13 +854,11 @@ public:
     int OnChar(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
         int r = DUI_STATUS_NODRAW;
-        if (DUI_PROP_HANDLEKEYBOARD & m_property)
+        if ((DUI_PROP_HANDLEKEYBOARD & m_property) && !(DUI_GLOBAL_STATE_IN_DRAG_MODE & x_status))
         {
             if (DUI_STATUS_ISFOCUS & m_status)
             {
                 T* pT = static_cast<T*>(this);
-                //ProcessOSMessage pfOSM = m_functionTab[0];
-                //r = (pT->*pfOSM)(uMsg, wParam, lParam, lpData);
                 r = pT->DoChar(uMsg, wParam, lParam, lpData);
                 if (DUI_STATUS_NODRAW != r)
                     m_status |= DUI_STATUS_NEEDRAW;
@@ -934,7 +871,7 @@ public:
     int OnKeyPress(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
         int r = DUI_STATUS_NODRAW;
-        if (DUI_PROP_HANDLEKEYBOARD & m_property)
+        if ((DUI_PROP_HANDLEKEYBOARD & m_property) && !(DUI_GLOBAL_STATE_IN_DRAG_MODE & x_status))
         {
             if (DUI_STATUS_ISFOCUS & m_status)
             {
@@ -944,16 +881,13 @@ public:
                     m_status |= DUI_STATUS_NEEDRAW;
             }
         }
-
         return r;
     }
 
     int DoTimer(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int OnTimer(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
-        int r0 = DUI_STATUS_NODRAW;
-        int r1 = DUI_STATUS_NODRAW;
-
+        int r = DUI_STATUS_NODRAW;
         if (DUI_PROP_HANDLETIMER & m_property)
         {
             XControl* xctl;
@@ -961,17 +895,55 @@ public:
             {
                 xctl = m_control[i];
                 assert(nullptr != xctl);
-                r0 += xctl->OnTimer();
+                r += xctl->OnTimer();
             }
-
             T* pT = static_cast<T*>(this);
-            r1 = pT->DoTimer(uMsg, wParam, lParam, lpData);
-            if (0 != r0 + r1)
+            r += pT->DoTimer(uMsg, wParam, lParam, lpData);
+            if (r)
                 m_status |= DUI_STATUS_NEEDRAW;
         }
-
-        return (r0 + r1);
+        return r;
     }
+
+    int Do_DUI_MOUSELEAVE(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
+    int On_DUI_MOUSELEAVE(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
+    {
+        int r0 = DUI_STATUS_NODRAW;
+#if 0
+        int r1 = DUI_STATUS_NODRAW;
+        int r2 = DUI_STATUS_NODRAW;
+
+        // because the mouse leaved our window, we clean all drag mode
+        x_status &= ~DUI_GLOBAL_STATE_IN_DRAG_MODE;
+        m_DragMode = XDragMode::DragNone;
+        r0 = SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
+        if (DUI_PROP_HASVSCROLL & m_property)
+        {
+            if (DUI_STATUS_VSCROLL & m_status)
+            {
+                m_status &= ~DUI_STATUS_VSCROLL;
+                r1 = DUI_STATUS_NEEDRAW;
+            }
+        }
+
+        {
+            T* pT = static_cast<T*>(this);
+            r2 = pT->Do_DUI_MOUSELEAVE(uMsg, wParam, lParam, lpData);
+        }
+
+        r0 += (r1 + r2);
+        if (DUI_STATUS_NODRAW != r0)
+            m_status |= DUI_STATUS_NEEDRAW;
+#endif
+        return (r0);
+    }
+
+    int Do_DUI_MOUSEHOVER(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
+    int On_DUI_MOUSEHOVER(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
+    {
+        return 0;
+    }
+
 };
 
 #endif  /* __DUI_WIN_H__ */

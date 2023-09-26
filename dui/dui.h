@@ -76,6 +76,8 @@
 #define DUI_SETCURSOR           0x1F
 #define DUI_SETFOCUS            0x20
 #define DUI_MOUSEACTIVATE       0x21
+#define DUI_MOUSELEAVE          0x22
+#define DUI_MOUSEHOVER          0x23
 
 // User defined message
 #define DUI_XWINDOWS00          0xFF

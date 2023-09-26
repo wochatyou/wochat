@@ -21,11 +21,16 @@ FT_Face				g_ftFace0     = nullptr;
 FT_Face				g_ftFace1     = nullptr;
 FT_Face				g_ftFace2     = nullptr;
 ID2D1Factory*       g_pD2DFactory = nullptr;
+uint8_t  g_SKey[32] = { 0 };
+uint8_t  g_PKey[33] = { 0 };
+uint8_t  g_PKey1[33] = { 0 };
 
 HCURSOR g_hCursorWE    = nullptr;
 HCURSOR g_hCursorNS    = nullptr;
 HCURSOR g_hCursorHand  = nullptr;
 HCURSOR g_hCursorIBeam = nullptr;
+
+wchar_t g_AppPath[MAX_PATH + 1] = { 0 };
 
 static CAtlWinModule _Module;
 
@@ -159,6 +164,45 @@ static int InitInstance(HINSTANCE hInstance)
 	g_hCursorNS    = ::LoadCursor(NULL, IDC_SIZENS);
 	g_hCursorHand  = ::LoadCursor(nullptr, IDC_HAND);
 	g_hCursorIBeam = ::LoadCursor(NULL, IDC_IBEAM);
+
+#if 0
+	DWORD length = GetModuleFileName(hInstance, g_AppPath, MAX_PATH);
+	ATLASSERT(length > 0);
+
+	{
+		int	  fd;
+		DWORD i, size, bytes;
+		wchar_t wochatxt[MAX_PATH + 1];
+		U8 keydata[129];
+
+		for(i = length - 1; i>0; i--)
+		{
+			if (g_AppPath[i] == _T('\\')) 
+				break;
+		}
+		ATLASSERT(i > 0);
+		g_AppPath[i] = 0;
+		swprintf((wchar_t*)wochatxt, MAX_PATH, L"%s\\wochat.txt", g_AppPath);
+
+		if (0 != _tsopen_s(&fd, wochatxt, _O_RDONLY | _O_BINARY, _SH_DENYWR, 0))
+		{
+			return 1;
+		}
+		size = (DWORD)_lseek(fd, 0, SEEK_END); /* get the file size */
+		if(size < 129)
+		{
+			_close(fd);
+			return 1;
+		}
+		bytes = (DWORD)_read(fd, keydata, 129);
+		if (129 != bytes)
+		{
+			_close(fd);
+			return 1;
+		}
+		_close(fd); 
+	}
+#endif
 
 	if (NULL == g_hCursorWE || NULL == g_hCursorNS || NULL == g_hCursorHand || NULL == g_hCursorIBeam)
 	{

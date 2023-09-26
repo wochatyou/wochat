@@ -2,6 +2,7 @@
 #define __WOCHAT_XWINLOGIN_H__
 
 #include "dui/dui_win.h"
+#include "dui/dui_editbox.h"
 
 #ifndef __cplusplus
 #error Wochat requires C++ compilation (use a .cpp suffix)

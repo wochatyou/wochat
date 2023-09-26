@@ -47,6 +47,8 @@ int DUI_Init()
     p[WM_SETCURSOR]      = DUI_SETCURSOR;
     p[WM_SETFOCUS]       = DUI_SETFOCUS;
     p[WM_MOUSEACTIVATE]  = DUI_MOUSEACTIVATE;
+    p[WM_MOUSELEAVE]     = DUI_MOUSELEAVE;
+    p[WM_MOUSEHOVER]     = DUI_MOUSEHOVER;
 #endif
 
     return DUI_OK;
@@ -289,17 +291,10 @@ int XLabel::Draw()
                 charHeight = (DUI_ALIGN_TRUETYPE(hbpos[i].y_advance) >> 6);
                 xOffset = (DUI_ALIGN_TRUETYPE(hbpos[i].x_offset) >> 6);
                 yOffset = (DUI_ALIGN_TRUETYPE(hbpos[i].y_offset) >> 6);
-#if 0
-                m_cairo_glyphs[i].x = current_x + xOffset;
-                m_cairo_glyphs[i].y = -(current_y + yOffset);
-                current_x += charWidth;
-                current_y += charHeight;
-#endif
                 m_cairo_glyphs[i].x = current_x + hbpos[i].x_offset / 64.0;
                 m_cairo_glyphs[i].y = -(current_y + hbpos[i].y_offset / 64.0);
                 current_x += hbpos[i].x_advance / 64.0;
                 current_y += hbpos[i].y_advance / 64.0;
-
                 W += charWidth;
             }
             w = right - left;
@@ -337,6 +332,427 @@ int XLabel::Draw()
     return 0;
 }
 
+#if 0
+// Define attributes of all API symbols declarations (e.g. for DLL under Windows)
+// IMGUI_API is used for core imgui functions, IMGUI_IMPL_API is used for the default backends files (imgui_impl_xxx.h)
+// Using dear imgui via a shared library is not recommended: we don't guarantee backward nor forward ABI compatibility + this is a call-heavy library and function call overhead adds up.
+#ifndef IMGUI_API
+#define IMGUI_API
+#endif
+#ifndef IMGUI_IMPL_API
+#define IMGUI_IMPL_API              IMGUI_API
+#endif
+
+// Helper Macros
+#ifndef IM_ASSERT
+#include <assert.h>
+#define IM_ASSERT(_EXPR)            assert(_EXPR)                               // You can override the default assert handler by editing imconfig.h
+#endif
+
+// Disable some of MSVC most aggressive Debug runtime checks in function header/footer (used in some simple/low-level functions)
+#if defined(_MSC_VER) && !defined(__clang__)  && !defined(__INTEL_COMPILER) && !defined(IMGUI_DEBUG_PARANOID)
+#define IM_MSVC_RUNTIME_CHECKS_OFF      __pragma(runtime_checks("",off))     __pragma(check_stack(off)) __pragma(strict_gs_check(push,off))
+#define IM_MSVC_RUNTIME_CHECKS_RESTORE  __pragma(runtime_checks("",restore)) __pragma(check_stack())    __pragma(strict_gs_check(pop))
+#else
+#define IM_MSVC_RUNTIME_CHECKS_OFF
+#define IM_MSVC_RUNTIME_CHECKS_RESTORE
+#endif
+
+// Scalar data types
+typedef unsigned int        ImGuiID;// A unique ID used by widgets (typically the result of hashing a stack of string)
+typedef signed char         ImS8;   // 8-bit signed integer
+typedef unsigned char       ImU8;   // 8-bit unsigned integer
+typedef signed short        ImS16;  // 16-bit signed integer
+typedef unsigned short      ImU16;  // 16-bit unsigned integer
+typedef signed int          ImS32;  // 32-bit signed integer == int
+typedef unsigned int        ImU32;  // 32-bit unsigned integer (often used to store packed colors)
+typedef signed   long long  ImS64;  // 64-bit signed integer
+typedef unsigned long long  ImU64;  // 64-bit unsigned integer
+
+// Character types
+// (we generally use UTF-8 encoded string in the API. This is storage specifically for a decoded character used for keyboard input and display)
+typedef unsigned int ImWchar32;     // A single decoded U32 character/code point. We encode them as multi bytes UTF-8 when used in strings.
+typedef unsigned short ImWchar16;   // A single decoded U16 character/code point. We encode them as multi bytes UTF-8 when used in strings.
+#ifdef IMGUI_USE_WCHAR32            // ImWchar [configurable type: override in imconfig.h with '#define IMGUI_USE_WCHAR32' to support Unicode planes 1-16]
+typedef ImWchar32 ImWchar;
+#else
+typedef ImWchar16 ImWchar;
+#endif
+
+// - ImMin/ImMax/ImClamp/ImLerp/ImSwap are used by widgets which support variety of types: signed/unsigned int/long long float/double
+// (Exceptionally using templates here but we could also redefine them for those types)
+template<typename T> static inline T ImMin(T lhs, T rhs) { return lhs < rhs ? lhs : rhs; }
+template<typename T> static inline T ImMax(T lhs, T rhs) { return lhs >= rhs ? lhs : rhs; }
+template<typename T> static inline T ImClamp(T v, T mn, T mx) { return (v < mn) ? mn : (v > mx) ? mx : v; }
+template<typename T> static inline T ImLerp(T a, T b, float t) { return (T)(a + (b - a) * t); }
+template<typename T> static inline void ImSwap(T& a, T& b) { T tmp = a; a = b; b = tmp; }
+template<typename T> static inline T ImAddClampOverflow(T a, T b, T mn, T mx) { if (b < 0 && (a < mn - b)) return mn; if (b > 0 && (a > mx - b)) return mx; return a + b; }
+template<typename T> static inline T ImSubClampOverflow(T a, T b, T mn, T mx) { if (b > 0 && (a < mn + b)) return mn; if (b < 0 && (a > mx + b)) return mx; return a - b; }
+
+// ImVec2: 2D vector used to store positions, sizes etc. [Compile-time configurable type]
+// This is a frequently used type in the API. Consider using IM_VEC2_CLASS_EXTRA to create implicit cast from/to our preferred type.
+IM_MSVC_RUNTIME_CHECKS_OFF
+struct ImVec2
+{
+    float    x, y;
+    constexpr ImVec2() : x(0.0f), y(0.0f) { }
+    constexpr ImVec2(float _x, float _y) : x(_x), y(_y) { }
+    float& operator[] (size_t idx) { IM_ASSERT(idx == 0 || idx == 1); return ((float*)(void*)(char*)this)[idx]; } // We very rarely use this [] operator, so the assert overhead is fine.
+    float  operator[] (size_t idx) const { IM_ASSERT(idx == 0 || idx == 1); return ((const float*)(const void*)(const char*)this)[idx]; }
+#ifdef IM_VEC2_CLASS_EXTRA
+    IM_VEC2_CLASS_EXTRA     // Define additional constructors and implicit cast operators in imconfig.h to convert back and forth between your math types and ImVec2.
+#endif
+};
+
+// ImVec4: 4D vector used to store clipping rectangles, colors etc. [Compile-time configurable type]
+struct ImVec4
+{
+    float  x, y, z, w;
+    constexpr ImVec4() : x(0.0f), y(0.0f), z(0.0f), w(0.0f) { }
+    constexpr ImVec4(float _x, float _y, float _z, float _w) : x(_x), y(_y), z(_z), w(_w) { }
+#ifdef IM_VEC4_CLASS_EXTRA
+    IM_VEC4_CLASS_EXTRA     // Define additional constructors and implicit cast operators in imconfig.h to convert back and forth between your math types and ImVec4.
+#endif
+};
+IM_MSVC_RUNTIME_CHECKS_RESTORE
+
+//-----------------------------------------------------------------------------
+// ImVector<>
+// Lightweight std::vector<>-like class to avoid dragging dependencies (also, some implementations of STL with debug enabled are absurdly slow, we bypass it so our code runs fast in debug).
+//-----------------------------------------------------------------------------
+// - You generally do NOT need to care or use this ever. But we need to make it available in imgui.h because some of our public structures are relying on it.
+// - We use std-like naming convention here, which is a little unusual for this codebase.
+// - Important: clear() frees memory, resize(0) keep the allocated buffer. We use resize(0) a lot to intentionally recycle allocated buffers across frames and amortize our costs.
+// - Important: our implementation does NOT call C++ constructors/destructors, we treat everything as raw data! This is intentional but be extra mindful of that,
+//   Do NOT use this class as a std::vector replacement in your own code! Many of the structures used by dear imgui can be safely initialized by a zero-memset.
+//-----------------------------------------------------------------------------
+
+IM_MSVC_RUNTIME_CHECKS_OFF
+template<typename T>
+struct ImVector
+{
+    int                 Size;
+    int                 Capacity;
+    T* Data;
+
+    // Provide standard typedefs but we don't use them ourselves.
+    typedef T                   value_type;
+    typedef value_type* iterator;
+    typedef const value_type* const_iterator;
+
+    // Constructors, destructor
+    inline ImVector() { Size = Capacity = 0; Data = NULL; }
+    inline ImVector(const ImVector<T>& src) { Size = Capacity = 0; Data = NULL; operator=(src); }
+    inline ImVector<T>& operator=(const ImVector<T>& src) { clear(); resize(src.Size); if (src.Data) memcpy(Data, src.Data, (size_t)Size * sizeof(T)); return *this; }
+    inline ~ImVector() { if (Data) IM_FREE(Data); } // Important: does not destruct anything
+
+    inline void         clear() { if (Data) { Size = Capacity = 0; IM_FREE(Data); Data = NULL; } }  // Important: does not destruct anything
+    inline void         clear_delete() { for (int n = 0; n < Size; n++) IM_DELETE(Data[n]); clear(); }     // Important: never called automatically! always explicit.
+    inline void         clear_destruct() { for (int n = 0; n < Size; n++) Data[n].~T(); clear(); }           // Important: never called automatically! always explicit.
+
+    inline bool         empty() const { return Size == 0; }
+    inline int          size() const { return Size; }
+    inline int          size_in_bytes() const { return Size * (int)sizeof(T); }
+    inline int          max_size() const { return 0x7FFFFFFF / (int)sizeof(T); }
+    inline int          capacity() const { return Capacity; }
+    inline T& operator[](int i) { IM_ASSERT(i >= 0 && i < Size); return Data[i]; }
+    inline const T& operator[](int i) const { IM_ASSERT(i >= 0 && i < Size); return Data[i]; }
+
+    inline T* begin() { return Data; }
+    inline const T* begin() const { return Data; }
+    inline T* end() { return Data + Size; }
+    inline const T* end() const { return Data + Size; }
+    inline T& front() { IM_ASSERT(Size > 0); return Data[0]; }
+    inline const T& front() const { IM_ASSERT(Size > 0); return Data[0]; }
+    inline T& back() { IM_ASSERT(Size > 0); return Data[Size - 1]; }
+    inline const T& back() const { IM_ASSERT(Size > 0); return Data[Size - 1]; }
+    inline void         swap(ImVector<T>& rhs) { int rhs_size = rhs.Size; rhs.Size = Size; Size = rhs_size; int rhs_cap = rhs.Capacity; rhs.Capacity = Capacity; Capacity = rhs_cap; T* rhs_data = rhs.Data; rhs.Data = Data; Data = rhs_data; }
+
+    inline int          _grow_capacity(int sz) const { int new_capacity = Capacity ? (Capacity + Capacity / 2) : 8; return new_capacity > sz ? new_capacity : sz; }
+    inline void         resize(int new_size) { if (new_size > Capacity) reserve(_grow_capacity(new_size)); Size = new_size; }
+    inline void         resize(int new_size, const T& v) { if (new_size > Capacity) reserve(_grow_capacity(new_size)); if (new_size > Size) for (int n = Size; n < new_size; n++) memcpy(&Data[n], &v, sizeof(v)); Size = new_size; }
+    inline void         shrink(int new_size) { IM_ASSERT(new_size <= Size); Size = new_size; } // Resize a vector to a smaller size, guaranteed not to cause a reallocation
+    inline void         reserve(int new_capacity) { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+    inline void         reserve_discard(int new_capacity) { if (new_capacity <= Capacity) return; if (Data) IM_FREE(Data); Data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); Capacity = new_capacity; }
+
+    // NB: It is illegal to call push_back/push_front/insert with a reference pointing inside the ImVector data itself! e.g. v.push_back(v[10]) is forbidden.
+    inline void         push_back(const T& v) { if (Size == Capacity) reserve(_grow_capacity(Size + 1)); memcpy(&Data[Size], &v, sizeof(v)); Size++; }
+    inline void         pop_back() { IM_ASSERT(Size > 0); Size--; }
+    inline void         push_front(const T& v) { if (Size == 0) push_back(v); else insert(Data, v); }
+    inline T* erase(const T* it) { IM_ASSERT(it >= Data && it < Data + Size); const ptrdiff_t off = it - Data; memmove(Data + off, Data + off + 1, ((size_t)Size - (size_t)off - 1) * sizeof(T)); Size--; return Data + off; }
+    inline T* erase(const T* it, const T* it_last) { IM_ASSERT(it >= Data && it < Data + Size && it_last >= it && it_last <= Data + Size); const ptrdiff_t count = it_last - it; const ptrdiff_t off = it - Data; memmove(Data + off, Data + off + count, ((size_t)Size - (size_t)off - (size_t)count) * sizeof(T)); Size -= (int)count; return Data + off; }
+    inline T* erase_unsorted(const T* it) { IM_ASSERT(it >= Data && it < Data + Size);  const ptrdiff_t off = it - Data; if (it < Data + Size - 1) memcpy(Data + off, Data + Size - 1, sizeof(T)); Size--; return Data + off; }
+    inline T* insert(const T* it, const T& v) { IM_ASSERT(it >= Data && it <= Data + Size); const ptrdiff_t off = it - Data; if (Size == Capacity) reserve(_grow_capacity(Size + 1)); if (off < (int)Size) memmove(Data + off + 1, Data + off, ((size_t)Size - (size_t)off) * sizeof(T)); memcpy(&Data[off], &v, sizeof(v)); Size++; return Data + off; }
+    inline bool         contains(const T& v) const { const T* data = Data;  const T* data_end = Data + Size; while (data < data_end) if (*data++ == v) return true; return false; }
+    inline T* find(const T& v) { T* data = Data;  const T* data_end = Data + Size; while (data < data_end) if (*data == v) break; else ++data; return data; }
+    inline const T* find(const T& v) const { const T* data = Data;  const T* data_end = Data + Size; while (data < data_end) if (*data == v) break; else ++data; return data; }
+    inline int          find_index(const T& v) const { const T* data_end = Data + Size; const T* it = find(v); if (it == data_end) return -1; const ptrdiff_t off = it - Data; return (int)off; }
+    inline bool         find_erase(const T& v) { const T* it = find(v); if (it < Data + Size) { erase(it); return true; } return false; }
+    inline bool         find_erase_unsorted(const T& v) { const T* it = find(v); if (it < Data + Size) { erase_unsorted(it); return true; } return false; }
+    inline int          index_from_ptr(const T* it) const { IM_ASSERT(it >= Data && it < Data + Size); const ptrdiff_t off = it - Data; return (int)off; }
+};
+IM_MSVC_RUNTIME_CHECKS_RESTORE
+
+// Flags (declared as int for compatibility with old C++, to allow using as flags without overhead, and to not pollute the top of this file)
+// - Tip: Use your programming IDE navigation facilities on the names in the _central column_ below to find the actual flags/enum lists!
+//   In Visual Studio IDE: CTRL+comma ("Edit.GoToAll") can follow symbols in comments, whereas CTRL+F12 ("Edit.GoToImplementation") cannot.
+//   With Visual Assist installed: ALT+G ("VAssistX.GoToImplementation") can also follow symbols in comments.
+typedef int ImDrawFlags;            // -> enum ImDrawFlags_          // Flags: for ImDrawList functions
+typedef int ImDrawListFlags;        // -> enum ImDrawListFlags_      // Flags: for ImDrawList instance
+typedef int ImFontAtlasFlags;       // -> enum ImFontAtlasFlags_     // Flags: for ImFontAtlas build
+typedef int ImGuiBackendFlags;      // -> enum ImGuiBackendFlags_    // Flags: for io.BackendFlags
+typedef int ImGuiButtonFlags;       // -> enum ImGuiButtonFlags_     // Flags: for InvisibleButton()
+typedef int ImGuiColorEditFlags;    // -> enum ImGuiColorEditFlags_  // Flags: for ColorEdit4(), ColorPicker4() etc.
+typedef int ImGuiConfigFlags;       // -> enum ImGuiConfigFlags_     // Flags: for io.ConfigFlags
+typedef int ImGuiComboFlags;        // -> enum ImGuiComboFlags_      // Flags: for BeginCombo()
+typedef int ImGuiDragDropFlags;     // -> enum ImGuiDragDropFlags_   // Flags: for BeginDragDropSource(), AcceptDragDropPayload()
+typedef int ImGuiFocusedFlags;      // -> enum ImGuiFocusedFlags_    // Flags: for IsWindowFocused()
+typedef int ImGuiHoveredFlags;      // -> enum ImGuiHoveredFlags_    // Flags: for IsItemHovered(), IsWindowHovered() etc.
+typedef int ImGuiInputTextFlags;    // -> enum ImGuiInputTextFlags_  // Flags: for InputText(), InputTextMultiline()
+typedef int ImGuiKeyChord;          // -> ImGuiKey | ImGuiMod_XXX    // Flags: for storage only for now: an ImGuiKey optionally OR-ed with one or more ImGuiMod_XXX values.
+typedef int ImGuiPopupFlags;        // -> enum ImGuiPopupFlags_      // Flags: for OpenPopup*(), BeginPopupContext*(), IsPopupOpen()
+typedef int ImGuiSelectableFlags;   // -> enum ImGuiSelectableFlags_ // Flags: for Selectable()
+typedef int ImGuiSliderFlags;       // -> enum ImGuiSliderFlags_     // Flags: for DragFloat(), DragInt(), SliderFloat(), SliderInt() etc.
+typedef int ImGuiTabBarFlags;       // -> enum ImGuiTabBarFlags_     // Flags: for BeginTabBar()
+typedef int ImGuiTabItemFlags;      // -> enum ImGuiTabItemFlags_    // Flags: for BeginTabItem()
+typedef int ImGuiTableFlags;        // -> enum ImGuiTableFlags_      // Flags: For BeginTable()
+typedef int ImGuiTableColumnFlags;  // -> enum ImGuiTableColumnFlags_// Flags: For TableSetupColumn()
+typedef int ImGuiTableRowFlags;     // -> enum ImGuiTableRowFlags_   // Flags: For TableNextRow()
+typedef int ImGuiTreeNodeFlags;     // -> enum ImGuiTreeNodeFlags_   // Flags: for TreeNode(), TreeNodeEx(), CollapsingHeader()
+typedef int ImGuiViewportFlags;     // -> enum ImGuiViewportFlags_   // Flags: for ImGuiViewport
+typedef int ImGuiWindowFlags;       // -> enum ImGuiWindowFlags_     // Flags: for Begin(), BeginChild()
+
+//-------------------------------------------------------------------------
+// [SECTION] STB libraries includes
+//-------------------------------------------------------------------------
+
+namespace ImStb
+{
+
+#undef STB_TEXTEDIT_STRING
+#undef STB_TEXTEDIT_CHARTYPE
+#define STB_TEXTEDIT_STRING             ImGuiInputTextState
+#define STB_TEXTEDIT_CHARTYPE           ImWchar
+#define STB_TEXTEDIT_GETWIDTH_NEWLINE   (-1.0f)
+#define STB_TEXTEDIT_UNDOSTATECOUNT     99
+#define STB_TEXTEDIT_UNDOCHARCOUNT      999
+#include "imstb_textedit.h"
+
+} // namespace ImStb
+
+// Internal state of the currently focused/edited text input box
+// For a given item ID, access with ImGui::GetInputTextState()
+struct IMGUI_API ImGuiInputTextState
+{
+#if 0
+    ImGuiContext* Ctx;                    // parent UI context (needs to be set explicitly by parent).
+#endif 
+    ImGuiID                 ID;                     // widget id owning the text state
+
+    int                     CurLenW, CurLenA;       // we need to maintain our buffer length in both UTF-8 and wchar format. UTF-8 length is valid even if TextA is not.
+    ImVector<ImWchar>       TextW;                  // edit buffer, we need to persist but can't guarantee the persistence of the user-provided buffer. so we copy into own buffer.
+    ImVector<char>          TextA;                  // temporary UTF8 buffer for callbacks and other operations. this is not updated in every code-path! size=capacity.
+    ImVector<char>          InitialTextA;           // backup of end-user buffer at the time of focus (in UTF-8, unaltered)
+    bool                    TextAIsValid;           // temporary UTF8 buffer is not initially valid before we make the widget active (until then we pull the data from user argument)
+    int                     BufCapacityA;           // end-user buffer capacity
+    float                   ScrollX;                // horizontal scrolling/offset
+    ImStb::STB_TexteditState Stb;                   // state for stb_textedit.h
+    float                   CursorAnim;             // timer for cursor blink, reset on every user action so the cursor reappears immediately
+    bool                    CursorFollow;           // set when we want scrolling to follow the current cursor position (not always!)
+    bool                    SelectedAllMouseLock;   // after a double-click to select all, we ignore further mouse drags to update selection
+    bool                    Edited;                 // edited this frame
+    ImGuiInputTextFlags     Flags;                  // copy of InputText() flags. may be used to check if e.g. ImGuiInputTextFlags_Password is set.
+
+    ImGuiInputTextState() { memset(this, 0, sizeof(*this)); }
+    void        ClearText() { CurLenW = CurLenA = 0; TextW[0] = 0; TextA[0] = 0; CursorClamp(); }
+    void        ClearFreeMemory() { TextW.clear(); TextA.clear(); InitialTextA.clear(); }
+    int         GetUndoAvailCount() const { return Stb.undostate.undo_point; }
+    int         GetRedoAvailCount() const { return STB_TEXTEDIT_UNDOSTATECOUNT - Stb.undostate.redo_point; }
+    void        OnKeyPressed(int key);      // Cannot be inline because we call in code in stb_textedit.h implementation
+
+    // Cursor & Selection
+    void        CursorAnimReset() { CursorAnim = -0.30f; }                                   // After a user-input the cursor stays on for a while without blinking
+    void        CursorClamp() { Stb.cursor = ImMin(Stb.cursor, CurLenW); Stb.select_start = ImMin(Stb.select_start, CurLenW); Stb.select_end = ImMin(Stb.select_end, CurLenW); }
+    bool        HasSelection() const { return Stb.select_start != Stb.select_end; }
+    void        ClearSelection() { Stb.select_start = Stb.select_end = Stb.cursor; }
+    int         GetCursorPos() const { return Stb.cursor; }
+    int         GetSelectionStart() const { return Stb.select_start; }
+    int         GetSelectionEnd() const { return Stb.select_end; }
+    void        SelectAll() { Stb.select_start = 0; Stb.cursor = Stb.select_end = CurLenW; Stb.has_preferred_x = 0; }
+};
+
+#if 0
+// For InputTextEx()
+static bool             InputTextFilterCharacter(ImGuiContext* ctx, unsigned int* p_char, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data, ImGuiInputSource input_source);
+static int              InputTextCalcTextLenAndLineCount(const char* text_begin, const char** out_text_end);
+static ImVec2           InputTextCalcTextSizeW(ImGuiContext* ctx, const ImWchar* text_begin, const ImWchar* text_end, const ImWchar** remaining = NULL, ImVec2* out_offset = NULL, bool stop_on_new_line = false);
+#endif
+// Wrapper for stb_textedit.h to edit text (our wrapper is for: statically sized buffer, single-line, wchar characters. InputText converts between UTF-8 and wchar)
+namespace ImStb
+{
+#if 0
+    static int     STB_TEXTEDIT_STRINGLEN(const ImGuiInputTextState* obj) { return obj->CurLenW; }
+    static ImWchar STB_TEXTEDIT_GETCHAR(const ImGuiInputTextState* obj, int idx) { IM_ASSERT(idx <= obj->CurLenW); return obj->TextW[idx]; }
+    static float   STB_TEXTEDIT_GETWIDTH(ImGuiInputTextState* obj, int line_start_idx, int char_idx) { ImWchar c = obj->TextW[line_start_idx + char_idx]; if (c == '\n') return STB_TEXTEDIT_GETWIDTH_NEWLINE; ImGuiContext& g = *obj->Ctx; return g.Font->GetCharAdvance(c) * (g.FontSize / g.Font->FontSize); }
+#endif
+    static int     STB_TEXTEDIT_KEYTOTEXT(int key) { return key >= 0x200000 ? 0 : key; }
+    static ImWchar STB_TEXTEDIT_NEWLINE = '\n';
+    static void    STB_TEXTEDIT_LAYOUTROW(StbTexteditRow* r, ImGuiInputTextState* obj, int line_start_idx)
+    {
+#if 0
+        const ImWchar* text = obj->TextW.Data;
+        const ImWchar* text_remaining = NULL;
+        const ImVec2 size = InputTextCalcTextSizeW(obj->Ctx, text + line_start_idx, text + obj->CurLenW, &text_remaining, NULL, true);
+        r->x0 = 0.0f;
+        r->x1 = size.x;
+        r->baseline_y_delta = size.y;
+        r->ymin = 0.0f;
+        r->ymax = size.y;
+        r->num_chars = (int)(text_remaining - (text + line_start_idx));
+#endif
+    }
+
+    static bool is_separator(unsigned int c)
+    {
+        return c == ',' || c == ';' || c == '(' || c == ')' || c == '{' || c == '}' || c == '[' || c == ']' || c == '|' || c == '\n' || c == '\r' || c == '.' || c == '!';
+    }
+
+    static int is_word_boundary_from_right(ImGuiInputTextState* obj, int idx)
+    {
+#if 0
+        // When ImGuiInputTextFlags_Password is set, we don't want actions such as CTRL+Arrow to leak the fact that underlying data are blanks or separators.
+        if ((obj->Flags & ImGuiInputTextFlags_Password) || idx <= 0)
+            return 0;
+
+        bool prev_white = ImCharIsBlankW(obj->TextW[idx - 1]);
+        bool prev_separ = is_separator(obj->TextW[idx - 1]);
+        bool curr_white = ImCharIsBlankW(obj->TextW[idx]);
+        bool curr_separ = is_separator(obj->TextW[idx]);
+        return ((prev_white || prev_separ) && !(curr_separ || curr_white)) || (curr_separ && !prev_separ);
+#endif
+        return 0;
+    }
+    static int is_word_boundary_from_left(ImGuiInputTextState* obj, int idx)
+    {
+#if 0
+        if ((obj->Flags & ImGuiInputTextFlags_Password) || idx <= 0)
+            return 0;
+
+        bool prev_white = ImCharIsBlankW(obj->TextW[idx]);
+        bool prev_separ = is_separator(obj->TextW[idx]);
+        bool curr_white = ImCharIsBlankW(obj->TextW[idx - 1]);
+        bool curr_separ = is_separator(obj->TextW[idx - 1]);
+        return ((prev_white) && !(curr_separ || curr_white)) || (curr_separ && !prev_separ);
+#endif
+    }
+    static int  STB_TEXTEDIT_MOVEWORDLEFT_IMPL(ImGuiInputTextState* obj, int idx) { idx--; while (idx >= 0 && !is_word_boundary_from_right(obj, idx)) idx--; return idx < 0 ? 0 : idx; }
+    static int  STB_TEXTEDIT_MOVEWORDRIGHT_MAC(ImGuiInputTextState* obj, int idx) { idx++; int len = obj->CurLenW; while (idx < len && !is_word_boundary_from_left(obj, idx)) idx++; return idx > len ? len : idx; }
+    static int  STB_TEXTEDIT_MOVEWORDRIGHT_WIN(ImGuiInputTextState* obj, int idx) { idx++; int len = obj->CurLenW; while (idx < len && !is_word_boundary_from_right(obj, idx)) idx++; return idx > len ? len : idx; }
+//    static int  STB_TEXTEDIT_MOVEWORDRIGHT_IMPL(ImGuiInputTextState* obj, int idx) { ImGuiContext& g = *obj->Ctx; if (g.IO.ConfigMacOSXBehaviors) return STB_TEXTEDIT_MOVEWORDRIGHT_MAC(obj, idx); else return STB_TEXTEDIT_MOVEWORDRIGHT_WIN(obj, idx); }
+#define STB_TEXTEDIT_MOVEWORDLEFT   STB_TEXTEDIT_MOVEWORDLEFT_IMPL  // They need to be #define for stb_textedit.h
+#define STB_TEXTEDIT_MOVEWORDRIGHT  STB_TEXTEDIT_MOVEWORDRIGHT_IMPL
+
+    static void STB_TEXTEDIT_DELETECHARS(ImGuiInputTextState* obj, int pos, int n)
+    {
+#if 0
+        ImWchar* dst = obj->TextW.Data + pos;
+
+        // We maintain our buffer length in both UTF-8 and wchar formats
+        obj->Edited = true;
+        obj->CurLenA -= ImTextCountUtf8BytesFromStr(dst, dst + n);
+        obj->CurLenW -= n;
+
+        // Offset remaining text (FIXME-OPT: Use memmove)
+        const ImWchar* src = obj->TextW.Data + pos + n;
+        while (ImWchar c = *src++)
+            *dst++ = c;
+        *dst = '\0';
+#endif
+    }
+
+    static bool STB_TEXTEDIT_INSERTCHARS(ImGuiInputTextState* obj, int pos, const ImWchar* new_text, int new_text_len)
+    {
+#if 0
+        const bool is_resizable = (obj->Flags & ImGuiInputTextFlags_CallbackResize) != 0;
+        const int text_len = obj->CurLenW;
+        IM_ASSERT(pos <= text_len);
+
+        const int new_text_len_utf8 = ImTextCountUtf8BytesFromStr(new_text, new_text + new_text_len);
+        if (!is_resizable && (new_text_len_utf8 + obj->CurLenA + 1 > obj->BufCapacityA))
+            return false;
+
+        // Grow internal buffer if needed
+        if (new_text_len + text_len + 1 > obj->TextW.Size)
+        {
+            if (!is_resizable)
+                return false;
+            IM_ASSERT(text_len < obj->TextW.Size);
+            obj->TextW.resize(text_len + ImClamp(new_text_len * 4, 32, ImMax(256, new_text_len)) + 1);
+        }
+
+        ImWchar* text = obj->TextW.Data;
+        if (pos != text_len)
+            memmove(text + pos + new_text_len, text + pos, (size_t)(text_len - pos) * sizeof(ImWchar));
+        memcpy(text + pos, new_text, (size_t)new_text_len * sizeof(ImWchar));
+
+        obj->Edited = true;
+        obj->CurLenW += new_text_len;
+        obj->CurLenA += new_text_len_utf8;
+        obj->TextW[obj->CurLenW] = '\0';
+#endif
+        return true;
+    }
+
+    // We don't use an enum so we can build even with conflicting symbols (if another user of stb_textedit.h leak their STB_TEXTEDIT_K_* symbols)
+#define STB_TEXTEDIT_K_LEFT         0x200000 // keyboard input to move cursor left
+#define STB_TEXTEDIT_K_RIGHT        0x200001 // keyboard input to move cursor right
+#define STB_TEXTEDIT_K_UP           0x200002 // keyboard input to move cursor up
+#define STB_TEXTEDIT_K_DOWN         0x200003 // keyboard input to move cursor down
+#define STB_TEXTEDIT_K_LINESTART    0x200004 // keyboard input to move cursor to start of line
+#define STB_TEXTEDIT_K_LINEEND      0x200005 // keyboard input to move cursor to end of line
+#define STB_TEXTEDIT_K_TEXTSTART    0x200006 // keyboard input to move cursor to start of text
+#define STB_TEXTEDIT_K_TEXTEND      0x200007 // keyboard input to move cursor to end of text
+#define STB_TEXTEDIT_K_DELETE       0x200008 // keyboard input to delete selection or character under cursor
+#define STB_TEXTEDIT_K_BACKSPACE    0x200009 // keyboard input to delete selection or character left of cursor
+#define STB_TEXTEDIT_K_UNDO         0x20000A // keyboard input to perform undo
+#define STB_TEXTEDIT_K_REDO         0x20000B // keyboard input to perform redo
+#define STB_TEXTEDIT_K_WORDLEFT     0x20000C // keyboard input to move cursor left one word
+#define STB_TEXTEDIT_K_WORDRIGHT    0x20000D // keyboard input to move cursor right one word
+#define STB_TEXTEDIT_K_PGUP         0x20000E // keyboard input to move cursor up a page
+#define STB_TEXTEDIT_K_PGDOWN       0x20000F // keyboard input to move cursor down a page
+#define STB_TEXTEDIT_K_SHIFT        0x400000
+
+#define STB_TEXTEDIT_IMPLEMENTATION
+#define STB_TEXTEDIT_memmove memmove
+#include "imstb_textedit.h"
+
+// stb_textedit internally allows for a single undo record to do addition and deletion, but somehow, calling
+// the stb_textedit_paste() function creates two separate records, so we perform it manually. (FIXME: Report to nothings/stb?)
+    static void stb_textedit_replace(ImGuiInputTextState* str, STB_TexteditState* state, const STB_TEXTEDIT_CHARTYPE* text, int text_len)
+    {
+        stb_text_makeundo_replace(str, state, 0, str->CurLenW, text_len);
+        ImStb::STB_TEXTEDIT_DELETECHARS(str, 0, str->CurLenW);
+        state->cursor = state->select_start = state->select_end = 0;
+        if (text_len <= 0)
+            return;
+        if (ImStb::STB_TEXTEDIT_INSERTCHARS(str, 0, text, text_len))
+        {
+            state->cursor = state->select_start = state->select_end = text_len;
+            state->has_preferred_x = 0;
+            return;
+        }
+        IM_ASSERT(0); // Failed to insert character, normally shouldn't happen because of how we currently use stb_textedit_replace()
+    }
+
+} // namespace ImStb
+
+void ImGuiInputTextState::OnKeyPressed(int key)
+{
+    stb_textedit_key(this, &Stb, key);
+    CursorFollow = true;
+    CursorAnimReset();
+}
+#endif
 
 int XEditBox::Init(void* ptr0, void* ptr1, U32 flag)
 {
