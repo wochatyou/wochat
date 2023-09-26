@@ -607,7 +607,7 @@ public:
 
 		int xPos = GET_X_LPARAM(lParam);
 		int yPos = GET_Y_LPARAM(lParam);
-
+#if 0
 		{
 			TRACKMOUSEEVENT tme;
 			tme.cbSize = sizeof(TRACKMOUSEEVENT);
@@ -617,7 +617,7 @@ public:
 			BOOL b = TrackMouseEvent(&tme);
 			ATLASSERT(FALSE != b);
 		}
-
+#endif
 		if(::GetCapture() == m_hWnd)
 		{
 			int	newSplitPos;
