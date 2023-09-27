@@ -282,7 +282,7 @@ public:
 	// paint the window very quickly.
 	// We put the complete text layout job in a background thread which will
 	// do the text layout from top to bottom (head to tail)
-	void UpdatePosition() 
+	void UpdateControlPosition()
 	{
 #if 0
 		int ret = ReWrapFromTail();
@@ -362,7 +362,7 @@ public:
 		hb_font_destroy(hb_font);
 
 		m_status |= DUI_STATUS_NEEDRAW;
-		NotifyParent(WM_XWINDOWSPAINT, 0, 0);
+		//NotifyParent(WM_XWINDOWSPAINT, 0, 0);
 
 		return 0;
 
@@ -437,12 +437,6 @@ public:
 		m_ptOffset.y = (m_sizeAll.cy > h) ? m_sizeAll.cy - h : 0;
 
 		return 1;
-	}
-
-	int Do_DUI_SIZE(UINT uMsg, WPARAM wParam, LPARAM lParam, void* lpData = nullptr)
-	{
-		UpdatePosition();
-		return 0;
 	}
 
 	int TextLayout(int width, U16* txt, U16 characters, U16* wrapTab, hb_font_t* hb_font, hb_buffer_t* hb_buffer)
@@ -629,7 +623,7 @@ public:
 		return 0;
 	}
 
-	int Draw()
+	int Do_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{
 		int x, y, dx, dy, pos, width;
 		U16 i, lines, baseIdx, charNum;

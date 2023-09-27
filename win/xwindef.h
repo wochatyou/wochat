@@ -139,6 +139,16 @@ static ATL::CWndClassInfo& GetWndClassInfo() \
 	return wc; \
 }
 
+#define MESSAGE_HANDLER_DUIWINDOW(msg, func) \
+	if(true) \
+	{ \
+		bHandled = TRUE; \
+		lResult = func(uMsg, wParam, lParam, bHandled); \
+		if(bHandled) \
+			return TRUE; \
+	}
+
+
 template <class T>
 void SafeRelease(T** ppT)
 {

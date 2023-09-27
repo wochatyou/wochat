@@ -139,28 +139,6 @@ public:
 		m_screenSize = 0;
 	}
 
-	// forward the Windows message to the virtual DUI window
-	int DoDUIMessageProcess(UINT uMsg, WPARAM wParam, LPARAM lParam, void* lpData = nullptr, bool bUpdate = true)
-	{
-		int r = 0;
-		int r0 = m_win0.HandleOSMessage((U32)uMsg, (U64)wParam, (U64)lParam, lpData);
-		int r1 = m_win1.HandleOSMessage((U32)uMsg, (U64)wParam, (U64)lParam, lpData);
-		int r2 = m_win2.HandleOSMessage((U32)uMsg, (U64)wParam, (U64)lParam, lpData);
-		int r3 = m_win3.HandleOSMessage((U32)uMsg, (U64)wParam, (U64)lParam, lpData);
-		int r4 = m_win4.HandleOSMessage((U32)uMsg, (U64)wParam, (U64)lParam, lpData);
-		int r5 = m_win5.HandleOSMessage((U32)uMsg, (U64)wParam, (U64)lParam, lpData);
-
-		if (r0 > 0 || r1 > 0 || r2 > 0 || r3 > 0 || r4 > 0 || r5 > 0)
-			r = 1;
-		else if ((r0 < 0) && (r1 < 0) && (r2 < 0) && (r3 < 0) && (r4 < 0) && (r5 < 0))
-			r = -1;
-
-		if (r > 0 && bUpdate)
-			Invalidate();
-
-		return r;
-	}
-
 	int SetToolTips(int startIdx, int endIdx, int dx, int dy)
 	{
 		RECT area, *r;
@@ -184,6 +162,7 @@ public:
 	}
 
 	BEGIN_MSG_MAP(XWindow)
+		MESSAGE_HANDLER_DUIWINDOW(DUI_ALLMESSAGE, OnDUIWindowMessage)
 		MESSAGE_HANDLER(WM_ERASEBKGND, OnEraseBkgnd)
 		MESSAGE_HANDLER(WM_NCPAINT, OnNCPaint)
 		MESSAGE_HANDLER(WM_PAINT, OnPaint)
@@ -192,8 +171,8 @@ public:
 		NOTIFY_CODE_HANDLER(TTN_GETDISPINFO, OnGetToolTipInfo)
 		MESSAGE_HANDLER(WM_MOUSEMOVE, OnMouseMove)
 		MESSAGE_HANDLER(WM_MOUSEWHEEL, OnMouseWheel)
-		//MESSAGE_HANDLER(WM_MOUSELEAVE, OnMouseLeave)
-		//MESSAGE_HANDLER(WM_MOUSEHOVER, OnMouseHover)
+		MESSAGE_HANDLER(WM_MOUSELEAVE, OnMouseLeave)
+		MESSAGE_HANDLER(WM_MOUSEHOVER, OnMouseHover)
 		MESSAGE_HANDLER(WM_LBUTTONDOWN, OnLButtonDown)
 		MESSAGE_HANDLER(WM_LBUTTONUP, OnLButtonUp)
 		MESSAGE_HANDLER(WM_LBUTTONDBLCLK, OnLButtonDoubleClick)
@@ -215,6 +194,52 @@ public:
 		MESSAGE_HANDLER(WM_CREATE, OnCreate)
 		MESSAGE_HANDLER(WM_DESTROY, OnDestroy)
 	END_MSG_MAP()
+
+	LRESULT OnDUIWindowMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		WPARAM wp = wParam;
+		LPARAM lp = lParam;
+
+		switch (uMsg)
+		{
+		case WM_SETCURSOR:
+			{
+				DWORD dwPos = ::GetMessagePos();
+				POINT ptPos = { GET_X_LPARAM(dwPos), GET_Y_LPARAM(dwPos) };
+				ScreenToClient(&ptPos);
+				wp = (WPARAM)ptPos.x;
+				lp = (LPARAM)ptPos.y;
+			}
+			break;
+		case WM_MOUSEWHEEL:
+			{
+				POINT pt;
+				pt.x = GET_X_LPARAM(lParam);
+				pt.y = GET_Y_LPARAM(lParam);
+				ScreenToClient(&pt);
+				lp = MAKELONG(pt.x, pt.y);
+			}
+			break;
+		case WM_CREATE:
+			wp = (WPARAM)m_hWnd;
+			break;
+		default:
+			break;
+		}
+
+		m_win0.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
+		m_win1.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
+		m_win2.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
+		m_win3.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
+		m_win4.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
+		m_win5.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
+
+		if (DUIWindowNeedReDraw())
+			Invalidate();
+
+		bHandled = FALSE;
+		return 0; 
+	}
 
 	LRESULT OnEraseBkgnd(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 	{
@@ -246,87 +271,9 @@ public:
 		return 0;
 	}
 
-	LRESULT OnWin0Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
-	{
-		if (wParam == 0)
-		{
-			U8 ctlId = (U8)lParam;
-		}
-		else 
-		{
-			int startIdx = (int)wParam;
-			int endIdx   = (int)lParam;
-			assert(startIdx > 0);
-			assert(endIdx >= startIdx);
-			XRECT* xr = m_win0.GetWindowArea();
-			ATLASSERT(xr->left >= 0);
-			ATLASSERT(xr->top >= 0);
-			ATLASSERT(xr->right > xr->left);
-			ATLASSERT(xr->bottom > xr->top);
-
-			SetToolTips(startIdx, endIdx, xr->left, xr->top);
-		}
-
-		return 0; 
-	}
-
-	LRESULT OnWin1Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
-	{
-		U8 buttonId = (U8)wParam;
-		return 0;
-	}
-
-	LRESULT OnWin2Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
-	{
-		return 0;
-	}
-
-	LRESULT OnWin3Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
-	{
-		U8 buttonId = (U8)wParam;
-		return 0;
-	}
-
-	LRESULT OnWin4Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
-	{
-		return 0;
-	}
-
-	LRESULT OnWin5Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
-	{
-		if (wParam == 0)
-		{
-			U8 ctlId = (U8)lParam;
-		}
-		else
-		{
-			int startIdx = (int)wParam;
-			int endIdx = (int)lParam;
-			assert(startIdx > 0);
-			assert(endIdx >= startIdx);
-			XRECT* xr = m_win5.GetWindowArea();
-			ATLASSERT(xr->left >= 0);
-			ATLASSERT(xr->top >= 0);
-			ATLASSERT(xr->right > xr->left);
-			ATLASSERT(xr->bottom > xr->top);
-
-			SetToolTips(startIdx, endIdx, xr->left, xr->top);
-		}
-
-		return 0;
-	}
-
-	LRESULT OnDrawWindow(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
-	{
-		Invalidate();
-		//UpdateWindow();
-		return 0; // don't want flicker
-	}
-
 	LRESULT OnDestroy(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
 		KillTimer(XWIN_666MS_TIMER);
-		DoDUIMessageProcess(uMsg, wParam, lParam);
 		SafeRelease(&m_pixelBitmap);
 		SafeRelease(&m_pD2DRenderTarget);
 
@@ -341,13 +288,13 @@ public:
 
 	LRESULT OnCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
-		int r = DoDUIMessageProcess(uMsg, (WPARAM)m_hWnd, lParam);
-		if (r > 0)
+		if (DUIWindowInitFailed())
 		{
 			MessageBox(_T("WM_CREATE failed!"), _T("Error"), MB_OK);
 			PostMessage(WM_CLOSE);
 			return 0;
 		}
+
 		m_nDPI = GetDpiForWindow(m_hWnd);
 
 		/* Initialize Tooltips */
@@ -372,7 +319,6 @@ public:
 
 	LRESULT OnTimer(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
-		DoDUIMessageProcess(uMsg, wParam, lParam);
 		return 0;
 	}
 
@@ -388,7 +334,10 @@ public:
 
 	LRESULT OnSetCursor(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
-		bHandled = FALSE;
+		bHandled = DUIWindowCursorIsSet() ? TRUE : FALSE;
+
+		ClearDUIWindowCursor();
+
 		if(((HWND)wParam == m_hWnd) && (LOWORD(lParam) == HTCLIENT))
 		{
 			DWORD dwPos = ::GetMessagePos();
@@ -400,12 +349,6 @@ public:
 			DrapMode mode = IsOverSplitterBar(ptPos.x, ptPos.y);
 			if(DrapMode::dragModeNone != mode)
 				bHandled = TRUE;
-			else
-			{
-				int r = DoDUIMessageProcess(uMsg, (WPARAM)ptPos.x, (LPARAM)ptPos.y, nullptr, false);
-				if (r > 0)
-					bHandled = TRUE;
-			}
 		}
 		return 0;
 	}
@@ -414,11 +357,10 @@ public:
 	{
 		if (SIZE_MINIMIZED != wParam)
 		{
-			RECT area;
-			RECT* r = &area;
+			XRECT area;
+			XRECT* r = &area;
 
 			GetClientRect(&m_rectClient);
-			GetWindowRect(&area);
 			ATLASSERT(0 == m_rectClient.left);
 			ATLASSERT(0 == m_rectClient.top);
 			ATLASSERT(m_rectClient.right > 0);
@@ -439,7 +381,12 @@ public:
 			m_screenBuff = (U32*)VirtualAlloc(NULL, m_screenSize, MEM_COMMIT, PAGE_READWRITE);
 			if (nullptr == m_screenBuff)
 			{
-				DoDUIMessageProcess(uMsg, wParam, 0, nullptr, false);
+				m_win0.UpdateSize(nullptr, nullptr);
+				m_win1.UpdateSize(nullptr, nullptr);
+				m_win2.UpdateSize(nullptr, nullptr);
+				m_win3.UpdateSize(nullptr, nullptr);
+				m_win4.UpdateSize(nullptr, nullptr);
+				m_win5.UpdateSize(nullptr, nullptr);
 				Invalidate();
 				return 0;
 			}
@@ -460,25 +407,10 @@ public:
 					m_splitterVPos = (m_rectClient.right - m_rectClient.left - m_splitterVPosToRight);
 					ATLASSERT(m_splitterVPos > m_splitterVPosToLeft);
 				}
-
-				if (SPLIT_LEFTALIGNED & m_dwExtendedStyle)  // it is left aligned
-				{
-					m_splitterVPosOld = m_splitterVPos;
-				}
-				else  // it is right aligned
-				{
-					m_splitterVPosOld = (m_rectClient.right - m_rectClient.left) - m_splitterVPos;
-				}
+				m_splitterVPosOld = m_splitterVPos;
 			}
 
-			if (SPLIT_LEFTALIGNED & m_dwExtendedStyle)  // it is left aligned
-			{
-				m_splitterVPos = m_splitterVPosOld;
-			}
-			else  // it is right aligned
-			{
-				m_splitterVPos = (m_rectClient.right - m_rectClient.left) - m_splitterVPosOld;
-			}
+			m_splitterVPos = m_splitterVPosOld;
 
 			if (m_splitterHPos < 0)
 			{
@@ -491,26 +423,12 @@ public:
 					m_splitterHPos = m_rectClient.bottom - m_rectClient.top - m_splitterHPosToBottom;
 					ATLASSERT(m_splitterHPos > m_splitterHPosToTop);
 				}
-				if (SPLIT_BOTTOMLIGNED & m_dwExtendedStyle)  // it is bottom aligned
-				{
-					m_splitterHPosOld = (m_rectClient.bottom - m_rectClient.top) - m_splitterHPos;
-				}
-				else  // it is top aligned
-				{
-					m_splitterHPosOld = m_splitterHPos;
-				}
+				m_splitterHPosOld = (m_rectClient.bottom - m_rectClient.top) - m_splitterHPos;
 			}
 
 			if (m_splitterHPos > 0) // if(m_splitterHPos <= 0) then windows 5 is hidden
 			{
-				if (SPLIT_BOTTOMLIGNED & m_dwExtendedStyle)  // it is bottom aligned
-				{
-					m_splitterHPos = (m_rectClient.bottom - m_rectClient.top) - m_splitterHPosOld;
-				}
-				else  // it is top aligned
-				{
-					m_splitterHPos = m_splitterHPosOld;
-				}
+				m_splitterHPos = (m_rectClient.bottom - m_rectClient.top) - m_splitterHPosOld;
 			}
 
 			SafeRelease(&m_pD2DRenderTarget);
@@ -523,7 +441,7 @@ public:
 				r->right = XWIN0_WIDTH;
 				r->top = m_rectClient.top;
 				r->bottom = m_rectClient.bottom;
-				m_win0.On_DUI_SIZE(uMsg, wParam, (LPARAM)r, dst);
+				m_win0.UpdateSize(r, dst);
 				size = (U32)((r->right - r->left) * (r->bottom - r->top));
 				dst += size;
 
@@ -531,7 +449,7 @@ public:
 				r->right = m_splitterVPos;
 				r->top = m_rectClient.top;
 				r->bottom = m_splitterHPosfix0;
-				m_win1.On_DUI_SIZE(uMsg, wParam, (LPARAM)r, dst);
+				m_win1.UpdateSize(r, dst);
 				size = (U32)((r->right - r->left) * (r->bottom - r->top));
 				dst += size;
 
@@ -539,7 +457,7 @@ public:
 				r->right = m_splitterVPos;
 				r->top = m_splitterHPosfix0 + SPLITLINE_WIDTH;
 				r->bottom = m_rectClient.bottom;
-				m_win2.On_DUI_SIZE(uMsg, wParam, (LPARAM)r, dst);
+				m_win2.UpdateSize(r, dst);
 				size = (U32)((r->right - r->left) * (r->bottom - r->top));
 				dst += size;
 
@@ -547,7 +465,7 @@ public:
 				r->right = m_rectClient.right;
 				r->top = m_rectClient.top;
 				r->bottom = m_splitterHPosfix1;
-				m_win3.On_DUI_SIZE(uMsg, wParam, (LPARAM)r, dst);
+				m_win3.UpdateSize(r, dst);
 				size = (U32)((r->right - r->left) * (r->bottom - r->top));
 				dst += size;
 
@@ -555,7 +473,7 @@ public:
 				r->right = m_rectClient.right;
 				r->top = m_splitterHPosfix1 + SPLITLINE_WIDTH;
 				r->bottom = m_splitterHPos;
-				m_win4.On_DUI_SIZE(uMsg, wParam, (LPARAM)r, dst);
+				m_win4.UpdateSize(r, dst);
 				size = (U32)((r->right - r->left) * (r->bottom - r->top));
 				dst += size;
 
@@ -563,11 +481,11 @@ public:
 				r->right = m_rectClient.right;
 				r->top = m_splitterHPos + SPLITLINE_WIDTH;
 				r->bottom = m_rectClient.bottom;
-				m_win5.On_DUI_SIZE(uMsg, wParam, (LPARAM)r, dst);
+				m_win5.UpdateSize(r, dst);
 			}
-			Invalidate();
 		}
 
+		Invalidate();
 		return 0;
 	}
 
@@ -623,24 +541,25 @@ public:
 
 	LRESULT OnMouseLeave(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
+		int r = 0;
 #ifdef _DEBUG
 		m7++;
 #endif
-		int r = DoDUIMessageProcess(uMsg, wParam, lParam);
 		return r;
 	}
 
 	LRESULT OnMouseHover(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
+		int r = 0;
 #ifdef _DEBUG
 		m6++;
 #endif
-		int r = DoDUIMessageProcess(uMsg, wParam, lParam);
 		return r;
 	}
 	
 	LRESULT OnMouseWheel(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
+#if 0
 		int r;
 		POINT pt;
 		pt.x = GET_X_LPARAM(lParam);
@@ -649,8 +568,7 @@ public:
 		// convert screen coordinates to window coordinate
 		ScreenToClient(&pt);
 		lParam = MAKELONG(pt.x, pt.y);
-		DoDUIMessageProcess(uMsg, wParam, lParam);
-
+#endif
 		return 0;
 	}
 
@@ -661,8 +579,6 @@ public:
 
 		int xPos = GET_X_LPARAM(lParam);
 		int yPos = GET_Y_LPARAM(lParam);
-
-		r = DoDUIMessageProcess(uMsg, wParam, lParam, nullptr);
 #if 0
 		{
 			TRACKMOUSEEVENT tme;
@@ -747,9 +663,7 @@ public:
 		int xPos = GET_X_LPARAM(lParam);
 		int yPos = GET_Y_LPARAM(lParam);
 
-		DoDUIMessageProcess(uMsg, wParam, lParam);
-
-		if (XWindowInDragMode())
+		if (DUIWindowInDragMode())
 		{
 			if (::GetCapture() != m_hWnd)
 			{
@@ -802,9 +716,7 @@ public:
 
 	LRESULT OnLButtonUp(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
-		DoDUIMessageProcess(uMsg, wParam, lParam);
-		
-		ATLASSERT(!XWindowInDragMode());
+		ATLASSERT(!DUIWindowInDragMode());
 
 		if (::GetCapture() == m_hWnd)
 		{
@@ -812,7 +724,6 @@ public:
 #ifdef _DEBUG
 			drag = 0;
 #endif
-
 		}
 #if 0
 		if(::GetCapture() == m_hWnd)
@@ -890,7 +801,6 @@ public:
 
 	LRESULT OnChar(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
-		DoDUIMessageProcess(uMsg, wParam, lParam);
 		return 0;
 	}
 
@@ -946,10 +856,6 @@ public:
 				break;
 			}
 		}
-		else
-		{
-			DoDUIMessageProcess(uMsg, wParam, lParam);
-		}
 
 		return 0;
 	}
@@ -1002,6 +908,83 @@ public:
 	LRESULT OnSettingChange(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 	{
 		return 0;
+	}
+
+	LRESULT OnWin0Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		if (wParam == 0)
+		{
+			U8 ctlId = (U8)lParam;
+		}
+		else
+		{
+			int startIdx = (int)wParam;
+			int endIdx = (int)lParam;
+			assert(startIdx > 0);
+			assert(endIdx >= startIdx);
+			XRECT* xr = m_win0.GetWindowArea();
+			ATLASSERT(xr->left >= 0);
+			ATLASSERT(xr->top >= 0);
+			ATLASSERT(xr->right > xr->left);
+			ATLASSERT(xr->bottom > xr->top);
+
+			SetToolTips(startIdx, endIdx, xr->left, xr->top);
+		}
+
+		return 0;
+	}
+
+	LRESULT OnWin1Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		U8 buttonId = (U8)wParam;
+		return 0;
+	}
+
+	LRESULT OnWin2Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		return 0;
+	}
+
+	LRESULT OnWin3Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		U8 buttonId = (U8)wParam;
+		return 0;
+	}
+
+	LRESULT OnWin4Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		return 0;
+	}
+
+	LRESULT OnWin5Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		if (wParam == 0)
+		{
+			U8 ctlId = (U8)lParam;
+	}
+		else
+		{
+			int startIdx = (int)wParam;
+			int endIdx = (int)lParam;
+			assert(startIdx > 0);
+			assert(endIdx >= startIdx);
+			XRECT* xr = m_win5.GetWindowArea();
+			ATLASSERT(xr->left >= 0);
+			ATLASSERT(xr->top >= 0);
+			ATLASSERT(xr->right > xr->left);
+			ATLASSERT(xr->bottom > xr->top);
+
+			SetToolTips(startIdx, endIdx, xr->left, xr->top);
+		}
+
+		return 0;
+	}
+
+	LRESULT OnDrawWindow(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
+	{
+		Invalidate();
+		//UpdateWindow();
+		return 0; // don't want flicker
 	}
 
 	LRESULT OnNCPaint(UINT /*uMsg*/, WPARAM wParam, LPARAM /*lParam*/, BOOL& bHandled)
@@ -1146,7 +1129,7 @@ public:
 			}
 
 			// draw window 0
-			src = m_win0.Render();
+			src = m_win0.GetDUIBuffer();
 			if (nullptr != src)
 			{
 #ifdef _DEBUG
@@ -1166,7 +1149,7 @@ public:
 			}
 
 			// draw window 1
-			src = m_win1.Render();
+			src = m_win1.GetDUIBuffer();
 			if (nullptr != src)
 			{
 #ifdef _DEBUG
@@ -1186,7 +1169,7 @@ public:
 			}
 
 			// draw window 2
-			src = m_win2.Render();
+			src = m_win2.GetDUIBuffer();
 			if (nullptr != src)
 			{
 #ifdef _DEBUG
@@ -1206,7 +1189,7 @@ public:
 			}
 
 			// draw window 3
-			src = m_win3.Render();
+			src = m_win3.GetDUIBuffer();
 			if (nullptr != src)
 			{
 #ifdef _DEBUG
@@ -1226,7 +1209,7 @@ public:
 			}
 
 			// draw window 4
-			src = m_win4.Render();
+			src = m_win4.GetDUIBuffer();
 			if (nullptr != src)
 			{
 #ifdef _DEBUG
@@ -1246,7 +1229,7 @@ public:
 			}
 
 			// draw window 5
-			src = m_win5.Render();
+			src = m_win5.GetDUIBuffer();
 			if (nullptr != src)
 			{
 #ifdef _DEBUG
@@ -1264,6 +1247,8 @@ public:
 				}
 				SafeRelease(&pBitmap);
 			}
+			
+			ClearDUIWindowReDraw(); // prevent un-necessary redraw
 
 			////////////////////////////////////////////////////////////////////////////////////////////////////
 			hr = m_pD2DRenderTarget->EndDraw();

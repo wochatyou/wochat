@@ -43,6 +43,7 @@
 
 
 // DUI Message that is OS independent;
+#define DUI_ALLMESSAGE          0x00
 #define DUI_NULL                0x00
 #define DUI_CREATE              0x01
 #define DUI_DESTROY             0x02
@@ -158,13 +159,28 @@ extern U16*      dui_tooltip[DUI_MAX_CONTROLS];
 
 #define DUI_GLOBAL_STATE_IN_NONE_MODE   0x0000000000000000
 #define DUI_GLOBAL_STATE_IN_DRAG_MODE   0x0000000000000001
+#define DUI_GLOBAL_STATE_NEED_REDRAW    0x0000000000000002
+#define DUI_GLOBAL_STATE_SET_CURSOR     0x0000000000000004
+#define DUI_GLOBAL_STATE_INIT_FAILED    0x0000000000000008
 
 // this gloable variable is shared by all virtual windows so they can know each other
 extern U64 dui_status;
 
-#define XWindowInDragMode()             (DUI_GLOBAL_STATE_IN_DRAG_MODE & dui_status)
-#define SetXWindowDragMode()            do { dui_status |= DUI_GLOBAL_STATE_IN_DRAG_MODE;  } while(0)
-#define ClearXWindowDragMode()          do { dui_status &= ~DUI_GLOBAL_STATE_IN_DRAG_MODE; } while(0)
+#define DUIWindowInDragMode()           (DUI_GLOBAL_STATE_IN_DRAG_MODE & dui_status)
+#define SetDUIWindowDragMode()          do { dui_status |= DUI_GLOBAL_STATE_IN_DRAG_MODE;  } while(0)
+#define ClearDUIWindowDragMode()        do { dui_status &= ~DUI_GLOBAL_STATE_IN_DRAG_MODE; } while(0)
+
+#define DUIWindowNeedReDraw()           (DUI_GLOBAL_STATE_NEED_REDRAW & dui_status)
+#define InvalidateDUIWindow()           do { dui_status |= DUI_GLOBAL_STATE_NEED_REDRAW; } while(0)
+#define ClearDUIWindowReDraw()          do { dui_status &= ~DUI_GLOBAL_STATE_NEED_REDRAW;} while(0)
+
+#define DUIWindowCursorIsSet()          (DUI_GLOBAL_STATE_SET_CURSOR & dui_status)
+#define SetDUIWindowCursor()            do { dui_status |= DUI_GLOBAL_STATE_SET_CURSOR; } while(0)
+#define ClearDUIWindowCursor()          do { dui_status &= ~DUI_GLOBAL_STATE_SET_CURSOR;} while(0)
+
+#define DUIWindowInitFailed()           (DUI_GLOBAL_STATE_INIT_FAILED & dui_status)
+#define SetDUIWindowInitFailed()        do { dui_status |= DUI_GLOBAL_STATE_INIT_FAILED; } while(0)
+
 
 int DUI_Init();
 void DUI_Term();

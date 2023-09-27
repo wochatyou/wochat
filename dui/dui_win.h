@@ -137,7 +137,7 @@ public:
     // < 0 : I do not handle this message
     // = 0 : I handled, but I do not need to upgrade the screen
     // > 0 : I handled this message, and need the host window to upgrade the screen
-    int HandleOSMessage(U32 uMsg, U64 wParam, U64 lParam, void* lpData)
+    int HandleOSMessage(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
         int r = -1;
 
@@ -148,6 +148,9 @@ public:
         {
             switch (msgId)
             {
+            case DUI_PAINT:
+                r = On_DUI_PAINT(uMsg, wParam, lParam, lpData);
+                break;
             case DUI_MOUSEMOVE:
                 r = On_DUI_MOUSEMOVE(uMsg, wParam, lParam, lpData);
                 break;
@@ -172,8 +175,13 @@ public:
             case DUI_LBUTTONUP:
                 r = On_DUI_LBUTTONUP(uMsg, wParam, lParam, lpData);
                 break;
+            case DUI_LBUTTONDBLCLK:
+                r = On_DUI_LBUTTONDBLCLK(uMsg, wParam, lParam, lpData);
+                break;
+#if 0
             case DUI_SIZE:
                 r = On_DUI_SIZE(uMsg, wParam, lParam, lpData);
+#endif
                 break;
             case DUI_CREATE:
                 r = On_DUI_CREATE(uMsg, wParam, lParam, lpData);
@@ -299,13 +307,14 @@ public:
         {
             xctl = dui_controlArray[i];
             assert(nullptr != xctl);
+            assert(xctl->m_id == i);
             ctlStatus = (i != m_activeControl) ? status : XCONTROL_STATE_ACTIVE;
             ret += xctl->setStatus(ctlStatus, mouse_event);
         }
         return ret;
     }
 
-    U32* GetScreenBuffer()
+    U32* GetDUIBuffer()
     {
         return m_screen;
     }
@@ -336,13 +345,12 @@ public:
         }
 
         m_status |= DUI_STATUS_NEEDRAW;
+        InvalidateDUIWindow();
     }
 
-    int Draw() { return 0; }
-
-    U32* Render() 
+    int Do_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
+    int On_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
-        U32* screenBuf = nullptr;
         U8 status = m_status & (DUI_STATUS_VISIBLE | DUI_STATUS_NEEDRAW);
 
         // We only draw this virtual window when 1: it is visible, and 2: it needs draw
@@ -382,21 +390,17 @@ public:
             }
 
             T* pT = static_cast<T*>(this);
-            pT->Draw();
-
-            screenBuf = m_screen;
+            pT->Do_DUI_PAINT(uMsg, wParam, lParam, lpData);
         }
 
         // to avoid another needless draw
         m_status &= (~DUI_STATUS_NEEDRAW);
-        
-        return screenBuf;
+
+        return 0;
     }
 
-    int Do_DUI_SIZE(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
-    int On_DUI_SIZE(U32 uMsg, U64 wParam, U64 lParam, void* lpData)
+    int UpdateSize(XRECT* r, U32* screenbuf)
     {
-        XRECT* r = (XRECT*)lParam;
         if (nullptr != r)
         {
             m_area.left   = r->left;
@@ -410,7 +414,7 @@ public:
             m_area.left = m_area.top = m_area.right = m_area.bottom = 0;
             m_size = 0;
         }
-        m_screen = (U32*)lpData;
+        m_screen = screenbuf;
         if (nullptr == m_screen)
         {
             m_area.left = m_area.top = m_area.right = m_area.bottom = 0;
@@ -434,7 +438,6 @@ public:
 
             T* pT = static_cast<T*>(this);
             pT->UpdateControlPosition();
-            pT->Do_DUI_SIZE(uMsg, wParam, lParam, lpData);
 
             // enable tool tips
             if (m_startControl > 0 && m_message != DUI_NULL)
@@ -444,15 +447,17 @@ public:
             }
         }
         m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
+        InvalidateDUIWindow();
         return DUI_STATUS_NEEDRAW;
     }
+
 
     int Do_DUI_MOUSEWHEEL(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int On_DUI_MOUSEWHEEL(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
         int r = DUI_STATUS_NODRAW;
 
-        if ((DUI_PROP_HANDLEVWHEEL & m_property) && !XWindowInDragMode())
+        if ((DUI_PROP_HANDLEVWHEEL & m_property) && !DUIWindowInDragMode())
         {
             int xPos = GET_X_LPARAM(lParam);
             int yPos = GET_Y_LPARAM(lParam);
@@ -487,7 +492,13 @@ public:
                 }
             }
         }
-        m_status = (DUI_STATUS_NODRAW == r) ? m_status : (m_status | DUI_STATUS_NEEDRAW);
+
+        if (DUI_STATUS_NODRAW != r)
+        {
+            m_status |= DUI_STATUS_NEEDRAW;
+            InvalidateDUIWindow();
+        }
+
         return r;
     }
 
@@ -503,7 +514,7 @@ public:
 
         if (XDragMode::DragVertical == m_DragMode)
         {
-            assert(XWindowInDragMode());
+            assert(DUIWindowInDragMode());
             m_status |= DUI_STATUS_VSCROLL;
             m_ptOffset.y = m_ptOffsetOld.y + ((yPos - m_cxyDragOffset) * m_sizeAll.cy) / h;
             if (m_ptOffset.y < 0)
@@ -517,7 +528,7 @@ public:
             int hit = -1;  // no hit so far
             U32 ctlStatus;
             XControl* xctl;
-            if (XWinPointInRect(xPos, yPos, &m_area) && !XWindowInDragMode()) // the mosue is in this area
+            if (XWinPointInRect(xPos, yPos, &m_area) && !DUIWindowInDragMode()) // the mosue is in this area
             {
                 assert(XDragMode::DragNone == m_DragMode);
 
@@ -579,12 +590,18 @@ public:
             }
         }
           // let the derived class to do its stuff
-        if (!XWindowInDragMode())
+        if (!DUIWindowInDragMode())
         {
             T* pT = static_cast<T*>(this);
             r += pT->Do_DUI_MOUSEMOVE(uMsg, wParam, lParam, lpData);
         }
-        m_status = (DUI_STATUS_NODRAW == r) ? m_status : (m_status | DUI_STATUS_NEEDRAW);
+
+        if (DUI_STATUS_NODRAW != r)
+        {
+            m_status |= DUI_STATUS_NEEDRAW;
+            InvalidateDUIWindow();
+        }
+
         return r;
     }
 
@@ -598,7 +615,7 @@ public:
         int xPos = GET_X_LPARAM(lParam);
         int yPos = GET_Y_LPARAM(lParam);
 
-        if (XWinPointInRect(xPos, yPos, &m_area) && !XWindowInDragMode())
+        if (XWinPointInRect(xPos, yPos, &m_area) && !DUIWindowInDragMode())
         {
             int hit = -1;
             int w = m_area.right - m_area.left;
@@ -631,7 +648,7 @@ public:
                             m_cxyDragOffset = yPos;
                             m_ptOffsetOld.y = m_ptOffset.y;
                             m_DragMode = XDragMode::DragVertical;
-                            SetXWindowDragMode();
+                            SetDUIWindowDragMode();
                         } 
                         else
                         {
@@ -646,6 +663,7 @@ public:
                         SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
 
                         m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
+                        InvalidateDUIWindow();
                         return DUI_STATUS_NEEDRAW;
                     }
                     if ((DUI_STATUS_VSCROLL & statusOld) != (DUI_STATUS_VSCROLL & m_status))
@@ -692,12 +710,17 @@ public:
             r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
         }
         // let the derived class to do its stuff
-        if (!XWindowInDragMode())
+        if (!DUIWindowInDragMode())
         {
             T* pT = static_cast<T*>(this);
             r += pT->Do_DUI_LBUTTONDOWN(uMsg, wParam, lParam, lpData);
         }
-        m_status = (DUI_STATUS_NODRAW == r) ? m_status : (m_status | DUI_STATUS_NEEDRAW);
+
+        if (DUI_STATUS_NODRAW != r)
+        {
+            m_status |= DUI_STATUS_NEEDRAW;
+            InvalidateDUIWindow();
+        }
         return r;
     }
 
@@ -709,7 +732,7 @@ public:
         int yPos = GET_Y_LPARAM(lParam);
         XControl* xctl;
 
-        ClearXWindowDragMode();
+        ClearDUIWindowDragMode();
         m_DragMode = XDragMode::DragNone;
         m_ptOffsetOld.x = -1, m_ptOffsetOld.y = -1;
 
@@ -779,70 +802,32 @@ public:
             }
         }
 
-        if (!XWindowInDragMode())
+        if (!DUIWindowInDragMode())
         {
             T* pT = static_cast<T*>(this);
             r += pT->Do_DUI_LBUTTONUP(uMsg, wParam, lParam, lpData);
         }
 
-        m_status = (DUI_STATUS_NODRAW == r) ? m_status : (m_status | DUI_STATUS_NEEDRAW);
+        if (DUI_STATUS_NODRAW != r)
+        {
+            m_status |= DUI_STATUS_NEEDRAW;
+            InvalidateDUIWindow();
+        }
+
         return r;
     }
 
-    int DoLButtonDoubleClick(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
-    int OnLButtonDoubleClick(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
+    int Do_DUI_LBUTTONDBLCLK(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
+    int On_DUI_LBUTTONDBLCLK(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
-        int ret = DUI_STATUS_NODRAW;
+        int r = DUI_STATUS_NODRAW;
         T* pT = static_cast<T*>(this);
 
-        ret = pT->DoLButtonDoubleClick(uMsg, wParam, lParam, lpData);
+        r = pT->Do_DUI_LBUTTONDBLCLK(uMsg, wParam, lParam, lpData);
 
-        if (DUI_STATUS_NODRAW != ret)
-            m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
+        m_status = (DUI_STATUS_NODRAW == r) ? m_status : (m_status | DUI_STATUS_NEEDRAW);
 
-        return ret;
-    }
-
-    int Do_DUI_CREATE(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0;  }
-    int On_DUI_CREATE(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
-    {
-        int ret = 0;
-        U32 initSize = DUI_ALLOCSET_SMALL_INITSIZE;
-        U32 maxSize = DUI_ALLOCSET_SMALL_MAXSIZE;
-
-#ifdef _WIN32
-        m_hWnd = (HWND)wParam;
-#else
-        m_hWnd = (void*)wParam;
-#endif
-        assert(IsRealWindow(m_hWnd));
-
-        if (DUI_PROP_LARGEMEMPOOL & m_property)
-        {
-            initSize = DUI_ALLOCSET_DEFAULT_INITSIZE;
-            maxSize = DUI_ALLOCSET_DEFAULT_MAXSIZE;
-        }
-        m_pool = mempool_create(0, initSize, maxSize);
-        if (nullptr == m_pool)
-            return 1;
-        {
-            T* pT = static_cast<T*>(this);
-            pT->InitControl();
-            ret = pT->Do_DUI_CREATE(uMsg, wParam, lParam, lpData);
-        }
-
-        if (0 == ret) // creation is successful
-        {
-            XControl* xctl;
-            for (int i = m_startControl; i <= m_endControl; i++)
-            {
-                xctl = dui_controlArray[i];
-                assert(nullptr != xctl);
-                xctl->pfAction = XControlAction;
-            }
-        }
-
-        return ret;
+        return r;
     }
 
     int Do_DUI_DESTROY(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
@@ -877,6 +862,9 @@ public:
 
         T* pT = static_cast<T*>(this);
         r += pT->Do_DUI_SETCURSOR(uMsg, wParam, lParam, lpData);
+
+        if (r)
+            SetDUIWindowCursor();
         return r;
     }
 
@@ -884,14 +872,17 @@ public:
     int On_DUI_CHAR(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
         int r = DUI_STATUS_NODRAW;
-        if ((DUI_PROP_HANDLEKEYBOARD & m_property) && !XWindowInDragMode())
+        if ((DUI_PROP_HANDLEKEYBOARD & m_property) && !DUIWindowInDragMode())
         {
             if (DUI_STATUS_ISFOCUS & m_status)
             {
                 T* pT = static_cast<T*>(this);
                 r = pT->Do_DUI_CHAR(uMsg, wParam, lParam, lpData);
                 if (DUI_STATUS_NODRAW != r)
+                {
                     m_status |= DUI_STATUS_NEEDRAW;
+                    InvalidateDUIWindow();
+                }
             }
         }
         return r;
@@ -901,14 +892,17 @@ public:
     int On_DUI_KEYDOWN(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
         int r = DUI_STATUS_NODRAW;
-        if ((DUI_PROP_HANDLEKEYBOARD & m_property) && !XWindowInDragMode())
+        if ((DUI_PROP_HANDLEKEYBOARD & m_property) && !DUIWindowInDragMode())
         {
             if (DUI_STATUS_ISFOCUS & m_status)
             {
                 T* pT = static_cast<T*>(this);
                 r = pT->Do_DUI_KEYDOWN(uMsg, wParam, lParam, lpData);
                 if (DUI_STATUS_NODRAW != r)
+                {
                     m_status |= DUI_STATUS_NEEDRAW;
+                    InvalidateDUIWindow();
+                }
             }
         }
         return r;
@@ -935,8 +929,11 @@ public:
                 }
             }
             r += pT->Do_DUI_TIMER(uMsg, wParam, lParam, lpData);
-            if (r)
+            if (DUI_STATUS_NODRAW != r)
+            {
                 m_status |= DUI_STATUS_NEEDRAW;
+                InvalidateDUIWindow();
+            }
         }
         return r;
     }
@@ -980,6 +977,58 @@ public:
         return 0;
     }
 
+    int Do_DUI_SIZE(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
+    int On_DUI_SIZE(U32 uMsg, U64 wParam, U64 lParam, void* lpData)
+    {
+        T* pT = static_cast<T*>(this);
+        int ret = pT->Do_DUI_SIZE(uMsg, wParam, lParam, lpData);
+        return ret;
+    }
+
+    int Do_DUI_CREATE(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
+    int On_DUI_CREATE(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
+    {
+        U32 initSize = DUI_ALLOCSET_SMALL_INITSIZE;
+        U32 maxSize = DUI_ALLOCSET_SMALL_MAXSIZE;
+
+#ifdef _WIN32
+        m_hWnd = (HWND)wParam;
+        assert(IsRealWindow(m_hWnd));
+#else
+        m_hWnd = nullptr;
+#endif
+
+        if (DUI_PROP_LARGEMEMPOOL & m_property)
+        {
+            initSize = DUI_ALLOCSET_DEFAULT_INITSIZE;
+            maxSize = DUI_ALLOCSET_DEFAULT_MAXSIZE;
+        }
+
+        m_pool = mempool_create(0, initSize, maxSize);
+
+        if (nullptr != m_pool)
+        {
+            int r;
+            T* pT = static_cast<T*>(this);
+            pT->InitControl();
+            XControl* xctl;
+            for (int i = m_startControl; i <= m_endControl; i++)
+            {
+                xctl = dui_controlArray[i];
+                assert(nullptr != xctl);
+                assert(xctl->m_id = i);
+                xctl->pfAction = XControlAction;
+            }
+
+            r = pT->Do_DUI_CREATE(uMsg, wParam, lParam, lpData);
+            if(r)
+                SetDUIWindowInitFailed();
+        }
+        else
+            SetDUIWindowInitFailed();
+
+        return 0;
+    }
 };
 
 #endif  /* __DUI_WIN_H__ */

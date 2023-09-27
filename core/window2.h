@@ -212,7 +212,7 @@ public:
 		return 0;
 	}
 
-	int Draw()
+	int Do_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{
 		U32 color;
 		int dx, dy, pos;
