@@ -10,26 +10,6 @@ U16 gname2[] = { 4, 0x6587, 0x4ef6, 0x4f20, 0x8f93 };
 U16 gname3[] = { 7, 0x0041,0x0049,0x804a,0x5929,0x673a,0x5668,0x4eba };
 U16 timestamp[] = { 8, 0x0031,0x0037,0x003a,0x0033,0x0035,0x0020,0x0050,0x004d };
 
-typedef struct XChatGroup
-{
-	XChatGroup* next_;
-	U16  id_;			// Group ID
-	U32* icon_;			// the bitmap data of this icon
-	U8   w_;			// the width in pixel of this icon
-	U8   h_;			// the height in pixel of this icon
-	U16  height_;		// in pixel
-	U16  unread_;		// how many unread messages? if more than 254, use ... 
-	U16  member_;		// how many members in this group?
-	U16* name_;			// the group name
-	U64  ts_;			// the time stamp. 
-	U16* lastmsg_;		// the last message of this group
-} XChatGroup;
-
-enum
-{
-	WM_XWIN2_GROUPCHANGED = 0x01
-};
-
 class XWindow2 : public XWindowT <XWindow2>
 {
 private:
@@ -69,7 +49,7 @@ public:
 		m_backgroundColor = DEFAULT_COLOR;
 		m_scrollbarColor = DEFAULT_COLOR;
 		m_message = WM_XWINDOWS02;
-		m_property |= (DUI_PROP_HASVSCROLL | DUI_PROP_HANDLEVWHEEL);
+		m_property |= (DUI_PROP_HASVSCROLL | DUI_PROP_HANDLEVWHEEL | DUI_PROP_LARGEMEMPOOL);
 	}
 
 	~XWindow2()	{}
@@ -79,65 +59,66 @@ public:
 
 	int LoadChatGroupList()
 	{
-		int i, total;
+		int i, total = 0;
 		XChatGroup* p;
 		XChatGroup* q;
 
 		assert(nullptr == m_chatgroupRoot);
+		assert(nullptr != m_pool);
 
-		p = &cg[0];
-		p->id_ = 0;
-		p->icon_ = (U32*)xbmpGroup;
-		p->name_ = (U16*)gname1;
-		p->w_ = ICON_HEIGHT;
-		p->h_ = ICON_HEIGHT;
-		p->height_ = ITEM_HEIGHT;
-		p->lastmsg_ = (U16*)msg;
-		p->next_ = nullptr;
-
-		m_chatgroupRoot = p;
-		m_chatgroupSelected = m_chatgroupRoot;
-		m_chatgroupSelectPrev = nullptr;
-		m_chatgroupHovered = nullptr;
-		total =  1;
-
-		for (int i = 1; i < 64; i++)
+		m_chatgroupRoot = (XChatGroup*)palloc0(m_pool, sizeof(XChatGroup));
+		if (nullptr != m_chatgroupRoot)
 		{
-			q = &cg[i];
-			total++;
-			p->next_ = q;
-			p = q;
-			p->next_ = nullptr;
-			p->id_ = i + 1;
-			p->w_ = ICON_HEIGHT;
-			p->h_ = ICON_HEIGHT;
-			p->height_ = ITEM_HEIGHT;
-			p->lastmsg_ = (U16*)msg;
+			m_chatgroupSelected = m_chatgroupRoot;
+			p = m_chatgroupRoot;
+			p->id = 0;
+			p->icon = (U32*)xbmpGroup;
+			p->name = (U16*)gname1;
+			p->w = ICON_HEIGHT;
+			p->h = ICON_HEIGHT;
+			p->height = ITEM_HEIGHT;
+			p->lastmsg = (U16*)msg;
+			p->next = nullptr;
 
-			switch (i % 3)
+			total = 1;
+			for (i = 1; i < 32; i++)
 			{
-			case 0:
-				p->icon_ = (U32*)xbmpFileTransfer;
-				p->name_ = (U16*)gname2;
-				break;
-			case 1:
-				p->icon_ = (U32*)xbmpChatGPT;
-				p->name_ = (U16*)gname3;
-				break;
-			case 2:
-				p->icon_ = (U32*)xbmpGroup;
-				p->name_ = (U16*)gname1;
-				break;
+				q = (XChatGroup*)palloc0(m_pool, sizeof(XChatGroup));
+				if (nullptr == q)
+					break;
+				total++;
+				p->next = q;
+				p = q;
+				p->next = nullptr;
+				p->id = i;
+				p->height = ITEM_HEIGHT;
+				p->lastmsg = (U16*)msg;
+				switch (i % 3)
+				{
+				case 0:
+					p->icon = (U32*)xbmpFileTransfer;
+					p->name = (U16*)gname2;
+					break;
+				case 1:
+					p->icon = (U32*)xbmpChatGPT;
+					p->name = (U16*)gname3;
+					break;
+				case 2:
+					p->icon = (U32*)xbmpGroup;
+					p->name = (U16*)gname1;
+					break;
+				}
+				p->w = ICON_HEIGHT;
+				p->h = ICON_HEIGHT;
 			}
-		}
 
+		}
 		m_sizeAll.cy = total * ITEM_HEIGHT;
 		m_sizeLine.cy = ITEM_HEIGHT/3;
-
 		return 0;
 	}
 
-	int DoCreate(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
+	int Do_DUI_CREATE(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{ 
 		int ret = 0;
 		hb_bool_t hs = 0;
@@ -205,7 +186,7 @@ public:
 		return ret; 
 	}
 
-	int DoDestroy(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
+	int Do_DUI_DESTROY(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{
 		assert(nullptr != m_cairo_glyphs);
 		cairo_glyph_free(m_cairo_glyphs);
@@ -290,13 +271,13 @@ public:
 						}
 						dy = pos - m_ptOffset.y;
 						ScreenFillRect(m_screen, w, h, color, w - margin, ITEM_HEIGHT, 0, dy);
-						ScreenDrawRectRound(m_screen, w, h, p->icon_, p->w_, p->h_, dx, dy + ITEM_MARGIN, color, color);
+						ScreenDrawRectRound(m_screen, w, h, p->icon, p->w, p->h, dx, dy + ITEM_MARGIN, color, color);
 
 						// render the text by using harfbuzz/cairo/freetype etc.
 						///////////////////////////////////////////////////////////////////////
 						cairo_save(cr);
-						strLen = p->name_[0];
-						utf16String = p->name_ + 1; // the first 2 bytes are the string length
+						strLen = p->name[0];
+						utf16String = p->name + 1; // the first 2 bytes are the string length
 						hb_buffer_reset(m_hb_buffer);
 						hb_buffer_add_utf16(m_hb_buffer, (const uint16_t*)utf16String, strLen, 0, strLen);
 						hb_buffer_guess_segment_properties(m_hb_buffer);
@@ -312,10 +293,10 @@ public:
 						for (i = 0; i < glyphLen; i++)
 						{
 							m_cairo_glyphs[i].index = hbinfo[i].codepoint;
-							m_cairo_glyphs[i].x = current_x + (DUI_ALIGN_TRUETYPE(hbpos[i].x_offset) >> 6);
-							m_cairo_glyphs[i].y = -(current_y + (DUI_ALIGN_TRUETYPE(hbpos[i].y_offset) >> 6));
-							current_x += ((DUI_ALIGN_TRUETYPE(hbpos[i].x_advance) >> 6) + delta0);
-							current_y += (DUI_ALIGN_TRUETYPE(hbpos[i].y_advance) >> 6);
+							m_cairo_glyphs[i].x = current_x + hbpos[i].x_offset / 64.0;
+							m_cairo_glyphs[i].y = -(current_y + hbpos[i].y_offset / 64.0);
+							current_x += hbpos[i].x_advance / 64.0;
+							current_y += hbpos[i].y_advance / 64.0;
 						}
 						cairo_set_source_rgba(cr, R, G, B, 1);
 						cairo_paint(cr);
@@ -323,7 +304,7 @@ public:
 						cairo_translate(cr, 0, baseline);
 						cairo_set_font_size(cr, XFONT_SIZE0);
 						cairo_show_glyphs(cr, m_cairo_glyphs, glyphLen);
-
+#if 0
 						cairo_set_font_size(cr, XFONT_SIZE1);
 						cairo_save(cr);
 
@@ -339,23 +320,22 @@ public:
 						assert(glyphLen < 256);
 						hbinfo = hb_buffer_get_glyph_infos(m_hb_buffer, NULL);
 						hbpos = hb_buffer_get_glyph_positions(m_hb_buffer, NULL);
-
 						current_x = current_y = 0;
 						for (i = 0; i < glyphLen; i++)
 						{
 							m_cairo_glyphs[i].index = hbinfo[i].codepoint;
-							m_cairo_glyphs[i].x = current_x + (DUI_ALIGN_TRUETYPE(hbpos[i].x_offset) >> 6);
-							m_cairo_glyphs[i].y = -(current_y + (DUI_ALIGN_TRUETYPE(hbpos[i].y_offset) >> 6));
-							current_x += ((DUI_ALIGN_TRUETYPE(hbpos[i].x_advance) >> 6) + delta1);
-							current_y += (DUI_ALIGN_TRUETYPE(hbpos[i].y_advance) >> 6);
+							m_cairo_glyphs[i].x = current_x + hbpos[i].x_offset / 64.0;
+							m_cairo_glyphs[i].y = -(current_y + hbpos[i].y_offset / 64.0);
+							current_x += hbpos[i].x_advance / 64.0;
+							current_y += hbpos[i].y_advance / 64.0;
 						}
 						cairo_translate(cr, w - ITEM_MARGIN - ITEM_MARGIN - ICON_HEIGHT - 70, 0);
 						//cairo_set_font_size(cr, XFONT_SIZE1);
 						cairo_show_glyphs(cr, m_cairo_glyphs, glyphLen);
 
 						cairo_restore(cr);
-						strLen = p->lastmsg_[0];
-						utf16String = p->lastmsg_ + 1; // the first 2 bytes are the string length
+						strLen = p->lastmsg[0];
+						utf16String = p->lastmsg + 1; // the first 2 bytes are the string length
 						hb_buffer_reset(m_hb_buffer);
 						hb_buffer_add_utf16(m_hb_buffer, (const uint16_t*)utf16String, strLen, 0, strLen);
 						hb_buffer_guess_segment_properties(m_hb_buffer);
@@ -371,30 +351,21 @@ public:
 						for (i = 0; i < glyphLen; i++)
 						{
 							m_cairo_glyphs[i].index = hbinfo[i].codepoint;
-#if 0
-							m_cairo_glyphs[i].x = current_x + (DUI_ALIGN_TRUETYPE(hbpos[i].x_offset) >> 6);
-							m_cairo_glyphs[i].y = -(current_y + (DUI_ALIGN_TRUETYPE(hbpos[i].y_offset) >> 6));
-							current_x += ((DUI_ALIGN_TRUETYPE(hbpos[i].x_advance) >> 6) + delta1);
-							current_y += (DUI_ALIGN_TRUETYPE(hbpos[i].y_advance) >> 6);
-#endif
 							m_cairo_glyphs[i].x = current_x + hbpos[i].x_offset / 64.0;
 							m_cairo_glyphs[i].y = -(current_y + hbpos[i].y_offset / 64.0);
 							current_x += hbpos[i].x_advance / 64.0;
 							current_y += hbpos[i].y_advance / 64.0;
-
 						}
 						cairo_translate(cr, 0, 20);
 						//cairo_set_font_size(cr, XFONT_SIZE1);
 						cairo_show_glyphs(cr, m_cairo_glyphs, glyphLen);
-
+#endif
 						crdata = (U32*)cairo_image_surface_get_data(cairo_surface);
 						ScreenDrawRect(m_screen, w, h, crdata, W, H, ITEM_HEIGHT, dy);
 						cairo_restore(cr);
 					}
-
-					p = p->next_;
+					p = p->next;
 					pos += ITEM_HEIGHT;
-
 					if (pos >= (m_ptOffset.y + h))
 						break;
 				}
@@ -405,7 +376,7 @@ public:
 		return 0;
 	}
 
-	int DoMouseMove(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
+	int Do_DUI_MOUSEMOVE(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{ 
 		int hit = -1, margin;
 		int ret = DUI_STATUS_NODRAW;
@@ -443,7 +414,7 @@ public:
 						ret = DUI_STATUS_NEEDRAW;
 					break;
 				}
-				p = p->next_;
+				p = p->next;
 				pos += ITEM_HEIGHT;
 				if (pos >= (m_ptOffset.y + h))
 					break;
@@ -461,7 +432,7 @@ public:
 		return ret;
 	}
 
-	int DoLButtonDown(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
+	int Do_DUI_LBUTTONDOWN(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{ 
 		int hit = -1, margin;
 		int ret = DUI_STATUS_NODRAW;
@@ -495,7 +466,7 @@ public:
 					ret = DUI_STATUS_NEEDRAW;
 					break;
 				}
-				p = p->next_;
+				p = p->next;
 				pos += ITEM_HEIGHT;
 				if (pos >= (m_ptOffset.y + h))
 					break;
@@ -513,7 +484,7 @@ public:
 		return ret;
 	}
 
-	int DoLButtonUp(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
+	int Do_DUI_LBUTTONUP(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{ 
 		int hit = -1, margin;
 		int ret = DUI_STATUS_NODRAW;
@@ -547,7 +518,7 @@ public:
 					ret = DUI_STATUS_NEEDRAW;
 					break;
 				}
-				p = p->next_;
+				p = p->next;
 				pos += ITEM_HEIGHT;
 				if (pos >= (m_ptOffset.y + h))
 					break;
@@ -574,9 +545,9 @@ public:
 		return ret;
 	}
 
-	int DoMouseWheel(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) 
+	int Do_DUI_MOUSEWHEEL(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{ 
-		return DoMouseMove(uMsg, wParam, lParam, lpData);
+		return Do_DUI_MOUSEMOVE(uMsg, wParam, lParam, lpData);
 	}
 };
 

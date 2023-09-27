@@ -157,7 +157,7 @@ public:
 		return 0;
 	}
 
-	int DoCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, void* lpData = nullptr)
+	int Do_DUI_CREATE(UINT uMsg, WPARAM wParam, LPARAM lParam, void* lpData = nullptr)
 	{
 		int ret = 0;
 		hb_bool_t hs = 0;
@@ -252,7 +252,7 @@ public:
 		return 0;
 	}
 
-	int DoDestroy(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
+	int Do_DUI_DESTROY(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{
 		assert(nullptr != m_cairo_glyphs);
 		cairo_glyph_free(m_cairo_glyphs);
@@ -439,7 +439,7 @@ public:
 		return 1;
 	}
 
-	int DoSize(UINT uMsg, WPARAM wParam, LPARAM lParam, void* lpData = nullptr)
+	int Do_DUI_SIZE(UINT uMsg, WPARAM wParam, LPARAM lParam, void* lpData = nullptr)
 	{
 		UpdatePosition();
 		return 0;
@@ -754,20 +754,6 @@ public:
 		return 0;
 	}
 
-	int DoMouseMove(UINT uMsg, WPARAM wParam, LPARAM lParam, void* lpData = nullptr)
-	{
-		return 0;
-	}
-
-	int DoLButtonDown(UINT uMsg, WPARAM wParam, LPARAM lParam, void* lpData = nullptr)
-	{
-		return 0;
-	}
-
-	int DoLButtonUp(UINT uMsg, WPARAM wParam, LPARAM lParam, void* lpData = nullptr)
-	{
-		return 0;
-	}
 };
 
 U32 TextLayoutThread(void* lpData)

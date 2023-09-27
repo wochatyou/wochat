@@ -103,14 +103,10 @@
 #define WM_XWINDOWS07       (WM_USER + DUI_XWINDOWS07)
 #define WM_XWINDOWS08       (WM_USER + DUI_XWINDOWS08)
 #define WM_XWINDOWS09       (WM_USER + DUI_XWINDOWS09)
-
 #define WM_XWINDOWSPAINT    (WM_USER + DUI_PAINT)
-
 #endif 
 
-
 #define DUI_KEY_RETURN      0x0D
-
 
 #ifdef _MSC_VER
 #define DUI_NO_VTABLE __declspec(novtable)
@@ -151,6 +147,24 @@ typedef struct XBitmap
 #define XWinPointInRect(x, y, OBJ)      (((x) >= ((OBJ)->left)) && ((x) < ((OBJ)->right)) && ((y) >= ((OBJ)->top)) && ((y) < ((OBJ)->bottom)))
 
 extern U8 DUIMessageOSMap[MESSAGEMAP_TABLE_SIZE];
+
+#define DUI_MAX_CONTROLS            64 
+#define DUI_MAX_BUTTON_BITMAPS      (DUI_MAX_CONTROLS << 2)
+
+class XControl;
+extern XControl* dui_controlArray[DUI_MAX_CONTROLS];
+extern XBitmap   dui_bitmapArray[DUI_MAX_BUTTON_BITMAPS];
+extern U16*      dui_tooltip[DUI_MAX_CONTROLS];
+
+#define DUI_GLOBAL_STATE_IN_NONE_MODE   0x0000000000000000
+#define DUI_GLOBAL_STATE_IN_DRAG_MODE   0x0000000000000001
+
+// this gloable variable is shared by all virtual windows so they can know each other
+extern U64 dui_status;
+
+#define XWindowInDragMode()             (DUI_GLOBAL_STATE_IN_DRAG_MODE & dui_status)
+#define SetXWindowDragMode()            do { dui_status |= DUI_GLOBAL_STATE_IN_DRAG_MODE;  } while(0)
+#define ClearXWindowDragMode()          do { dui_status &= ~DUI_GLOBAL_STATE_IN_DRAG_MODE; } while(0)
 
 int DUI_Init();
 void DUI_Term();
@@ -203,8 +217,6 @@ class XControl
 {
 public:
     U8   m_id = 0;
-    U8   m_Index = 0;
-
     int  left   = 0;
     int  top    = 0;
     int  right  = 0;
@@ -225,10 +237,9 @@ public:
 
     void* m_Cursor;
 
-    void setId(U8 id, U8 idx) 
+    void setId(U8 id) 
     { 
         m_id = id; 
-        m_Index = idx;
     }
 
     int ShowCursor()
@@ -432,7 +443,7 @@ public:
     int Draw();
     int Init(void* ptr0 = nullptr, void* ptr1 = nullptr, U32 flag = 0);
     void Term();
-    void setText(U16* text);
+    void setText(U16* text, U16 len = 0);
 
     void setBkgFrontColor(U32 c0, U32 c1)
     {

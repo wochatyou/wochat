@@ -101,6 +101,7 @@ private:
 	XWindow3 m_win3;
 	XWindow4 m_win4;
 	XWindow5 m_win5;
+
 #ifdef _DEBUG
 	U32 m0 = 0;
 	U32 m1 = 0;
@@ -110,6 +111,7 @@ private:
 	U32 m5 = 0;
 	U32 m6 = 0;
 	U32 m7 = 0;
+	U32 drag = 0;
 #endif
 	ID2D1HwndRenderTarget* m_pD2DRenderTarget = nullptr;
 	ID2D1Bitmap*           m_pixelBitmap = nullptr;
@@ -120,7 +122,6 @@ public:
 	XWindow() 
 	{
 		m_rectClient.left = m_rectClient.right = m_rectClient.top = m_rectClient.bottom = 0;
-
 		m_win0.SetWindowId((const U8*)"DUIWin0", 7);
 		m_win1.SetWindowId((const U8*)"DUIWin1", 7);
 		m_win2.SetWindowId((const U8*)"DUIWin2", 7);
@@ -158,6 +159,28 @@ public:
 			Invalidate();
 
 		return r;
+	}
+
+	int SetToolTips(int startIdx, int endIdx, int dx, int dy)
+	{
+		RECT area, *r;
+		r = &area;
+
+		XControl* xctl;
+		for (int i = startIdx; i <= endIdx; i++)
+		{
+			xctl = dui_controlArray[i];
+			ATLASSERT(nullptr != xctl);
+			ATLASSERT(xctl->right > xctl->left);
+			ATLASSERT(xctl->bottom > xctl->top);
+			r->left = xctl->left + dx;
+			r->top = xctl->top + dy;
+			r->right = r->left + (xctl->right - xctl->left);
+			r->bottom = r->top + (xctl->bottom - xctl->top);
+			m_tooltip.DelTool(m_hWnd, xctl->m_id);
+			m_tooltip.AddTool(m_hWnd, LPSTR_TEXTCALLBACK, r, xctl->m_id);
+		}
+		return 0;
 	}
 
 	BEGIN_MSG_MAP(XWindow)
@@ -216,7 +239,9 @@ public:
 		if (pToolTipInfo) 
 		{
 			UINT id = pToolTipInfo->hdr.idFrom;
-			pToolTipInfo->lpszText = L"This is a button tip!!!";
+			ATLASSERT(id > 0);
+			ATLASSERT(id < DUI_MAX_CONTROLS);
+			pToolTipInfo->lpszText = (LPWSTR)dui_tooltip[id];
 		}
 		return 0;
 	}
@@ -225,36 +250,19 @@ public:
 	{
 		if (wParam > 0)
 		{
-			U8 ctlCount = (U8)wParam;
-			XControl** pxCtl = (XControl**)lParam;
-			if (nullptr != pxCtl)
-			{
-				UINT id = 0x0100;
-				RECT area, *r;
-				XControl* xctl;
-				XRECT* xr = m_win0.GetWindowArea();
-				ATLASSERT(xr->left >= 0);
-				ATLASSERT(xr->top >= 0);
-				ATLASSERT(xr->right > xr->left);
-				ATLASSERT(xr->bottom > xr->top);
-				r = &area;
-				for (U8 i = 0; i < ctlCount; i++)
-				{
-					xctl = pxCtl[i];
-					ATLASSERT(nullptr != xctl);
-					ATLASSERT(xctl->right > xctl->left);
-					ATLASSERT(xctl->bottom > xctl->top);
+			int startIdx = (int)wParam;
+			int endIdx   = (int)lParam;
 
-					r->left = xctl->left + xr->left;
-					r->top = xctl->top + xr->top;
-					r->right = r->left + (xctl->right - xctl->left);
-					r->bottom = r->top + (xctl->bottom - xctl->top);
-					id |= xctl->m_id;
-					m_tooltip.DelTool(m_hWnd, id);
-					m_tooltip.AddTool(m_hWnd, LPSTR_TEXTCALLBACK, r, id);
-				}
-			}
+			assert(endIdx >= startIdx);
+			XRECT* xr = m_win0.GetWindowArea();
+			ATLASSERT(xr->left >= 0);
+			ATLASSERT(xr->top >= 0);
+			ATLASSERT(xr->right > xr->left);
+			ATLASSERT(xr->bottom > xr->top);
+
+			SetToolTips(startIdx, endIdx, xr->left, xr->top);
 		}
+
 		return 0; 
 	}
 
@@ -282,7 +290,21 @@ public:
 
 	LRESULT OnWin5Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
-		U8 buttonId = (U8)wParam;
+		if (wParam > 0)
+		{
+			int startIdx = (int)wParam;
+			int endIdx = (int)lParam;
+
+			assert(endIdx >= startIdx);
+			XRECT* xr = m_win5.GetWindowArea();
+			ATLASSERT(xr->left >= 0);
+			ATLASSERT(xr->top >= 0);
+			ATLASSERT(xr->right > xr->left);
+			ATLASSERT(xr->bottom > xr->top);
+
+			SetToolTips(startIdx, endIdx, xr->left, xr->top);
+		}
+
 		return 0;
 	}
 
@@ -484,7 +506,6 @@ public:
 			}
 
 			SafeRelease(&m_pD2DRenderTarget);
-
 			if (nullptr != m_screenBuff)
 			{
 				U32* dst = m_screenBuff;
@@ -494,7 +515,7 @@ public:
 				r->right = XWIN0_WIDTH;
 				r->top = m_rectClient.top;
 				r->bottom = m_rectClient.bottom;
-				m_win0.OnSize(uMsg, wParam, (LPARAM)r, dst);
+				m_win0.On_DUI_SIZE(uMsg, wParam, (LPARAM)r, dst);
 				size = (U32)((r->right - r->left) * (r->bottom - r->top));
 				dst += size;
 
@@ -502,7 +523,7 @@ public:
 				r->right = m_splitterVPos;
 				r->top = m_rectClient.top;
 				r->bottom = m_splitterHPosfix0;
-				m_win1.OnSize(uMsg, wParam, (LPARAM)r, dst);
+				m_win1.On_DUI_SIZE(uMsg, wParam, (LPARAM)r, dst);
 				size = (U32)((r->right - r->left) * (r->bottom - r->top));
 				dst += size;
 
@@ -510,7 +531,7 @@ public:
 				r->right = m_splitterVPos;
 				r->top = m_splitterHPosfix0 + SPLITLINE_WIDTH;
 				r->bottom = m_rectClient.bottom;
-				m_win2.OnSize(uMsg, wParam, (LPARAM)r, dst);
+				m_win2.On_DUI_SIZE(uMsg, wParam, (LPARAM)r, dst);
 				size = (U32)((r->right - r->left) * (r->bottom - r->top));
 				dst += size;
 
@@ -518,7 +539,7 @@ public:
 				r->right = m_rectClient.right;
 				r->top = m_rectClient.top;
 				r->bottom = m_splitterHPosfix1;
-				m_win3.OnSize(uMsg, wParam, (LPARAM)r, dst);
+				m_win3.On_DUI_SIZE(uMsg, wParam, (LPARAM)r, dst);
 				size = (U32)((r->right - r->left) * (r->bottom - r->top));
 				dst += size;
 
@@ -526,7 +547,7 @@ public:
 				r->right = m_rectClient.right;
 				r->top = m_splitterHPosfix1 + SPLITLINE_WIDTH;
 				r->bottom = m_splitterHPos;
-				m_win4.OnSize(uMsg, wParam, (LPARAM)r, dst);
+				m_win4.On_DUI_SIZE(uMsg, wParam, (LPARAM)r, dst);
 				size = (U32)((r->right - r->left) * (r->bottom - r->top));
 				dst += size;
 
@@ -534,9 +555,8 @@ public:
 				r->right = m_rectClient.right;
 				r->top = m_splitterHPos + SPLITLINE_WIDTH;
 				r->bottom = m_rectClient.bottom;
-				m_win5.OnSize(uMsg, wParam, (LPARAM)r, dst);
+				m_win5.On_DUI_SIZE(uMsg, wParam, (LPARAM)r, dst);
 			}
-		
 			Invalidate();
 		}
 
@@ -547,6 +567,7 @@ public:
 	// We need to change the position of windows 1/2/3/4/5
 	void AdjustDUIWindowPosition()
 	{
+#if 0
 		U32* dst;
 		U32  size;
 
@@ -589,6 +610,7 @@ public:
 		r->top = m_splitterHPos + SPLITLINE_WIDTH; r->bottom = m_rectClient.bottom;
 		size = (U32)((r->right - r->left) * (r->bottom - r->top));
 		m_win5.SetPosition(r, dst, size);
+#endif
 	}
 
 	LRESULT OnMouseLeave(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
@@ -631,6 +653,8 @@ public:
 
 		int xPos = GET_X_LPARAM(lParam);
 		int yPos = GET_Y_LPARAM(lParam);
+
+		r = DoDUIMessageProcess(uMsg, wParam, lParam, nullptr);
 #if 0
 		{
 			TRACKMOUSEEVENT tme;
@@ -641,7 +665,7 @@ public:
 			BOOL b = TrackMouseEvent(&tme);
 			ATLASSERT(FALSE != b);
 		}
-#endif
+
 		if(::GetCapture() == m_hWnd)
 		{
 			int	newSplitPos;
@@ -706,7 +730,7 @@ public:
 
 		if (r > 0 || needReDrawX)
 			Invalidate();
-
+#endif
 		return 0;
 	}
 
@@ -716,11 +740,15 @@ public:
 		int yPos = GET_Y_LPARAM(lParam);
 
 		DoDUIMessageProcess(uMsg, wParam, lParam);
+
 		if (XWindowInDragMode())
 		{
 			if (::GetCapture() != m_hWnd)
 			{
 				SetCapture();
+#ifdef _DEBUG
+				drag = 1;
+#endif
 			}
 		}
 
@@ -767,10 +795,16 @@ public:
 	LRESULT OnLButtonUp(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
 		DoDUIMessageProcess(uMsg, wParam, lParam);
+		
 		ATLASSERT(!XWindowInDragMode());
+
 		if (::GetCapture() == m_hWnd)
 		{
 			::ReleaseCapture();
+#ifdef _DEBUG
+			drag = 0;
+#endif
+
 		}
 #if 0
 		if(::GetCapture() == m_hWnd)
@@ -1234,7 +1268,7 @@ public:
 		EndPaint(&ps);
 
 #ifdef _DEBUG
-		swprintf((wchar_t*)xtitle, 255, L"WoChat ~ [H:%d|L:%d]OnPaint Call :  W0: %04d - W1: %04d  - W2: %04d - W3: %04d - W4: %04d - W5: %04d", m6, m7, m0, m1, m2, m3, m4, m5);
+		swprintf((wchar_t*)xtitle, 255, L"WoChat[%d] ~ [H:%d|L:%d]OnPaint Call :  W0: %04d - W1: %04d  - W2: %04d - W3: %04d - W4: %04d - W5: %04d", drag, m6, m7, m0, m1, m2, m3, m4, m5);
 		::SetWindowTextW(m_hWnd, (LPCWSTR)xtitle);
 #endif
 		return 0;

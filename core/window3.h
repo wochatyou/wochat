@@ -4,25 +4,12 @@
 #include "dui/dui_win.h"
 
 uint16_t titlewin3[] = { 
-	0x79d1,0x5dde,0x534e,0x4eba,0x5b88,0x671b,0x76f8,0x52a9,0x7fa4,
-	0x0028,0x0043,0x006f,0x006c,0x006f,0x0072,0x0061,0x0064,0x006f,0x0029, 
-	0 };
-enum 
-{
-	XWIN3_BUTTON_DOT = 0,
-	XWIN32_LABEL_TITLE 
+	0x0041,0x0049,0x804a,0x5929,0x673a,0x5668,0x4eba,
+	0 
 };
 
 class XWindow3 : public XWindowT <XWindow3>
 {
-private:
-	enum 
-	{
-		 XWIN3_BITMAP_DOTN = 0			// Normal
-		,XWIN3_BITMAP_DOTH				// Hover
-		,XWIN3_BITMAP_DOTP				// Press
-		,XWIN3_BITMAP_DOTA				// Active
-	};
 	enum 
 	{
 		GAP_TOP3 = 40,
@@ -49,22 +36,24 @@ public:
 
 		int w = 19;
 		int h = 7;
-		id = XWIN3_BITMAP_DOTN; bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpDotN; bmp->w = w; bmp->h = h;
-		id = XWIN3_BITMAP_DOTH; bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpDotH; bmp->w = w; bmp->h = h;
-		id = XWIN3_BITMAP_DOTP; bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpDotP; bmp->w = w; bmp->h = h;
-		id = XWIN3_BITMAP_DOTA; bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpDotH; bmp->w = w; bmp->h = h;
+		id = XWIN3_BITMAP_DOTN; bmp = &dui_bitmapArray[id]; bmp->id = id; bmp->data = (U32*)xbmpDotN; bmp->w = w; bmp->h = h;
+		id = XWIN3_BITMAP_DOTH; bmp = &dui_bitmapArray[id]; bmp->id = id; bmp->data = (U32*)xbmpDotH; bmp->w = w; bmp->h = h;
+		id = XWIN3_BITMAP_DOTP; bmp = &dui_bitmapArray[id]; bmp->id = id; bmp->data = (U32*)xbmpDotP; bmp->w = w; bmp->h = h;
+		id = XWIN3_BITMAP_DOTA; bmp = &dui_bitmapArray[id]; bmp->id = id; bmp->data = (U32*)xbmpDotH; bmp->w = w; bmp->h = h;
 	}
 
 	void InitControl()
 	{
+
 		U8 id, *mem;
 		U32 objSize;
-		assert(0 == m_controlCount);
+
 		assert(nullptr != m_pool);
 
 		InitBitmap(); // inital all bitmap resource
 
 		id = XWIN3_BUTTON_DOT;
+		m_startControl = id;
 		objSize = sizeof(XButton);
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
@@ -76,36 +65,37 @@ public:
 			XButton* button = new(mem)XButton;
 			assert(nullptr != button);
 			button->Init(g_hCursorHand);
-			button->setId(id, m_controlCount);
-			bmpN = &m_bitmap[XWIN3_BITMAP_DOTN];
-			bmpH = &m_bitmap[XWIN3_BITMAP_DOTH];
-			bmpP = &m_bitmap[XWIN3_BITMAP_DOTP];
-			bmpA = &m_bitmap[XWIN3_BITMAP_DOTA];
+			bmpN = &dui_bitmapArray[XWIN3_BITMAP_DOTN];
+			bmpH = &dui_bitmapArray[XWIN3_BITMAP_DOTH];
+			bmpP = &dui_bitmapArray[XWIN3_BITMAP_DOTP];
+			bmpA = &dui_bitmapArray[XWIN3_BITMAP_DOTA];
 			button->setBitmap(bmpN, bmpH, bmpP, bmpA);
 			button->setRoundColor(m_backgroundColor, m_backgroundColor);
-			m_control[m_controlCount] = button;
-			m_controlCount++;
+			button->setId(id);
+			dui_controlArray[id] = button;
+			m_endControl = id;
 		}
+		else return;
 
-		id = XWIN32_LABEL_TITLE;
+		id = XWIN3_LABEL_TITLE;
 		objSize = sizeof(XLabel);
 		mem = (U8*)palloc(m_pool, objSize);
 		if (NULL != mem)
 		{
 			XLabel* label = new(mem)XLabel;
 			assert(nullptr != label);
-			if (0 != label->Init(nullptr, g_ftFace0, 16))
+			if (0 != label->Init(nullptr, g_ftFace0, XFONT_SIZE0))
 			{
 				pfree(mem);
 			}
 			else
 			{
-				label->setId(id, m_controlCount);
-				label->setText(titlewin3);
+				label->setText(titlewin3, 7);
 				label->setRoundColor(m_backgroundColor, m_backgroundColor);
 				label->setBkgFrontColor(m_backgroundColor, 0xFF333333);
-				m_control[m_controlCount] = label;
-				m_controlCount++;
+				label->setId(id);
+				dui_controlArray[id] = label;
+				m_endControl = id;
 			}
 		}
 	}
@@ -118,7 +108,7 @@ public:
 		int w = m_area.right - m_area.left;
 		int h = m_area.bottom - m_area.top;
 
-		xctl = m_control[XWIN1_BUTTON_SEARCH];
+		xctl = dui_controlArray[XWIN3_BUTTON_DOT];
 		assert(nullptr != xctl);
 		sw = xctl->getWidth();
 		sh = xctl->getHeight();
@@ -130,7 +120,7 @@ public:
 			xctl->setPosition(dx, dy);
 		}
 
-		xctl = m_control[XWIN32_LABEL_TITLE];
+		xctl = dui_controlArray[XWIN3_LABEL_TITLE];
 		assert(nullptr != xctl);
 		sw = xctl->getWidth();
 		sh = xctl->getHeight();

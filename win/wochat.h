@@ -59,6 +59,24 @@
 #include <cairo/cairo-ft.h>
 
 //#include "blend2d/src/blend2d.h"
+#include "dui/dui.h"
+#include "dui/dui_mempool.h"
+
+typedef struct XChatGroup
+{
+	XChatGroup* next;
+	U16  id;			// Group ID
+	U32* icon;			// the bitmap data of this icon
+	U8   w;			// the width in pixel of this icon
+	U8   h;			// the height in pixel of this icon
+	U16  height;		// in pixel
+	U16  unread;		// how many unread messages? if more than 254, use ... 
+	U16  member;		// how many members in this group?
+	U16* name;			// the group name
+	U64  ts;			// the time stamp. 
+	U16* lastmsg;		// the last message of this group
+	MemoryContext mempool;
+} XChatGroup;
 
 extern UINT				g_Quit;
 extern LONG				g_threadCount;
@@ -74,8 +92,8 @@ extern uint8_t  g_SKey[32];
 extern uint8_t  g_PKey[33];
 extern uint8_t  g_PKey1[33];
 
-#define XFONT_SIZE0		16
-#define XFONT_SIZE1		13
+#define XFONT_SIZE0		14
+#define XFONT_SIZE1		11
 
 extern FT_Library		g_ftLibrary;
 extern FT_Face			g_ftFace0;

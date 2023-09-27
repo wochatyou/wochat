@@ -59,6 +59,7 @@ public:
 
 	void InitBitmap()
 	{
+#if 0
 		U8 id;
 		XBitmap* bmp;
 
@@ -73,6 +74,7 @@ public:
 		id = XWIN6_BITMAP_CREATEH;  bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpCreateH;   bmp->w = w; bmp->h = h;
 		id = XWIN6_BITMAP_CREATEP;  bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpCreateP;   bmp->w = w; bmp->h = h;
 		id = XWIN6_BITMAP_CREATEA;  bmp = &m_bitmap[id]; bmp->id = id; bmp->data = (U32*)xbmpCreateH;   bmp->w = w; bmp->h = h;
+#endif
 	}
 
 	int InitButtons()

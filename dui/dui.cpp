@@ -5,13 +5,22 @@
 
 #include "dui.h"
 
+// global variables
 U8 DUIMessageOSMap[MESSAGEMAP_TABLE_SIZE] = { 0 };
+XControl* dui_controlArray[DUI_MAX_CONTROLS];
+XBitmap   dui_bitmapArray[DUI_MAX_BUTTON_BITMAPS];
+U16*      dui_tooltip[DUI_MAX_CONTROLS];
+U64       dui_status;
 
 int DUI_Init()
 {
+    int i;
     U8* p = DUIMessageOSMap;
 
-    for (int i = 0; i < MESSAGEMAP_TABLE_SIZE; i++)
+    for (i = 0; i < DUI_MAX_CONTROLS; i++)
+        dui_controlArray[i] = nullptr;
+
+    for (i = 0; i < MESSAGEMAP_TABLE_SIZE; i++)
         p[i] = DUI_NULL;
 
 #ifdef _WIN32
@@ -223,16 +232,27 @@ void XLabel::Term()
     }
 }
 
-void XLabel::setText(U16* text)
+void XLabel::setText(U16* text, U16 len)
 {
     if (nullptr != text)
     {
         U32 glyphLen, W = 0;
-        U16 i, * p = text;
-        for (i = 0; i < DUI_MAX_LABEL_STRING; i++)
+        U16 i, *p = text;
+
+        if (0 == len)
         {
-            if (0 == *p)
-                break;
+            for (i = 0; i < DUI_MAX_LABEL_STRING; i++)
+            {
+                if (0 == *p++)
+                    break;
+            }
+            len = i;
+        }
+        if (len > DUI_MAX_LABEL_STRING)
+            len = DUI_MAX_LABEL_STRING;
+        p = text;
+        for (i = 0; i < len; i++)
+        {
             m_Text[i] = *p++;
         }
         m_Text[i] = 0;
@@ -282,8 +302,8 @@ int XLabel::Draw()
             double baseline, current_x, current_y;
             hbinfo = hb_buffer_get_glyph_infos(m_hb_buffer, NULL);
             hbpos = hb_buffer_get_glyph_positions(m_hb_buffer, NULL);
-            current_x = current_y = 0;
 
+            current_x = current_y = 0;
             for (i = 0; i < glyphLen; i++)
             {
                 m_cairo_glyphs[i].index = hbinfo[i].codepoint;
@@ -301,7 +321,7 @@ int XLabel::Draw()
             h = bottom - top;
             assert(w > 0);
             assert(h > 0);
-            assert(w == W);
+            //assert(w == W);
             // draw it by cairo
             cairo_surface_t* cairo_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, w, h);
             cairo_status_t cs = cairo_surface_status(cairo_surface);

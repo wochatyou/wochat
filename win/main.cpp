@@ -2,7 +2,7 @@
 #include "xbitmapdata.h"
 #include "resource.h"
 #include "xwindef.h"
-#include "xwinlogin.h"
+//#include "xwinlogin.h"
 #include "xwindow.h"
 
 #if !defined(_WIN64)
@@ -151,6 +151,7 @@ public:
 	}
 };
 
+void InitToolTipMessage();
 
 static int InitInstance(HINSTANCE hInstance)
 {
@@ -160,6 +161,8 @@ static int InitInstance(HINSTANCE hInstance)
 	HRSRC  res;
 	HGLOBAL res_handle;
 	HRESULT hr = S_OK;
+
+	InitToolTipMessage();
 
 	g_hCursorWE    = ::LoadCursor(NULL, IDC_SIZEWE);
 	g_hCursorNS    = ::LoadCursor(NULL, IDC_SIZENS);
@@ -386,6 +389,7 @@ static void ExitInstance(HINSTANCE hInstance)
 int DoLogin()
 {
 	return 0;
+#if 0
 	int ret;
 	XWinLogin loginWin;
 	RECT rw = { 0 };
@@ -412,6 +416,7 @@ int DoLogin()
 	ret = loginWin.IsSuccessful() ? 0 : 1;
 
 	return ret;
+#endif
 }
 
 int WINAPI  _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nShowCmd)
