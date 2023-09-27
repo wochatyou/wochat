@@ -64,7 +64,7 @@ public:
 
     MemoryContext m_pool = nullptr;
 
-    int m_startControl  = -1;
+    int m_startControl  = 0;  // dui_controlArray[0] is not used. We start from 1
     int m_endControl    = -1;
     int m_activeControl = -2;
 
@@ -117,16 +117,12 @@ public:
 
     ~XWindowT()
     {
-        if (m_startControl > 0)
+        XControl* xctl;
+        for (int i = m_startControl; i <= m_endControl; i++)
         {
-            XControl* xctl;
-            assert(m_endControl >= m_startControl);
-            for (int i = m_startControl; i <= m_endControl; i++)
-            {
-                xctl = dui_controlArray[i];
-                assert(nullptr != xctl);
-                xctl->Term();
-            }
+            xctl = dui_controlArray[i];
+            assert(nullptr != xctl);
+            xctl->Term();
         }
 
         if (nullptr != m_pool)
@@ -295,13 +291,10 @@ public:
     // scan the whole control array and reset them to the status one by one
     int SetAllControlStatus(U32 status, U8 mouse_event) 
     { 
-        int ret = DUI_STATUS_NODRAW;
+        int ret = 0;
         U32 ctlStatus;
 
         XControl* xctl;
-        assert(m_startControl > 0);
-        assert(m_endControl >= m_startControl);
-
         for (int i = m_startControl; i <= m_endControl; i++)
         {
             xctl = dui_controlArray[i];
@@ -381,15 +374,11 @@ public:
                 ScreenFillRectRound(m_screen, w, h, m_thumbColor, thumb_width, thumb_height, w - m_scrollWidth + 1, thumb_start, m_scrollbarColor, 0xFFD6D3D2);
             }
 
-            if (m_startControl > 0)
+            for (int i = m_startControl; i <= m_endControl; i++)
             {
-                assert(m_endControl >= m_startControl);
-                for (int i = m_startControl; i <= m_endControl; i++)
-                {
-                    xctl = dui_controlArray[i];
-                    assert(nullptr != xctl);
-                    xctl->Draw();
-                }
+                xctl = dui_controlArray[i];
+                assert(nullptr != xctl);
+                xctl->Draw();
             }
 
             T* pT = static_cast<T*>(this);
@@ -435,16 +424,12 @@ public:
             int h = r->bottom - r->top;
             assert(w > 0);
             assert(h > 0);
-            if (m_startControl > 0)
+            for (int i = m_startControl; i <= m_endControl; i++)
             {
-                assert(m_endControl >= m_startControl);
-                for (int i = m_startControl; i <= m_endControl; i++)
-                {
-                    xctl = dui_controlArray[i];
-                    assert(nullptr != xctl);
-                    assert(xctl->m_id == i);
-                    xctl->AttachParent(m_screen, w, h);
-                }
+                xctl = dui_controlArray[i];
+                assert(nullptr != xctl);
+                assert(xctl->m_id == i);
+                xctl->AttachParent(m_screen, w, h);
             }
 
             T* pT = static_cast<T*>(this);
@@ -529,6 +514,7 @@ public:
         }
         else 
         {
+            int hit = -1;  // no hit so far
             U32 ctlStatus;
             XControl* xctl;
             if (XWinPointInRect(xPos, yPos, &m_area) && !XWindowInDragMode()) // the mosue is in this area
@@ -556,35 +542,29 @@ public:
                     if ((DUI_STATUS_VSCROLL & statusOld) != (DUI_STATUS_VSCROLL & m_status))
                         r++;
                 }
-
-                if (m_startControl > 0)
+                // transfer the coordination from real window to local virutal window
+                xPos -= m_area.left;
+                yPos -= m_area.top;
+                assert(xPos >= 0);
+                assert(yPos >= 0);
+                for (int i = m_startControl; i <= m_endControl; i++)
                 {
-                    int hit = -1;  // no hit so far
-                    // transfer the coordination from real window to local virutal window
-                    xPos -= m_area.left;
-                    yPos -= m_area.top;
-                    assert(xPos >= 0);
-                    assert(yPos >= 0);
-                    assert(m_endControl >= m_startControl);
-                    for (int i = m_startControl; i <= m_endControl; i++)
+                    xctl = dui_controlArray[i];
+                    assert(nullptr != xctl);
+                    if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
                     {
-                        xctl = dui_controlArray[i];
-                        assert(nullptr != xctl);
-                        if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
-                        {
-                            hit = i;
-                            break;
-                        }
+                        hit = i;
+                        break;
                     }
-                    if (-1 != hit) // we are hovering on some control
-                    {
-                        r += xctl->setStatus(XCONTROL_STATE_HOVERED, XMOUSE_MOVE);
-                        xctl->ShowCursor();
-                    }
-                    else // we have to scan the whole control array
-                    {
-                        r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
-                    }
+                }
+                if (-1 != hit) // we are hovering on some control
+                {
+                    r += xctl->setStatus(XCONTROL_STATE_HOVERED, XMOUSE_MOVE);
+                    xctl->ShowCursor();
+                }
+                else // we have to scan the whole control array
+                {
+                    r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
                 }
             }
             else // the mouse is not in our area, we do a quick check to be sure this window need to be redraw
@@ -595,14 +575,7 @@ public:
                     m_status &= (~DUI_STATUS_VSCROLL); // we should not dispaly the vertical bar
                     r++;
                 }
-                if (DUI_STATUS_NODRAW == r)
-                {
-                    if (m_startControl > 0)
-                    {
-                        assert(m_endControl >= m_startControl);
-                        r = SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
-                    }
-                }
+                r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
             }
         }
           // let the derived class to do its stuff
@@ -625,18 +598,16 @@ public:
         int xPos = GET_X_LPARAM(lParam);
         int yPos = GET_Y_LPARAM(lParam);
 
-        m_DragMode = XDragMode::DragNone;
-
         if (XWinPointInRect(xPos, yPos, &m_area) && !XWindowInDragMode())
         {
             int hit = -1;
             int w = m_area.right - m_area.left;
             int h = m_area.bottom - m_area.top;
 
-            // the mouse click my area, so I have the focus
-            m_status |= DUI_STATUS_ISFOCUS; 
-            // handle the vertical bar
-            if (DUI_PROP_HASVSCROLL & m_property)
+            m_DragMode = XDragMode::DragNone;
+            m_status |= DUI_STATUS_ISFOCUS;  // the mouse click my area, so I have the focus
+            
+            if (DUI_PROP_HASVSCROLL & m_property) // handle the vertical bar
             {
                 if (xPos >= (m_area.right - m_scrollWidth))
                 {
@@ -672,11 +643,8 @@ public:
 
                             m_ptOffset.y = (thumb_start_new * m_sizeAll.cy)/h;
                         }
-                        if (m_startControl > 0)
-                        {
-                            assert(m_endControl >= m_startControl);
-                            SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
-                        }
+                        SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
+
                         m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
                         return DUI_STATUS_NEEDRAW;
                     }
@@ -685,13 +653,12 @@ public:
                 }
             }
             // transfer the coordination from real window to local virutal window
-            if (m_startControl > 0) // we have control, from 1, not from 0
             {
-                assert(m_endControl >= m_startControl);
                 xPos -= m_area.left;
                 yPos -= m_area.top;
                 assert(xPos >= 0);
                 assert(yPos >= 0);
+                hit = -1;
                 for (int i = m_startControl; i <= m_endControl; i++)
                 {
                     xctl = dui_controlArray[i];
@@ -722,11 +689,7 @@ public:
             m_status &= ~(DUI_STATUS_ISFOCUS| DUI_STATUS_VSCROLL); // this window lose focus
             if ((DUI_STATUS_VSCROLL & statusOld) != (DUI_STATUS_VSCROLL & m_status))
                 r++;
-            if (m_startControl > 0)
-            {
-                assert(m_endControl >= m_startControl);
-                r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
-            }
+            r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
         }
         // let the derived class to do its stuff
         if (!XWindowInDragMode())
@@ -800,21 +763,12 @@ public:
             }
             else
             {
-                if (m_startControl > 0)
-                {
-                    assert(m_endControl >= m_startControl);
-                    r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
-                }
+                r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
             }
         }
         else // the mouse is not in our area
         {
-            if (m_startControl > 0)
-            {
-                assert(m_endControl >= m_startControl);
-                r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
-            }
-
+            r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
             if (DUI_PROP_HASVSCROLL & m_property)
             {
                 if (DUI_STATUS_VSCROLL & m_status)
@@ -877,10 +831,9 @@ public:
             ret = pT->Do_DUI_CREATE(uMsg, wParam, lParam, lpData);
         }
 
-        if (0 == ret && m_startControl > 0) // creation is successful
+        if (0 == ret) // creation is successful
         {
             XControl* xctl;
-            assert(m_endControl >= m_startControl);
             for (int i = m_startControl; i <= m_endControl; i++)
             {
                 xctl = dui_controlArray[i];
@@ -911,18 +864,14 @@ public:
         // the original xPos/yPos is related to the client area system of the host window. 
         xPos -= m_area.left;
         yPos -= m_area.top;
-        if (m_startControl > 0)
+        for (int i = m_startControl; i <= m_endControl; i++)
         {
-            assert(m_endControl >= m_startControl);
-            for (int i = m_startControl; i <= m_endControl; i++)
+            xctl = dui_controlArray[i];
+            assert(nullptr != xctl);
+            if (xctl->IsOverMe(xPos, yPos))
             {
-                xctl = dui_controlArray[i];
-                assert(nullptr != xctl);
-                if (xctl->IsOverMe(xPos, yPos))
-                {
-                    r++;
-                    break;
-                }
+                r++;
+                break;
             }
         }
 
@@ -969,18 +918,22 @@ public:
     int On_DUI_TIMER(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
         int r = DUI_STATUS_NODRAW;
-        if ((DUI_PROP_HANDLETIMER & m_property) && (m_startControl > 0))
+        if ((DUI_PROP_HANDLETIMER & m_property))
         {
-            XControl* xctl;
-            assert(m_endControl >= m_startControl);
-            for (int i = m_startControl; i <= m_endControl; i++)
-            {
-                xctl = dui_controlArray[i];
-                assert(nullptr != xctl);
-                assert(xctl->m_id == i);
-                r += xctl->OnTimer();
-            }
             T* pT = static_cast<T*>(this);
+
+            if (m_startControl > 0)
+            {
+                XControl* xctl;
+                assert(m_endControl >= m_startControl);
+                for (int i = m_startControl; i <= m_endControl; i++)
+                {
+                    xctl = dui_controlArray[i];
+                    assert(nullptr != xctl);
+                    assert(xctl->m_id == i);
+                    r += xctl->OnTimer();
+                }
+            }
             r += pT->Do_DUI_TIMER(uMsg, wParam, lParam, lpData);
             if (r)
                 m_status |= DUI_STATUS_NEEDRAW;

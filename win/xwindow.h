@@ -192,8 +192,8 @@ public:
 		NOTIFY_CODE_HANDLER(TTN_GETDISPINFO, OnGetToolTipInfo)
 		MESSAGE_HANDLER(WM_MOUSEMOVE, OnMouseMove)
 		MESSAGE_HANDLER(WM_MOUSEWHEEL, OnMouseWheel)
-		MESSAGE_HANDLER(WM_MOUSELEAVE, OnMouseLeave)
-		MESSAGE_HANDLER(WM_MOUSEHOVER, OnMouseHover)
+		//MESSAGE_HANDLER(WM_MOUSELEAVE, OnMouseLeave)
+		//MESSAGE_HANDLER(WM_MOUSEHOVER, OnMouseHover)
 		MESSAGE_HANDLER(WM_LBUTTONDOWN, OnLButtonDown)
 		MESSAGE_HANDLER(WM_LBUTTONUP, OnLButtonUp)
 		MESSAGE_HANDLER(WM_LBUTTONDBLCLK, OnLButtonDoubleClick)
@@ -256,7 +256,7 @@ public:
 		{
 			int startIdx = (int)wParam;
 			int endIdx   = (int)lParam;
-
+			assert(startIdx > 0);
 			assert(endIdx >= startIdx);
 			XRECT* xr = m_win0.GetWindowArea();
 			ATLASSERT(xr->left >= 0);
@@ -298,10 +298,11 @@ public:
 		{
 			U8 ctlId = (U8)lParam;
 		}
+		else
 		{
 			int startIdx = (int)wParam;
 			int endIdx = (int)lParam;
-
+			assert(startIdx > 0);
 			assert(endIdx >= startIdx);
 			XRECT* xr = m_win5.GetWindowArea();
 			ATLASSERT(xr->left >= 0);
