@@ -5,6 +5,8 @@
 
 U16 msg[] = { 12, 0x5468,0x661f,0x661f,0xff1a,0x4e0d,0x77e5,0x6211,0x8005,0x8c13,0x6211,0x4f55,0x6c42 };
 
+U16 gname[11];
+
 U16 gname1[] = { 6, 0x0044,0x0042,0x0041,0x57f9,0x8bad,0x7fa4 };
 U16 gname2[] = { 4, 0x6587, 0x4ef6, 0x4f20, 0x8f93 };
 U16 gname3[] = { 7, 0x0041,0x0049,0x804a,0x5929,0x673a,0x5668,0x4eba };
@@ -73,7 +75,19 @@ public:
 			p = m_chatgroupRoot;
 			p->id = 0;
 			p->icon = (U32*)xbmpGroup;
-			p->name = (U16*)gname1;
+			gname[0]  = 10;
+			gname[1]  = g_PKey1Plan[0];
+			gname[2]  = g_PKey1Plan[1];
+			gname[3]  = g_PKey1Plan[2];
+			gname[4]  = g_PKey1Plan[3];
+			gname[5]  = L'.';
+			gname[6]  = L'.';
+			gname[7]  = g_PKey1Plan[62];
+			gname[8]  = g_PKey1Plan[63];
+			gname[9]  = g_PKey1Plan[64];
+			gname[10] = g_PKey1Plan[65];
+
+			p->name = (U16*)gname;
 			p->w = ICON_HEIGHT;
 			p->h = ICON_HEIGHT;
 			p->height = ITEM_HEIGHT;
@@ -81,7 +95,7 @@ public:
 			p->next = nullptr;
 
 			total = 1;
-			for (i = 1; i < 32; i++)
+			for (i = 1; i < 0; i++)
 			{
 				q = (XChatGroup*)palloc0(m_pool, sizeof(XChatGroup));
 				if (nullptr == q)

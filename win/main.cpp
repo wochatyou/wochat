@@ -24,6 +24,7 @@ ID2D1Factory*       g_pD2DFactory = nullptr;
 uint8_t  g_SKey[32] = { 0 };
 uint8_t  g_PKey[33] = { 0 };
 uint8_t  g_PKey1[33] = { 0 };
+uint8_t  g_PKey1Plan[66] = { 0 };
 
 HCURSOR g_hCursorWE    = nullptr;
 HCURSOR g_hCursorNS    = nullptr;
@@ -152,6 +153,7 @@ public:
 };
 
 void InitToolTipMessage();
+int GetPKfromSK(U8* sk, U8* pk);
 
 static int InitInstance(HINSTANCE hInstance)
 {
@@ -169,7 +171,6 @@ static int InitInstance(HINSTANCE hInstance)
 	g_hCursorHand  = ::LoadCursor(nullptr, IDC_HAND);
 	g_hCursorIBeam = ::LoadCursor(NULL, IDC_IBEAM);
 
-#if 0
 	DWORD length = GetModuleFileName(hInstance, g_AppPath, MAX_PATH);
 	ATLASSERT(length > 0);
 
@@ -177,7 +178,9 @@ static int InitInstance(HINSTANCE hInstance)
 		int	  fd;
 		DWORD i, size, bytes;
 		wchar_t wochatxt[MAX_PATH + 1];
-		U8 keydata[129];
+		U8 keydata[64];
+		U8 cH, cL;
+		errno_t et;
 
 		for(i = length - 1; i>0; i--)
 		{
@@ -186,27 +189,86 @@ static int InitInstance(HINSTANCE hInstance)
 		}
 		ATLASSERT(i > 0);
 		g_AppPath[i] = 0;
-		swprintf((wchar_t*)wochatxt, MAX_PATH, L"%s\\wochat.txt", g_AppPath);
 
-		if (0 != _tsopen_s(&fd, wochatxt, _O_RDONLY | _O_BINARY, _SH_DENYWR, 0))
+		swprintf((wchar_t*)wochatxt, MAX_PATH, L"%s\\sk.txt", g_AppPath);
+		et = _tsopen_s(&fd, wochatxt, _O_RDONLY | _O_TEXT, _SH_DENYWR, 0);
+		if (0 != et)
 		{
 			return 1;
 		}
 		size = (DWORD)_lseek(fd, 0, SEEK_END); /* get the file size */
-		if(size < 129)
+		if(size < 64)
 		{
 			_close(fd);
 			return 1;
 		}
-		bytes = (DWORD)_read(fd, keydata, 129);
-		if (129 != bytes)
+		_lseek(fd, 0, SEEK_SET);
+		bytes = (DWORD)_read(fd, keydata, 64);
+		if (64 != bytes)
 		{
 			_close(fd);
 			return 1;
 		}
 		_close(fd); 
+		for (i = 0; i < 32; i++)
+		{
+			cH = keydata[i<<1]; cL = keydata[(i << 1)+1];
+			if (!IsHexLetter(cH))
+				return -1;
+			if (!IsHexLetter(cL))
+				return -1;
+
+			if (cH <= '9') cH = cH - '0';
+			else if (cH <= 'F') cH = (cH - 'A') + 10;
+			else cH = (cH - 'a') + 10;
+
+			if (cL <= '9') cL = cL - '0';
+			else if (cL <= 'F') cL = (cL - 'A') + 10;
+			else cL = (cL - 'a') + 10;
+			g_SKey[i] = cH << 4 | cL;
+		}
+
+		swprintf((wchar_t*)wochatxt, MAX_PATH, L"%s\\pk.txt", g_AppPath);
+		et = _tsopen_s(&fd, wochatxt, _O_RDONLY | _O_TEXT, _SH_DENYWR, 0);
+		if (0 != et)
+		{
+			return 1;
+		}
+		size = (DWORD)_lseek(fd, 0, SEEK_END); /* get the file size */
+		if (size < 66)
+		{
+			_close(fd);
+			return 1;
+		}
+		_lseek(fd, 0, SEEK_SET);
+		bytes = (DWORD)_read(fd, g_PKey1Plan, 66);
+		if (66 != bytes)
+		{
+			_close(fd);
+			return 1;
+		}
+		_close(fd);
+		for (i = 0; i < 33; i++)
+		{
+			cH = g_PKey1Plan[i << 1]; cL = g_PKey1Plan[(i << 1) + 1];
+			if (!IsHexLetter(cH))
+				return -1;
+			if (!IsHexLetter(cL))
+				return -1;
+
+			if (cH <= '9') cH = cH - '0';
+			else if (cH <= 'F') cH = (cH - 'A') + 10;
+			else cH = (cH - 'a') + 10;
+
+			if (cL <= '9') cL = cL - '0';
+			else if (cL <= 'F') cL = (cL - 'A') + 10;
+			else cL = (cL - 'a') + 10;
+			g_PKey1[i] = cH << 4 | cL;
+		}
+
+		GetPKfromSK(g_SKey, g_PKey);
 	}
-#endif
+
 
 	if (NULL == g_hCursorWE || NULL == g_hCursorNS || NULL == g_hCursorHand || NULL == g_hCursorIBeam)
 	{
@@ -293,7 +355,7 @@ static int InitInstance(HINSTANCE hInstance)
 			return (-3);
 		}
 	}
-
+#if 10
 	/* load the build-in font file(*.ttf) */
 	res = FindResource(hInstance, MAKEINTRESOURCE(IDR_ASCIIFONT), RT_RCDATA);
 	if (NULL == res)
@@ -339,7 +401,7 @@ static int InitInstance(HINSTANCE hInstance)
 			return (-3);
 		}
 	}
-
+#endif
 	iRet = DUI_Init();
 
 	return iRet;

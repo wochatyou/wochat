@@ -112,7 +112,7 @@ public:
 
 		assert(m_pool);
 		size_t size = sizeof(txtdata)/sizeof(U16*);
-		//size = 6;
+		//size = 1;
 		for (i = 0; i < (U16)size; i++)
 		{
 			p = (XChatMessage*)palloc0(m_pool, sizeof(XChatMessage));

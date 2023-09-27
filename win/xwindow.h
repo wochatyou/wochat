@@ -234,8 +234,10 @@ public:
 		m_win4.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
 		m_win5.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
 
-		if (DUIWindowNeedReDraw())
-			Invalidate();
+		{
+			if (DUIWindowNeedReDraw())
+				Invalidate();
+		}
 		// to allow the host window to continue to handle the windows message
 		bHandled = FALSE;
 		return 0; 
@@ -248,11 +250,13 @@ public:
 
 	LRESULT OnMouseMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
+#if 0
 		if (m_tooltip.IsWindow()) 
 		{
 			MSG msg = { m_hWnd, uMsg, wParam, lParam };
 			m_tooltip.RelayEvent(&msg);
 		}
+#endif
 		bHandled = FALSE; // allow further mouse event process. It is important.
 		return 0;
 	}
@@ -305,14 +309,15 @@ public:
 		if (m_tooltip.IsWindow()) 
 		{
 			RECT area = { 0 };
+			UINT ms = ::GetDoubleClickTime();
 			m_tooltip.SetWindowPos(HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-			m_tooltip.SetDelayTime(TTDT_INITIAL, ::GetDoubleClickTime());
-			m_tooltip.SetDelayTime(TTDT_AUTOPOP, ::GetDoubleClickTime() * 20);
-			m_tooltip.SetDelayTime(TTDT_RESHOW, ::GetDoubleClickTime() / 5);
+			m_tooltip.SetDelayTime(TTDT_INITIAL, ms * 8);
+			//m_tooltip.SetDelayTime(TTDT_AUTOPOP, ms * 1000);
+			//m_tooltip.SetDelayTime(TTDT_RESHOW,  ms * 1000);
 			m_tooltip.Activate(TRUE);
 		}
 
-		SetTimer(XWIN_666MS_TIMER, 500);
+		SetTimer(XWIN_666MS_TIMER, 666);
 
 		return 0;
 	}
@@ -625,6 +630,11 @@ public:
 				break;
 			default:
 				break;
+			}
+			if (m_tooltip.IsWindow())
+			{
+				MSG msg = { m_hWnd, uMsg, wParam, lParam };
+				m_tooltip.RelayEvent(&msg);
 			}
 		}
 
@@ -1231,7 +1241,6 @@ public:
 			}
 			
 			ClearDUIWindowReDraw(); // prevent un-necessary redraw
-
 			////////////////////////////////////////////////////////////////////////////////////////////////////
 			hr = m_pD2DRenderTarget->EndDraw();
 			if (FAILED(hr) || D2DERR_RECREATE_TARGET == hr)

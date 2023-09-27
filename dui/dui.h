@@ -181,6 +181,7 @@ extern U64 dui_status;
 #define DUIWindowInitFailed()           (DUI_GLOBAL_STATE_INIT_FAILED & dui_status)
 #define SetDUIWindowInitFailed()        do { dui_status |= DUI_GLOBAL_STATE_INIT_FAILED; } while(0)
 
+#define IsHexLetter(c)                  (((c) >= '0' && (c) <= '9') || ((c) >= 'A' && (c) <= 'F') || ((c) >='a' && (c) <= 'f'))
 
 int DUI_Init();
 void DUI_Term();
@@ -380,6 +381,7 @@ public:
                     }
                 }
             }
+
             m_status = newStatus;
             if (oldStatus != newStatus)
                 r = 1;

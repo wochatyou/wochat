@@ -1,5 +1,7 @@
+#include <secp256k1/secp256k1.h>
 #include "dui/dui.h"
 #include "xwindef.h"
+#include "bitcoin/src/crypto/chacha20.h"
 
 U16 wochat_ME[]			= { 0x5173,0x4e8e,0x6211,0x81ea,0x5df1,0};
 U16 wochat_TALK[]		= { 0x804a,0x5929,0 };
@@ -41,4 +43,21 @@ void InitToolTipMessage()
 	dui_tooltip[XWIN5_BUTTON_AUDIOCALL]   = (U16*)wochat_AUDIOCALL;
 	dui_tooltip[XWIN5_BUTTON_VIDEOCALL]   = (U16*)wochat_VIDEOCALL;
 	dui_tooltip[XWIN5_BUTTON_SENDMESSAGE] = (U16*)wochat_SENDMESSAGE;
+}
+
+int GetPKfromSK(U8* sk, U8* pk)
+{
+	int r;
+	size_t len;
+	secp256k1_context* ctx;
+	secp256k1_pubkey pubkey;
+
+	ctx = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
+
+	r = secp256k1_ec_pubkey_create(ctx, &pubkey, sk);
+	len = 33;
+	r = secp256k1_ec_pubkey_serialize(ctx, pk, &len, &pubkey, SECP256K1_EC_COMPRESSED);
+
+	secp256k1_context_destroy(ctx);
+	return 0;
 }

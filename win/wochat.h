@@ -58,7 +58,6 @@
 #include <cairo/cairo.h>
 #include <cairo/cairo-ft.h>
 
-//#include "blend2d/src/blend2d.h"
 #include "dui/dui.h"
 #include "dui/dui_mempool.h"
 
@@ -91,6 +90,7 @@ extern HCURSOR g_hCursorIBeam;
 extern uint8_t  g_SKey[32];
 extern uint8_t  g_PKey[33];
 extern uint8_t  g_PKey1[33];
+extern uint8_t  g_PKey1Plan[66];
 
 #define XFONT_SIZE0		14
 #define XFONT_SIZE1		11
