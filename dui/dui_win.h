@@ -36,9 +36,9 @@ enum
 
 enum
 {
-    DEFAULT_BORDER_COLOR = 0xFFBBBBBB,
-    DEFAULT_SCROLLBKG_COLOR = 0xFFF9F3F1,
-    DEFAULT_SCROLLTHUMB_COLOR = 0xFFC0C1C4,
+    DEFAULT_BORDER_COLOR       = 0xFFBBBBBB,
+    DEFAULT_SCROLLBKG_COLOR    = 0xFFF9F3F1,
+    DEFAULT_SCROLLTHUMB_COLOR  = 0xFFC0C1C4,
     DEFAULT_SCROLLTHUMB_COLORA = 0xFFAAABAD
 };
 
@@ -59,34 +59,30 @@ public:
 #endif
     U32*    m_screen = nullptr;  // the memory block that will be rendered to the screen by the platform
     U32     m_size = 0;
-    U8      m_Id[8] = { 0 }; // for debugging 
+    U8      m_id[8] = { 0 }; // for debugging 
     XRECT   m_area = { 0 };  // the area of this window in the client area of parent window
 
     MemoryContext m_pool = nullptr;
 
-#if 0
-    XBitmap   m_bitmap[DUI_MAX_BUTTON_BITMAPS];
-    XControl* m_control[DUI_MAX_CONTROLS];
-    U8  m_controlCount = 0;
-#endif
-    int m_startControl = 0;
-    int m_endControl   = -1;
+    int m_startControl  = -1;
+    int m_endControl    = -1;
     int m_activeControl = -2;
 
     //ProcessOSMessage m_messageFuncPointerTab[256] = { 0 };  // we only handle 255 messages that should be enough
 
     const int m_scrollWidth = 8; // in pixel
 
-    XPOINT m_ptOffset = { 0 };
-    XPOINT m_ptOffsetOld = { 0 };
-    XSIZE  m_sizeAll = { 0 };
-    XSIZE  m_sizeLine = { 0 };
-    XSIZE  m_sizePage = { 0 };
+    XPOINT m_ptOffset      = { 0 };
+    XPOINT m_ptOffsetOld   = { 0 };
+    XSIZE  m_sizeAll       = { 0 };
+    XSIZE  m_sizeLine      = { 0 };
+    XSIZE  m_sizePage      = { 0 };
     int    m_cxyDragOffset = 0;
 
     U32  m_status   = DUI_STATUS_VISIBLE;
     U32  m_property = DUI_PROP_NONE;
     U32  m_message  = DUI_NULL;
+
     U32  m_backgroundColor = DEFAULT_BACKGROUND_COLOR;
     U32  m_scrollbarColor  = DEFAULT_SCROLLBKG_COLOR;
     U32  m_thumbColor      = DEFAULT_SCROLLTHUMB_COLOR;
@@ -116,28 +112,21 @@ public:
         pf[DUI_SETCURSOR]   = &T::OnSetCursor;
         pf[DUI_MOUSELEAVE]  = &T::On_DUI_MOUSELEAVE;
         pf[DUI_MOUSEHOVER]  = &T::On_DUI_MOUSEHOVER;
-        m_controlCount = 0;
-        for (i = 0; i < DUI_MAX_CONTROLS; i++)
-            m_control[i] = nullptr;
-        // initialize the bitmap's status
-        for (id = 0; id < DUI_MAX_BUTTON_BITMAPS; id++)
-        {
-            bmp = &m_bitmap[id];
-            bmp->id = id;
-            bmp->data = nullptr;
-            bmp->w = bmp->h = 0;
-        }
 #endif
     }
 
     ~XWindowT()
     {
-        XControl* xctl;
-        for (int i = m_startControl; i <= m_endControl; i++)
+        if (m_startControl > 0)
         {
-            xctl = dui_controlArray[i];
-            assert(nullptr != xctl);
-            xctl->Term();
+            XControl* xctl;
+            assert(m_endControl >= m_startControl);
+            for (int i = m_startControl; i <= m_endControl; i++)
+            {
+                xctl = dui_controlArray[i];
+                assert(nullptr != xctl);
+                xctl->Term();
+            }
         }
 
         if (nullptr != m_pool)
@@ -156,7 +145,7 @@ public:
     {
         int r = -1;
 
-        U16 msgIdOS = DUI_MOD(uMsg, MESSAGEMAP_TABLE_SIZE);
+        U16 msgIdOS = (U16)uMsg;
         U8 msgId = DUIMessageOSMap[msgIdOS];  // lookup the message map from Platform to our DUI message
 
         if (DUI_NULL != msgId)
@@ -239,9 +228,9 @@ public:
             bytes = 7;
 
         for(U8 i = 0; i < bytes; i++)
-            m_Id[i] = *id++;
+            m_id[i] = *id++;
 
-        m_Id[bytes] = 0;
+        m_id[bytes] = 0;
     }
 
     bool IsVisible() const
@@ -310,6 +299,9 @@ public:
         U32 ctlStatus;
 
         XControl* xctl;
+        assert(m_startControl > 0);
+        assert(m_endControl >= m_startControl);
+
         for (int i = m_startControl; i <= m_endControl; i++)
         {
             xctl = dui_controlArray[i];
@@ -389,11 +381,15 @@ public:
                 ScreenFillRectRound(m_screen, w, h, m_thumbColor, thumb_width, thumb_height, w - m_scrollWidth + 1, thumb_start, m_scrollbarColor, 0xFFD6D3D2);
             }
 
-            for (int i = m_startControl; i <= m_endControl; i++)
+            if (m_startControl > 0)
             {
-                xctl = dui_controlArray[i];
-                assert(nullptr != xctl);
-                xctl->Draw();
+                assert(m_endControl >= m_startControl);
+                for (int i = m_startControl; i <= m_endControl; i++)
+                {
+                    xctl = dui_controlArray[i];
+                    assert(nullptr != xctl);
+                    xctl->Draw();
+                }
             }
 
             T* pT = static_cast<T*>(this);
@@ -439,11 +435,16 @@ public:
             int h = r->bottom - r->top;
             assert(w > 0);
             assert(h > 0);
-            for (int i = m_startControl; i <= m_endControl; i++)
+            if (m_startControl > 0)
             {
-                xctl = dui_controlArray[i];
-                assert(nullptr != xctl);
-                xctl->AttachParent(m_screen, w, h);
+                assert(m_endControl >= m_startControl);
+                for (int i = m_startControl; i <= m_endControl; i++)
+                {
+                    xctl = dui_controlArray[i];
+                    assert(nullptr != xctl);
+                    assert(xctl->m_id == i);
+                    xctl->AttachParent(m_screen, w, h);
+                }
             }
 
             T* pT = static_cast<T*>(this);
@@ -451,9 +452,9 @@ public:
             pT->Do_DUI_SIZE(uMsg, wParam, lParam, lpData);
 
             // enable tool tips
-            if (m_endControl >= m_startControl && m_message != DUI_NULL)
+            if (m_startControl > 0 && m_message != DUI_NULL)
             {
-                assert(m_startControl > 0);
+                assert(m_endControl >= m_startControl);
                 PostWindowMessage(m_message, (U64)m_startControl, (U64)m_endControl);
             }
         }
@@ -556,6 +557,7 @@ public:
                         r++;
                 }
 
+                if (m_startControl > 0)
                 {
                     int hit = -1;  // no hit so far
                     // transfer the coordination from real window to local virutal window
@@ -563,6 +565,7 @@ public:
                     yPos -= m_area.top;
                     assert(xPos >= 0);
                     assert(yPos >= 0);
+                    assert(m_endControl >= m_startControl);
                     for (int i = m_startControl; i <= m_endControl; i++)
                     {
                         xctl = dui_controlArray[i];
@@ -594,7 +597,11 @@ public:
                 }
                 if (DUI_STATUS_NODRAW == r)
                 {
-                    r = SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
+                    if (m_startControl > 0)
+                    {
+                        assert(m_endControl >= m_startControl);
+                        r = SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
+                    }
                 }
             }
         }
@@ -665,7 +672,11 @@ public:
 
                             m_ptOffset.y = (thumb_start_new * m_sizeAll.cy)/h;
                         }
-                        SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
+                        if (m_startControl > 0)
+                        {
+                            assert(m_endControl >= m_startControl);
+                            SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
+                        }
                         m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
                         return DUI_STATUS_NEEDRAW;
                     }
@@ -674,31 +685,36 @@ public:
                 }
             }
             // transfer the coordination from real window to local virutal window
-            xPos -= m_area.left; 
-            yPos -= m_area.top;
-            assert(xPos >= 0);
-            assert(yPos >= 0);
-            for (int i = m_startControl; i <= m_endControl; i++)
+            if (m_startControl > 0) // we have control, from 1, not from 0
             {
-                xctl = dui_controlArray[i];
-                assert(nullptr != xctl);
-                if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
+                assert(m_endControl >= m_startControl);
+                xPos -= m_area.left;
+                yPos -= m_area.top;
+                assert(xPos >= 0);
+                assert(yPos >= 0);
+                for (int i = m_startControl; i <= m_endControl; i++)
                 {
-                    hit = i;
-                    break;
+                    xctl = dui_controlArray[i];
+                    assert(nullptr != xctl);
+                    assert(xctl->m_id == i);
+                    if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
+                    {
+                        hit = i;
+                        break;
+                    }
                 }
-            }
-            if (-1 != hit) // we are hitting some button
-            {
-                r += xctl->setStatus(XCONTROL_STATE_PRESSED, XMOUSE_LBDOWN);
-                xctl->ShowCursor();
-            }
-            else // we do not hit any control of this virtual window
-            {  
-                r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
-                // if the mouse does not hit the button, we can move the whole real window
-                if (DUI_PROP_MOVEWIN & m_property)
-                    PostWindowMessage(WM_NCLBUTTONDOWN, HTCAPTION, lParam);
+                if (-1 != hit) // we are hitting some button
+                {
+                    r += xctl->setStatus(XCONTROL_STATE_PRESSED, XMOUSE_LBDOWN);
+                    xctl->ShowCursor();
+                }
+                else // we do not hit any control of this virtual window
+                {
+                    r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
+                    // if the mouse does not hit the button, we can move the whole real window
+                    if (DUI_PROP_MOVEWIN & m_property)
+                        PostWindowMessage(WM_NCLBUTTONDOWN, HTCAPTION, lParam);
+                }
             }
         }
         else
@@ -706,7 +722,11 @@ public:
             m_status &= ~(DUI_STATUS_ISFOCUS| DUI_STATUS_VSCROLL); // this window lose focus
             if ((DUI_STATUS_VSCROLL & statusOld) != (DUI_STATUS_VSCROLL & m_status))
                 r++;
-            r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
+            if (m_startControl > 0)
+            {
+                assert(m_endControl >= m_startControl);
+                r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
+            }
         }
         // let the derived class to do its stuff
         if (!XWindowInDragMode())
@@ -724,25 +744,27 @@ public:
         int r = DUI_STATUS_NODRAW;
         int xPos = GET_X_LPARAM(lParam);
         int yPos = GET_Y_LPARAM(lParam);
+        XControl* xctl;
 
         ClearXWindowDragMode();
         m_DragMode = XDragMode::DragNone;
         m_ptOffsetOld.x = -1, m_ptOffsetOld.y = -1;
 
-        if (XWinPointInRect(xPos, yPos, &m_area))
+        if (XWinPointInRect(xPos, yPos, &m_area) && (m_startControl > 0))
         {
-            XControl* xctl;
             int hit = -1;
             // transfer the coordination from real window to local virutal window
             xPos -= m_area.left;
             yPos -= m_area.top;
             assert(xPos >= 0);
             assert(yPos >= 0);
+            assert(m_endControl >= m_startControl);
 
             for (int i = m_startControl; i <= m_endControl; i++)
             {
                 xctl = dui_controlArray[i];
                 assert(nullptr != xctl);
+                assert(xctl->m_id == i);
                 if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
                 {
                     hit = i;
@@ -751,6 +773,7 @@ public:
             }
             if (-1 != hit) // we are hitting some button
             {
+                assert(hit == xctl->m_id);
                 if (DUI_PROP_BTNACTIVE & m_property)
                 {
                     int oldActive = m_activeControl;
@@ -770,15 +793,28 @@ public:
                     r += xctl->setStatus(XCONTROL_STATE_HOVERED, XMOUSE_LBUP);
                 }
                 xctl->ShowCursor();
+                if (nullptr != xctl->pfAction)
+                {
+                    xctl->pfAction(this, m_message, 0, xctl->m_id);
+                }
             }
             else
             {
-                r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
+                if (m_startControl > 0)
+                {
+                    assert(m_endControl >= m_startControl);
+                    r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
+                }
             }
         }
         else // the mouse is not in our area
         {
-            r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
+            if (m_startControl > 0)
+            {
+                assert(m_endControl >= m_startControl);
+                r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
+            }
+
             if (DUI_PROP_HASVSCROLL & m_property)
             {
                 if (DUI_STATUS_VSCROLL & m_status)
@@ -841,6 +877,18 @@ public:
             ret = pT->Do_DUI_CREATE(uMsg, wParam, lParam, lpData);
         }
 
+        if (0 == ret && m_startControl > 0) // creation is successful
+        {
+            XControl* xctl;
+            assert(m_endControl >= m_startControl);
+            for (int i = m_startControl; i <= m_endControl; i++)
+            {
+                xctl = dui_controlArray[i];
+                assert(nullptr != xctl);
+                xctl->pfAction = XControlAction;
+            }
+        }
+
         return ret;
     }
 
@@ -863,16 +911,21 @@ public:
         // the original xPos/yPos is related to the client area system of the host window. 
         xPos -= m_area.left;
         yPos -= m_area.top;
-        for (int i = m_startControl; i <= m_endControl; i++)
+        if (m_startControl > 0)
         {
-            xctl = dui_controlArray[i];
-            assert(nullptr != xctl);
-            if (xctl->IsOverMe(xPos, yPos))
+            assert(m_endControl >= m_startControl);
+            for (int i = m_startControl; i <= m_endControl; i++)
             {
-                r++;
-                break;
+                xctl = dui_controlArray[i];
+                assert(nullptr != xctl);
+                if (xctl->IsOverMe(xPos, yPos))
+                {
+                    r++;
+                    break;
+                }
             }
         }
+
         T* pT = static_cast<T*>(this);
         r += pT->Do_DUI_SETCURSOR(uMsg, wParam, lParam, lpData);
         return r;
@@ -916,13 +969,15 @@ public:
     int On_DUI_TIMER(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
         int r = DUI_STATUS_NODRAW;
-        if (DUI_PROP_HANDLETIMER & m_property)
+        if ((DUI_PROP_HANDLETIMER & m_property) && (m_startControl > 0))
         {
             XControl* xctl;
+            assert(m_endControl >= m_startControl);
             for (int i = m_startControl; i <= m_endControl; i++)
             {
                 xctl = dui_controlArray[i];
                 assert(nullptr != xctl);
+                assert(xctl->m_id == i);
                 r += xctl->OnTimer();
             }
             T* pT = static_cast<T*>(this);

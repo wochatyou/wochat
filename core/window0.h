@@ -2,68 +2,8 @@
 #define __DUI_WINDOW0_H__
 
 #include "dui/dui_win.h"
-#if 0
-enum 
-{
-	XWIN0_BUTTON_ME = 0
-	, XWIN0_BUTTON_TALK
-	, XWIN0_BUTTON_FRIEND
-	, XWIN0_BUTTON_QUAN
-	, XWIN0_BUTTON_COIN
-	, XWIN0_BUTTON_FAVORITE
-	, XWIN0_BUTTON_FILE
-	, XWIN0_BUTTON_SETTING
-	, XWIN0_BUTTON_NETWORK
-};
-#endif
 class XWindow0 : public XWindowT <XWindow0>
 {
-#if 0
-private:
-	enum 
-	{
-		XWIN0_BITMAP_ME = 0
-		, XWIN0_BITMAP_TALKN		// Normal
-		, XWIN0_BITMAP_TALKH		// Hover
-		, XWIN0_BITMAP_TALKP		// Press
-		, XWIN0_BITMAP_TALKA		// Active
-
-		, XWIN0_BITMAP_FRIENDN		// Normal
-		, XWIN0_BITMAP_FRIENDH		// Hover
-		, XWIN0_BITMAP_FRIENDP		// Press
-		, XWIN0_BITMAP_FRIENDA		// Active
-
-		, XWIN0_BITMAP_QUANN		// Normal
-		, XWIN0_BITMAP_QUANH		// Hover
-		, XWIN0_BITMAP_QUANP		// Press
-		, XWIN0_BITMAP_QUANA		// Active
-
-		, XWIN0_BITMAP_FAVORITEN	// Normal
-		, XWIN0_BITMAP_FAVORITEH	// Hover
-		, XWIN0_BITMAP_FAVORITEP	// Press
-		, XWIN0_BITMAP_FAVORITEA	// Active
-
-		, XWIN0_BITMAP_COINN		// Normal
-		, XWIN0_BITMAP_COINH		// Hover
-		, XWIN0_BITMAP_COINP		// Press
-		, XWIN0_BITMAP_COINA		// Active
-
-		, XWIN0_BITMAP_FILEN		// Normal
-		, XWIN0_BITMAP_FILEH		// Hover
-		, XWIN0_BITMAP_FILEP		// Press
-		, XWIN0_BITMAP_FILEA		// Active
-
-		, XWIN0_BITMAP_SETTINGN		// Normal
-		, XWIN0_BITMAP_SETTINGH		// Hover
-		, XWIN0_BITMAP_SETTINGP		// Press
-		, XWIN0_BITMAP_SETTINGA		// Active
-
-		, XWIN0_BITMAP_NETWORKN		// Normal
-		, XWIN0_BITMAP_NETWORKH		// Hover
-		, XWIN0_BITMAP_NETWORKP		// Press
-		, XWIN0_BITMAP_NETWORKA		// Active
-	};
-#endif
 public:
 	XWindow0()
 	{
@@ -71,7 +11,6 @@ public:
 		m_property |= (DUI_PROP_MOVEWIN | DUI_PROP_BTNACTIVE);
 		m_message = WM_XWINDOWS00;
 	}
-
 	~XWindow0() {}
 
 public:

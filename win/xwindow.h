@@ -248,7 +248,11 @@ public:
 
 	LRESULT OnWin0Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
-		if (wParam > 0)
+		if (wParam == 0)
+		{
+			U8 ctlId = (U8)lParam;
+		}
+		else 
 		{
 			int startIdx = (int)wParam;
 			int endIdx   = (int)lParam;
@@ -290,7 +294,10 @@ public:
 
 	LRESULT OnWin5Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
-		if (wParam > 0)
+		if (wParam == 0)
+		{
+			U8 ctlId = (U8)lParam;
+		}
 		{
 			int startIdx = (int)wParam;
 			int endIdx = (int)lParam;
