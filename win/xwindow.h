@@ -236,7 +236,7 @@ public:
 
 		if (DUIWindowNeedReDraw())
 			Invalidate();
-
+		// to allow the host window to continue to handle the windows message
 		bHandled = FALSE;
 		return 0; 
 	}
@@ -559,36 +559,15 @@ public:
 	
 	LRESULT OnMouseWheel(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
-#if 0
-		int r;
-		POINT pt;
-		pt.x = GET_X_LPARAM(lParam);
-		pt.y = GET_Y_LPARAM(lParam);
-
-		// convert screen coordinates to window coordinate
-		ScreenToClient(&pt);
-		lParam = MAKELONG(pt.x, pt.y);
-#endif
 		return 0;
 	}
 
 	LRESULT OnMouseMove(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
-		int r = 0;
-		int needReDrawX = 0;
+		int needReDraw = 0;
 
 		int xPos = GET_X_LPARAM(lParam);
 		int yPos = GET_Y_LPARAM(lParam);
-#if 0
-		{
-			TRACKMOUSEEVENT tme;
-			tme.cbSize = sizeof(TRACKMOUSEEVENT);
-			tme.dwFlags = TME_HOVER | TME_LEAVE;
-			tme.hwndTrack = m_hWnd;
-			tme.dwHoverTime = HOVER_DEFAULT;
-			BOOL b = TrackMouseEvent(&tme);
-			ATLASSERT(FALSE != b);
-		}
 
 		if(::GetCapture() == m_hWnd)
 		{
@@ -605,7 +584,7 @@ public:
 						if (newSplitPos >= m_splitterVPosToLeft && newSplitPos < (m_rectClient.right - m_rectClient.left - m_splitterVPosToRight))
 						{
 							if (SetSplitterPos(newSplitPos, true))
-								needReDrawX = 1;
+								needReDraw = 1;
 						}
 					}
 				}
@@ -620,7 +599,7 @@ public:
 						if (newSplitPos >= m_splitterHPosToTop && newSplitPos < (m_rectClient.bottom - m_rectClient.top - m_splitterHPosToBottom))
 						{
 							if (SetSplitterPos(newSplitPos, false))
-								needReDrawX = 1;
+								needReDraw = 1;
 						}
 					}
 				}
@@ -628,10 +607,10 @@ public:
 			default:
 				break;
 			}
-			if (needReDrawX)
+			if (needReDraw)
 				AdjustDUIWindowPosition();
 		}
-		else		// not dragging, just set cursor
+		else	// not dragging, just set cursor
 		{
 			DrapMode mode = IsOverSplitterBar(xPos, yPos);
 			switch (mode)
@@ -649,12 +628,9 @@ public:
 			}
 		}
 
-		if (DrapMode::dragModeNone == m_dragMode)
-			r = DoDUIMessageProcess(uMsg, wParam, lParam, nullptr, false);
-
-		if (r > 0 || needReDrawX)
+		if (needReDraw)
 			Invalidate();
-#endif
+
 		return 0;
 	}
 
@@ -961,7 +937,7 @@ public:
 		if (wParam == 0)
 		{
 			U8 ctlId = (U8)lParam;
-	}
+		}
 		else
 		{
 			int startIdx = (int)wParam;
@@ -1146,6 +1122,7 @@ public:
 					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
 				}
 				SafeRelease(&pBitmap);
+				m_win0.SetScreenValide(); // prevent un-necessary draw again
 			}
 
 			// draw window 1
@@ -1166,6 +1143,7 @@ public:
 					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
 				}
 				SafeRelease(&pBitmap);
+				m_win1.SetScreenValide(); // prevent un-necessary draw again
 			}
 
 			// draw window 2
@@ -1186,6 +1164,7 @@ public:
 					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
 				}
 				SafeRelease(&pBitmap);
+				m_win2.SetScreenValide(); // prevent un-necessary draw again
 			}
 
 			// draw window 3
@@ -1206,6 +1185,7 @@ public:
 					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
 				}
 				SafeRelease(&pBitmap);
+				m_win3.SetScreenValide(); // prevent un-necessary draw again
 			}
 
 			// draw window 4
@@ -1226,6 +1206,7 @@ public:
 					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
 				}
 				SafeRelease(&pBitmap);
+				m_win4.SetScreenValide(); // prevent un-necessary draw again
 			}
 
 			// draw window 5
@@ -1246,6 +1227,7 @@ public:
 					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
 				}
 				SafeRelease(&pBitmap);
+				m_win5.SetScreenValide(); // prevent un-necessary draw again
 			}
 			
 			ClearDUIWindowReDraw(); // prevent un-necessary redraw

@@ -91,12 +91,9 @@ public:
     XWindowT()
     {
 #if 0        
-        int i;
-        U8 id;
-        XBitmap* bmp;
-        m_messageFuncPointerTab[DUI_NULL] = nullptr;
-        //for (i = 0; i < 256; i++) 
-        //    m_messageFuncPointerTab[i] = nullptr;
+        //m_messageFuncPointerTab[DUI_NULL] = nullptr;
+        for (int i = 0; i < 256; i++) 
+            m_messageFuncPointerTab[i] = nullptr;
 
         ProcessOSMessage* pf = m_messageFuncPointerTab;
         pf[DUI_CREATE]      = &T::OnCreate;
@@ -132,6 +129,17 @@ public:
         }
     }
 
+    static int XControlAction(void* obj, U32 uMsg, U64 wParam, U64 lParam)
+    {
+        int ret = 0;
+
+        T* pT = static_cast<T*>(obj);
+        if (nullptr != pT)
+            ret = pT->NotifyParent(uMsg, wParam, lParam);
+
+        return ret;
+    }
+
     void InitControl() {}
 
     // < 0 : I do not handle this message
@@ -144,76 +152,62 @@ public:
         U16 msgIdOS = (U16)uMsg;
         U8 msgId = DUIMessageOSMap[msgIdOS];  // lookup the message map from Platform to our DUI message
 
-        if (DUI_NULL != msgId)
+        switch (msgId)
         {
-            switch (msgId)
-            {
-            case DUI_PAINT:
-                r = On_DUI_PAINT(uMsg, wParam, lParam, lpData);
-                break;
-            case DUI_MOUSEMOVE:
-                r = On_DUI_MOUSEMOVE(uMsg, wParam, lParam, lpData);
-                break;
-            case DUI_TIMER:
-                r = On_DUI_TIMER(uMsg, wParam, lParam, lpData);
-                break;
-            case DUI_CHAR:
-                r = On_DUI_CHAR(uMsg, wParam, lParam, lpData);
-                break;
-            case DUI_KEYDOWN:
-                r = On_DUI_KEYDOWN(uMsg, wParam, lParam, lpData);
-                break;
-            case DUI_SETCURSOR:
-                r = On_DUI_SETCURSOR(uMsg, wParam, lParam, lpData);
-                break;
-            case DUI_MOUSEWHEEL:
-                r = On_DUI_MOUSEWHEEL(uMsg, wParam, lParam, lpData);
-                break;
-            case DUI_LBUTTONDOWN:
-                r = On_DUI_LBUTTONDOWN(uMsg, wParam, lParam, lpData);
-                break;
-            case DUI_LBUTTONUP:
-                r = On_DUI_LBUTTONUP(uMsg, wParam, lParam, lpData);
-                break;
-            case DUI_LBUTTONDBLCLK:
-                r = On_DUI_LBUTTONDBLCLK(uMsg, wParam, lParam, lpData);
-                break;
+        case DUI_PAINT:
+            r = On_DUI_PAINT(uMsg, wParam, lParam, lpData);
+            break;
+        case DUI_MOUSEMOVE:
+            r = On_DUI_MOUSEMOVE(uMsg, wParam, lParam, lpData);
+            break;
+        case DUI_TIMER:
+            r = On_DUI_TIMER(uMsg, wParam, lParam, lpData);
+            break;
+        case DUI_CHAR:
+            r = On_DUI_CHAR(uMsg, wParam, lParam, lpData);
+            break;
+        case DUI_KEYDOWN:
+            r = On_DUI_KEYDOWN(uMsg, wParam, lParam, lpData);
+            break;
+        case DUI_SETCURSOR:
+            r = On_DUI_SETCURSOR(uMsg, wParam, lParam, lpData);
+            break;
+        case DUI_MOUSEWHEEL:
+            r = On_DUI_MOUSEWHEEL(uMsg, wParam, lParam, lpData);
+            break;
+        case DUI_LBUTTONDOWN:
+            r = On_DUI_LBUTTONDOWN(uMsg, wParam, lParam, lpData);
+            break;
+        case DUI_LBUTTONUP:
+            r = On_DUI_LBUTTONUP(uMsg, wParam, lParam, lpData);
+            break;
+        case DUI_LBUTTONDBLCLK:
+            r = On_DUI_LBUTTONDBLCLK(uMsg, wParam, lParam, lpData);
+            break;
 #if 0
-            case DUI_SIZE:
-                r = On_DUI_SIZE(uMsg, wParam, lParam, lpData);
+        case DUI_SIZE:
+            r = On_DUI_SIZE(uMsg, wParam, lParam, lpData);
 #endif
-                break;
-            case DUI_CREATE:
-                r = On_DUI_CREATE(uMsg, wParam, lParam, lpData);
-                break;
-            case DUI_DESTROY:
-                r = On_DUI_DESTROY(uMsg, wParam, lParam, lpData);
-                break;
-            default:
-                break;
-            }
-#if 0
-            ProcessOSMessage pfMSG = m_messageFuncPointerTab[msgId];
-            if (nullptr != pfMSG)
-            {
-                T* pT = static_cast<T*>(this);
-                r = (pT->*pfMSG)(uMsg, wParam, lParam, lpData);
-            }
-#endif
+            break;
+        case DUI_CREATE:
+            r = On_DUI_CREATE(uMsg, wParam, lParam, lpData);
+            break;
+        case DUI_DESTROY:
+            r = On_DUI_DESTROY(uMsg, wParam, lParam, lpData);
+            break;
+        default:
+            break;
         }
 
+#if 0
+        ProcessOSMessage pfMSG = m_messageFuncPointerTab[msgId];
+        if (nullptr != pfMSG)
+        {
+            T* pT = static_cast<T*>(this);
+            r = (pT->*pfMSG)(uMsg, wParam, lParam, lpData);
+        }
+#endif
         return r;
-    }
-
-    static int XControlAction(void* obj, U32 uMsg, U64 wParam, U64 lParam)
-    {
-        int ret = 0;
-
-        T* pT = static_cast<T*>(obj);
-        if (nullptr != pT)
-            ret = pT->NotifyParent(uMsg, wParam, lParam);
-
-        return ret;
     }
 
     bool IsRealWindow(void* hwnd)
@@ -245,6 +239,21 @@ public:
     XRECT* GetWindowArea()
     {
         return &m_area;
+    }
+
+    U32* GetDUIBuffer()
+    {
+        U32* buff = nullptr;
+        U8 status = m_status & (DUI_STATUS_VISIBLE | DUI_STATUS_NEEDRAW);
+
+        if ((DUI_STATUS_VISIBLE | DUI_STATUS_NEEDRAW) == status)
+            buff = m_screen;
+        return buff;
+    }
+
+    void SetScreenValide()
+    {
+        m_status &= ~DUI_STATUS_NEEDRAW;
     }
 
     void PostWindowHide() {}
@@ -314,14 +323,9 @@ public:
         return ret;
     }
 
-    U32* GetDUIBuffer()
-    {
-        return m_screen;
-    }
-
     void UpdateControlPosition() {}
-
-    void SetPosition(RECT* r, U32* screen, U32 size = 0)
+#if 0
+    void SetPosition(XRECT* r, U32* screen, U32 size = 0)
     {
         if (nullptr != r)
         {
@@ -347,6 +351,7 @@ public:
         m_status |= DUI_STATUS_NEEDRAW;
         InvalidateDUIWindow();
     }
+#endif
 
     int Do_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int On_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
@@ -386,15 +391,13 @@ public:
             {
                 xctl = dui_controlArray[i];
                 assert(nullptr != xctl);
+                assert(xctl->m_id == i);
                 xctl->Draw();
             }
 
             T* pT = static_cast<T*>(this);
             pT->Do_DUI_PAINT(uMsg, wParam, lParam, lpData);
         }
-
-        // to avoid another needless draw
-        m_status &= (~DUI_STATUS_NEEDRAW);
 
         return 0;
     }
@@ -512,7 +515,7 @@ public:
         int w = m_area.right - m_area.left;
         int h = m_area.bottom - m_area.top;
 
-        if (XDragMode::DragVertical == m_DragMode)
+        if (XDragMode::DragNone != m_DragMode) // this window is in drag mode
         {
             assert(DUIWindowInDragMode());
             m_status |= DUI_STATUS_VSCROLL;
@@ -525,57 +528,58 @@ public:
         }
         else 
         {
-            int hit = -1;  // no hit so far
-            U32 ctlStatus;
-            XControl* xctl;
-            if (XWinPointInRect(xPos, yPos, &m_area) && !DUIWindowInDragMode()) // the mosue is in this area
+            if (XWinPointInRect(xPos, yPos, &m_area)) // the mosue is in this area
             {
-                assert(XDragMode::DragNone == m_DragMode);
-
-                if (DUI_PROP_HASVSCROLL & m_property) // handle the vertical bar
+                if (!DUIWindowInDragMode())
                 {
-                    U32 statusOld = m_status;  // save previous state
-                    m_status &= (~DUI_STATUS_VSCROLL);
-
-                    assert(m_area.right > m_scrollWidth);
-                    
-                    if (m_sizeAll.cy > h) // the virutal window size is bigger than the real window size
+                    int hit = -1;  // no hit so far
+                    U32 ctlStatus;
+                    XControl* xctl;
+                    if (DUI_PROP_HASVSCROLL & m_property) // handle the vertical bar
                     {
-                        U32 thumbColor = m_thumbColor;
-                        m_status |= DUI_STATUS_VSCROLL;
-                        m_thumbColor = DEFAULT_SCROLLTHUMB_COLOR;
-                        if(xPos >= (m_area.right - m_scrollWidth))
-                            m_thumbColor = DEFAULT_SCROLLTHUMB_COLORA;
+                        U32 statusOld = m_status;  // save previous state
+                        m_status &= (~DUI_STATUS_VSCROLL);
 
-                        if (thumbColor != m_thumbColor) // the thumb color has been changed, we need to redraw
+                        assert(m_area.right > m_scrollWidth);
+
+                        if (m_sizeAll.cy > h) // the virutal window size is bigger than the real window size
+                        {
+                            U32 thumbColor = m_thumbColor;
+                            m_status |= DUI_STATUS_VSCROLL;
+                            m_thumbColor = DEFAULT_SCROLLTHUMB_COLOR;
+                            if (xPos >= (m_area.right - m_scrollWidth))
+                                m_thumbColor = DEFAULT_SCROLLTHUMB_COLORA;
+
+                            if (thumbColor != m_thumbColor) // the thumb color has been changed, we need to redraw
+                                r++;
+                        }
+                        if ((DUI_STATUS_VSCROLL & statusOld) != (DUI_STATUS_VSCROLL & m_status))
                             r++;
                     }
-                    if ((DUI_STATUS_VSCROLL & statusOld) != (DUI_STATUS_VSCROLL & m_status))
-                        r++;
-                }
-                // transfer the coordination from real window to local virutal window
-                xPos -= m_area.left;
-                yPos -= m_area.top;
-                assert(xPos >= 0);
-                assert(yPos >= 0);
-                for (int i = m_startControl; i <= m_endControl; i++)
-                {
-                    xctl = dui_controlArray[i];
-                    assert(nullptr != xctl);
-                    if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
+                    // transfer the coordination from real window to local virutal window
+                    xPos -= m_area.left;
+                    yPos -= m_area.top;
+                    assert(xPos >= 0);
+                    assert(yPos >= 0);
+                    for (int i = m_startControl; i <= m_endControl; i++)
                     {
-                        hit = i;
-                        break;
+                        xctl = dui_controlArray[i];
+                        assert(nullptr != xctl);
+                        if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
+                        {
+                            hit = i;
+                            break;
+                        }
                     }
-                }
-                if (-1 != hit) // we are hovering on some control
-                {
-                    r += xctl->setStatus(XCONTROL_STATE_HOVERED, XMOUSE_MOVE);
-                    xctl->ShowCursor();
-                }
-                else // we have to scan the whole control array
-                {
-                    r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
+                    if (-1 != hit) // we are hovering on some control
+                    {
+                        r += xctl->setStatus(XCONTROL_STATE_HOVERED, XMOUSE_MOVE);
+                        xctl->ShowCursor();
+                    }
+                    else // we have to scan the whole control array
+                    {
+                        r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
+                    }
                 }
             }
             else // the mouse is not in our area, we do a quick check to be sure this window need to be redraw
@@ -615,63 +619,63 @@ public:
         int xPos = GET_X_LPARAM(lParam);
         int yPos = GET_Y_LPARAM(lParam);
 
-        if (XWinPointInRect(xPos, yPos, &m_area) && !DUIWindowInDragMode())
+        if (XWinPointInRect(xPos, yPos, &m_area))
         {
-            int hit = -1;
-            int w = m_area.right - m_area.left;
-            int h = m_area.bottom - m_area.top;
-
-            m_DragMode = XDragMode::DragNone;
-            m_status |= DUI_STATUS_ISFOCUS;  // the mouse click my area, so I have the focus
-            
-            if (DUI_PROP_HASVSCROLL & m_property) // handle the vertical bar
+            if (!DUIWindowInDragMode())
             {
-                if (xPos >= (m_area.right - m_scrollWidth))
+                int hit = -1;
+                int w = m_area.right - m_area.left;
+                int h = m_area.bottom - m_area.top;
+
+                m_status |= DUI_STATUS_ISFOCUS;  // the mouse click my area, so I have the focus
+
+                if (DUI_PROP_HASVSCROLL & m_property) // handle the vertical bar
                 {
-                    m_status &= (~DUI_STATUS_VSCROLL);
-                    if (m_sizeAll.cy > h)
+                    if (xPos >= (m_area.right - m_scrollWidth))
                     {
-                        int thumb_start = (m_ptOffset.y * h) / m_sizeAll.cy;
-                        int thumb_height = (h * h) / m_sizeAll.cy;
-                
-                        if(thumb_height < DUI_MINIMAL_THUMB_SIZE)
-                            thumb_height = DUI_MINIMAL_THUMB_SIZE; // we keep the thumb mini size to some pixels
-
-                        m_status |= DUI_STATUS_VSCROLL;
-
-                        assert(m_ptOffset.y >= 0);
-                        assert(m_ptOffset.y <= m_sizeAll.cy - h);
-
-                        if (yPos > (m_area.top + thumb_start) && yPos < (m_area.top + thumb_start + thumb_height))
+                        m_status &= (~DUI_STATUS_VSCROLL);
+                        if (m_sizeAll.cy > h)
                         {
-                            // we hit the thumb
-                            m_cxyDragOffset = yPos;
-                            m_ptOffsetOld.y = m_ptOffset.y;
-                            m_DragMode = XDragMode::DragVertical;
-                            SetDUIWindowDragMode();
-                        } 
-                        else
-                        {
-                            int thumb_start_new = (yPos - m_area.top) - (thumb_height >> 1);
-                            if (thumb_start_new < 0)
-                                thumb_start_new = 0;
-                            if (thumb_start_new > h - thumb_height)
-                                thumb_start_new = h - thumb_height;
+                            int thumb_start = (m_ptOffset.y * h) / m_sizeAll.cy;
+                            int thumb_height = (h * h) / m_sizeAll.cy;
 
-                            m_ptOffset.y = (thumb_start_new * m_sizeAll.cy)/h;
+                            if (thumb_height < DUI_MINIMAL_THUMB_SIZE)
+                                thumb_height = DUI_MINIMAL_THUMB_SIZE; // we keep the thumb mini size to some pixels
+
+                            m_status |= DUI_STATUS_VSCROLL;
+
+                            assert(m_ptOffset.y >= 0);
+                            assert(m_ptOffset.y <= m_sizeAll.cy - h);
+
+                            if (yPos > (m_area.top + thumb_start) && yPos < (m_area.top + thumb_start + thumb_height))
+                            {
+                                // we hit the thumb
+                                m_cxyDragOffset = yPos;
+                                m_ptOffsetOld.y = m_ptOffset.y;
+                                m_DragMode = XDragMode::DragVertical;
+                                SetDUIWindowDragMode();
+                            }
+                            else
+                            {
+                                int thumb_start_new = (yPos - m_area.top) - (thumb_height >> 1);
+                                if (thumb_start_new < 0)
+                                    thumb_start_new = 0;
+                                if (thumb_start_new > h - thumb_height)
+                                    thumb_start_new = h - thumb_height;
+
+                                m_ptOffset.y = (thumb_start_new * m_sizeAll.cy) / h;
+                            }
+                            SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
+
+                            m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
+                            InvalidateDUIWindow();
+                            return DUI_STATUS_NEEDRAW;
                         }
-                        SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_MOVE);
-
-                        m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
-                        InvalidateDUIWindow();
-                        return DUI_STATUS_NEEDRAW;
+                        if ((DUI_STATUS_VSCROLL & statusOld) != (DUI_STATUS_VSCROLL & m_status))
+                            r++;
                     }
-                    if ((DUI_STATUS_VSCROLL & statusOld) != (DUI_STATUS_VSCROLL & m_status))
-                        r++;
                 }
-            }
-            // transfer the coordination from real window to local virutal window
-            {
+                // transfer the coordination from real window to local virutal window
                 xPos -= m_area.left;
                 yPos -= m_area.top;
                 assert(xPos >= 0);
@@ -710,7 +714,6 @@ public:
             r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
         }
         // let the derived class to do its stuff
-        if (!DUIWindowInDragMode())
         {
             T* pT = static_cast<T*>(this);
             r += pT->Do_DUI_LBUTTONDOWN(uMsg, wParam, lParam, lpData);
