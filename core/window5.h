@@ -3,7 +3,7 @@
 
 #include "dui/dui_win.h"
 
-//uint16_t inputMessage[XWIN_MAX_INPUTSTRING + 1] = { 0 };
+U16  inputMessage[XWIN_MAX_INPUTSTRING + 1] = { 0 };
 
 class XWindow5 : public XWindowT <XWindow5>
 {
@@ -436,12 +436,26 @@ public:
 				txt = eb2->getText(&len);
 				if (len > 0)
 				{
+					int m;
+					mbedtls_chacha20_context cxt;
+
+					for (m = 0; m < len; m++)
+						inputMessage[m] = txt[m];
+
+					PostWindowMessage(WM_UPDATE_MSG, (WPARAM)inputMessage, len);
+
+					mbedtls_chacha20_init(&cxt);
+					m = mbedtls_chacha20_setkey(&cxt, g_KEY);
+					assert(0 == m);
+					m = mbedtls_chacha20_starts(&cxt, g_Nonce, 0);
+					assert(0 == m);
+					m = mbedtls_chacha20_update(&cxt, len << 1, (const unsigned char*)txt, g_MSG);
+					assert(0 == m);
+					mbedtls_chacha20_free(&cxt);
+					PostWindowMessage(WM_MQTT_PUBMSG, (WPARAM)g_MSG, len << 1);
+
 					eb2->clearText();
 					r++;
-				}
-				if (heldControl)
-				{
-					len = 0;
 				}
 			}
 			break;

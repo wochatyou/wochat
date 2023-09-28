@@ -97,11 +97,50 @@ public:
 
 	int UpdateChatHistory(U16* msgText, U16 len, U8 msgtype = 0)
 	{
+		XChatMessage* p = nullptr;
+		XChatMessage* q = nullptr;
+
+		assert(m_pool);
+
+		p = (XChatMessage*)palloc0(m_pool, sizeof(XChatMessage));
+		if (nullptr != p)
+		{
+			p->message = (U16*)palloc(m_pool, sizeof(U16) * (len + 1));
+			if (nullptr != p->message)
+			{
+				p->message[0] = len; // save the string length to the first 2 bytes
+				for (U16 i = 0; i < len; i++)
+					p->message[i + 1] = msgText[i];
+
+				p->icon = (msgtype % 2) ? (U32*)xbmpHeadMe: (U32*)xbmpHeadGirl;
+				p->w = p->h = 34;
+				p->state = msgtype;
+				p->id = msgtype;
+				p->name = (U16*)xname;
+				
+				p->next = p->prev = nullptr;
+
+				if (nullptr == m_headMessage)
+					m_headMessage = p;
+				if (nullptr == m_tailMessage)
+					m_tailMessage = p;
+				else
+				{
+					m_tailMessage->next = p;
+					p->prev = m_tailMessage;
+					m_tailMessage = p;
+				}
+				ReWrapFromHead();
+				InvalidateScreen();
+			}
+		}
+
 		return 0;
 	}
 
 	int LoadChatHistory()
 	{
+#if 0
 		U16 i, idx, len, c;
 		U16* pTxt;
 		U16* m;
@@ -153,7 +192,7 @@ public:
 			p->id = i;
 			p->name = (U16*)xname;
 		}
-
+#endif
 		return 0;
 	}
 

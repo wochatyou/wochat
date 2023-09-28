@@ -210,6 +210,12 @@ public:
         return r;
     }
 
+    void InvalidateScreen()
+    {
+        m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
+        InvalidateDUIWindow();
+    }
+
     bool IsRealWindow(void* hwnd)
     {
 #ifdef _WIN32

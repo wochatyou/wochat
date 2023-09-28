@@ -50,8 +50,8 @@ static bool timed_out = false;
 static int connack_result = 0;
 static bool connack_received = false;
 
-static U16 xmsgUTF16[XWIN_MAX_INPUTSTRING + 1] = { 0 };
 static U8  xmsgUTF8[XWIN_MAX_INPUTSTRING + XWIN_MAX_INPUTSTRING + 1] = { 0 };
+static U8  xmsgUTF8GET[XWIN_MAX_INPUTSTRING + XWIN_MAX_INPUTSTRING + 1] = { 0 };
 
 static int PostMQTTMessage(HWND hWnd, const struct mosquitto_message* message, const mosquitto_property* properties)
 {
@@ -66,20 +66,14 @@ static int PostMQTTMessage(HWND hWnd, const struct mosquitto_message* message, c
 	assert(nullptr != msg);
 	len = (size_t)message->payloadlen;
 	assert(len > 0);
-#if 0
-	if (len > XWIN_MAX_INPUTSTRING)
-		len = XWIN_MAX_INPUTSTRING;
-
-	len = modp_b64_encode_len(len);
-	p = (U8*)xmsgUTF16;
-	bytes = modp_b64_decode((const unsigned char*)msg, len, (unsigned char*)p);
-	p[bytes] = 0; p[bytes + 1] = 0;
 
 	if (::IsWindow(hWnd))
 	{
-		::PostMessage(hWnd, WM_MQTT_SUBMSG, (WPARAM)xmsgUTF16, (LPARAM)bytes / 2);
+		for (size_t i = 0; i < len; i++)
+			xmsgUTF8GET[i] = msg[i];
+		::PostMessage(hWnd, WM_MQTT_SUBMSG, (WPARAM)xmsgUTF8GET, (LPARAM)len);
 	}
-#endif
+
 	return 0;
 }
 
@@ -482,6 +476,7 @@ public:
 		MESSAGE_HANDLER(WM_TIMER, OnTimer)
 		MESSAGE_HANDLER(WM_MQTT_PUBMSG, OnMQTTPubMessage)
 		MESSAGE_HANDLER(WM_MQTT_SUBMSG, OnMQTTSubMessage)
+		MESSAGE_HANDLER(WM_UPDATE_MSG, OnUpdateMessage)
 		MESSAGE_RANGE_HANDLER(WM_MOUSEFIRST, WM_MOUSELAST, OnMouseMessage)
 		NOTIFY_CODE_HANDLER(TTN_GETDISPINFO, OnGetToolTipInfo)
 		MESSAGE_HANDLER(WM_MOUSEMOVE, OnMouseMove)
@@ -586,19 +581,86 @@ public:
 		return 0;
 	}
 
+	LRESULT OnUpdateMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		U16* msg = (U16*)wParam;
+		U16 len = (U16)lParam;
+
+		if (len > 0)
+		{
+			m_win4.UpdateChatHistory(msg, len, 1);
+			Invalidate();
+		}
+		return 0;
+	}
+
+	
 	LRESULT OnMQTTPubMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& /*bHandled*/)
 	{
+		int i;
+		U8* data = (U8*)wParam;
+		U16 len = (U16)lParam;
+		size_t size;
+
+		U8* p = xmsgUTF8;
+		for (i = 0; i < 88; i++)
+			p[i] = g_PKeyPlain[i];
+		p += 66;
+		p[0] = '|';
+		p++;
+		size = modp_b64_encode((char*)p, (const char*)data, len);
+		mqtt_message.topic = (char*)g_PKey1Plain;
+		mqtt_message.message = (char*)xmsgUTF8;
+		mqtt_message.msglen = size + 67;
+		SetEvent(xMQTTHandles[0]); // send this message to remote
 		return 0;
 	}
 
 	LRESULT OnMQTTSubMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& /*bHandled*/)
 	{
-		U16* msg = (U16*)wParam;
-		int len = (int)lParam;
+		U8* msg = (U8*)wParam;
+		U16 len = (U16)lParam;
+		U8 pk[33] = { 0 };
+		U8 K[32] = { 0 };
 
-		if (len > 0)
+		if (len > 67)
 		{
-			m_win4.UpdateChatHistory(msg, len);
+			size_t size;
+			int m;
+			mbedtls_chacha20_context cxt;
+			U8 cH, cL;
+			U8* p = msg;
+			assert('|' == p[66]);
+
+			for (int i = 0; i < 33; i++)
+			{
+				cH = msg[i << 1]; cL = msg[(i << 1) + 1];
+				if (!IsHexLetter(cH))
+					return -1;
+				if (!IsHexLetter(cL))
+					return -1;
+
+				if (cH <= '9') cH = cH - '0';
+				else if (cH <= 'F') cH = (cH - 'A') + 10;
+				else cH = (cH - 'a') + 10;
+
+				if (cL <= '9') cL = cL - '0';
+				else if (cL <= 'F') cL = (cL - 'A') + 10;
+				else cL = (cL - 'a') + 10;
+				pk[i] = cH << 4 | cL;
+			}
+			GetKeyfromSKPK(g_SKey, pk, K);
+			size = modp_b64_decode((char*)g_MSG, (const char*)p + 67, len - 67);
+
+			mbedtls_chacha20_init(&cxt);
+			m = mbedtls_chacha20_setkey(&cxt, K);
+			assert(0 == m);
+			m = mbedtls_chacha20_starts(&cxt, g_Nonce, 0);
+			assert(0 == m);
+			m = mbedtls_chacha20_update(&cxt, size, (const unsigned char*)g_MSG, g_MSG);
+			assert(0 == m);
+			mbedtls_chacha20_free(&cxt);
+			m_win4.UpdateChatHistory((U16*)g_MSG, size >> 1);
 			Invalidate();
 		}
 
@@ -623,6 +685,7 @@ public:
 	{
 		SetEvent(xMQTTHandles[1]); // tell MQTT pub thread to quit gracefully
 		Sleep(1000);
+		
 		CloseHandle(xMQTTHandles[0]);
 		CloseHandle(xMQTTHandles[1]);
 
@@ -643,15 +706,25 @@ public:
 	{
 		DWORD dwThreadID0;
 		DWORD dwThreadID1;
+		HANDLE hThread0;
+		HANDLE hThread1;
+
+		xMQTTHandles[0] = CreateEvent(NULL, FALSE, FALSE, NULL);
+		xMQTTHandles[1] = CreateEvent(NULL, FALSE, FALSE, NULL);
+		if (NULL == xMQTTHandles[0] || NULL == xMQTTHandles[1])
+		{
+			PostMessage(WM_CLOSE);
+			return 0;
+		}
 
 		mqtt_message.host = (char*)DEFAULT_MQTT_SERVER;
 		mqtt_message.port = DEFAULT_MQTT_PORT;
 		mqtt_message.topic = nullptr;
 		mqtt_message.message = nullptr;
 		mqtt_message.msglen = 0;
-#if 0
-		//HANDLE hThread0 = ::CreateThread(NULL, 0, MQTTSubThread, m_hWnd, 0, &dwThreadID0);
-		//HANDLE hThread1 = ::CreateThread(NULL, 0, MQTTPubThread, m_hWnd, 0, &dwThreadID1);
+#if 10
+		hThread0 = ::CreateThread(NULL, 0, MQTTSubThread, m_hWnd, 0, &dwThreadID0);
+		hThread1 = ::CreateThread(NULL, 0, MQTTPubThread, m_hWnd, 0, &dwThreadID1);
 
 		if (nullptr == hThread0 || nullptr == hThread1)
 		{

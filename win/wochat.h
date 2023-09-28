@@ -58,6 +58,7 @@
 #include <cairo/cairo.h>
 #include <cairo/cairo-ft.h>
 #include <modpbase64/modp_b64.h>
+#include <mbedtls/chacha20.h>
 
 #include "dui/dui.h"
 #include "dui/dui_mempool.h"
@@ -97,12 +98,15 @@ extern HCURSOR g_hCursorNS;
 extern HCURSOR g_hCursorHand;
 extern HCURSOR g_hCursorIBeam;
 
+#define XWIN_MAX_INPUTSTRING		(1<<16)
+extern uint8_t  g_MSG[(XWIN_MAX_INPUTSTRING) << 1];
+extern uint8_t  g_Nonce[12];
 extern uint8_t  g_KEY[32];
 extern uint8_t  g_SKey[32];
 extern uint8_t  g_PKey[33];
-extern uint8_t  g_PKeyPlain[66];
+extern uint8_t  g_PKeyPlain[67];
 extern uint8_t  g_PKey1[33];
-extern uint8_t  g_PKey1Plain[66];
+extern uint8_t  g_PKey1Plain[67];
 
 #define XFONT_SIZE0		14
 #define XFONT_SIZE1		11
@@ -111,6 +115,10 @@ extern FT_Library		g_ftLibrary;
 extern FT_Face			g_ftFace0;
 extern FT_Face			g_ftFace1;
 extern FT_Face			g_ftFace2;
+
+void InitToolTipMessage();
+int GetPKfromSK(U8* sk, U8* pk, U8* pkPlain);
+int GetKeyfromSKPK(U8* sk, U8* pk, U8* k);
 
 #endif  /* __DUIAPP_H__ */
 

@@ -23,12 +23,14 @@ FT_Face				g_ftFace1     = nullptr;
 FT_Face				g_ftFace2     = nullptr;
 ID2D1Factory*       g_pD2DFactory = nullptr;
 
+uint8_t  g_Nonce[12] = { 0 };
 uint8_t  g_KEY[32] = { 0 };
 uint8_t  g_SKey[32] = { 0 };
 uint8_t  g_PKey[33] = { 0 };
-uint8_t  g_PKeyPlain[66] = { 0 };
+uint8_t  g_PKeyPlain[67] = { 0 };
 uint8_t  g_PKey1[33] = { 0 };
-uint8_t  g_PKey1Plain[66] = { 0 };
+uint8_t  g_PKey1Plain[67] = { 0 };
+uint8_t  g_MSG[(XWIN_MAX_INPUTSTRING) << 1];
 
 HCURSOR g_hCursorWE    = nullptr;
 HCURSOR g_hCursorNS    = nullptr;
@@ -156,10 +158,6 @@ public:
 	}
 };
 
-void InitToolTipMessage();
-int GetPKfromSK(U8* sk, U8* pk, U8* pkPlain);
-int GetKeyfromSKPK(U8* sk, U8* pk, U8* k);
-
 static int InitInstance(HINSTANCE hInstance)
 {
 	int iRet = 0;
@@ -253,6 +251,7 @@ static int InitInstance(HINSTANCE hInstance)
 			return 1;
 		}
 		_close(fd);
+		g_PKey1Plain[66] = 0;
 		for (i = 0; i < 33; i++)
 		{
 			cH = g_PKey1Plain[i << 1]; cL = g_PKey1Plain[(i << 1) + 1];
@@ -273,6 +272,9 @@ static int InitInstance(HINSTANCE hInstance)
 
 		GetPKfromSK(g_SKey, g_PKey, g_PKeyPlain);
 		GetKeyfromSKPK(g_SKey, g_PKey1, g_KEY);
+		g_PKey1Plain[66] = 0;
+		for (i = 0; i < 12; i++)
+			g_Nonce[i] = i;
 	}
 
 

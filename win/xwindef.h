@@ -104,7 +104,6 @@
 #define DEFAULT_BACKGROUND_COLOR	0xFFF9F3F1
 #define DEFAULT_SEPERATELINE_COLOR	0xFFECECEC
 
-#define XWIN_MAX_INPUTSTRING		(1<<16)
 #define XWIN0_WIDTH		60
 #define XWIN1_WIDTH		300
 #define XWIN1_HEIGHT	48
@@ -120,8 +119,9 @@
 #define WM_INIT_THREAD     (WM_USER + 206)
 #define WM_MQTT_PUBMSG	   (WM_USER + 207)
 #define WM_MQTT_SUBMSG	   (WM_USER + 208)
+#define WM_UPDATE_MSG	   (WM_USER + 209)
 
-#define DEFAULT_MQTT_SERVER		("im.wochat.org")
+#define DEFAULT_MQTT_SERVER		("www.boobooke.com")
 #define DEFAULT_MQTT_PORT		1883
 
 #define DECLARE_XWND_CLASS(WndClassName, uIcon, uIconSmall) \
