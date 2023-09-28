@@ -5,7 +5,7 @@
 
 U16 msg[] = { 12, 0x5468,0x661f,0x661f,0xff1a,0x4e0d,0x77e5,0x6211,0x8005,0x8c13,0x6211,0x4f55,0x6c42 };
 
-U16 gname[11];
+U16 gname[19];
 
 U16 gname1[] = { 6, 0x0044,0x0042,0x0041,0x57f9,0x8bad,0x7fa4 };
 U16 gname2[] = { 4, 0x6587, 0x4ef6, 0x4f20, 0x8f93 };
@@ -75,17 +75,25 @@ public:
 			p = m_chatgroupRoot;
 			p->id = 0;
 			p->icon = (U32*)xbmpGroup;
-			gname[0]  = 10;
-			gname[1]  = g_PKey1Plan[0];
-			gname[2]  = g_PKey1Plan[1];
-			gname[3]  = g_PKey1Plan[2];
-			gname[4]  = g_PKey1Plan[3];
-			gname[5]  = L'.';
-			gname[6]  = L'.';
-			gname[7]  = g_PKey1Plan[62];
-			gname[8]  = g_PKey1Plan[63];
-			gname[9]  = g_PKey1Plan[64];
-			gname[10] = g_PKey1Plan[65];
+			gname[0]  = 18;
+			gname[1]  = g_PKey1Plain[0];
+			gname[2]  = g_PKey1Plain[1];
+			gname[3]  = g_PKey1Plain[2];
+			gname[4]  = g_PKey1Plain[3];
+			gname[5]  = g_PKey1Plain[4];
+			gname[6]  = g_PKey1Plain[5];
+			gname[7]  = g_PKey1Plain[6];
+			gname[8]  = g_PKey1Plain[7];
+			gname[9]  = L'-';
+			gname[10] = L'-';
+			gname[11] = g_PKey1Plain[58];
+			gname[12] = g_PKey1Plain[59];
+			gname[13] = g_PKey1Plain[60];
+			gname[14] = g_PKey1Plain[61];
+			gname[15] = g_PKey1Plain[62];
+			gname[16] = g_PKey1Plain[63];
+			gname[17] = g_PKey1Plain[64];
+			gname[18] = g_PKey1Plain[65];
 
 			p->name = (U16*)gname;
 			p->w = ICON_HEIGHT;

@@ -95,7 +95,7 @@ public:
 	XChatMessage* m_headMessage = nullptr;
 	XChatMessage* m_tailMessage = nullptr;
 
-	int UpdateChatHistory(uint16_t* msgText, U8 msgtype = 0)
+	int UpdateChatHistory(U16* msgText, U16 len, U8 msgtype = 0)
 	{
 		return 0;
 	}

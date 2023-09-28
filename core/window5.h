@@ -406,18 +406,10 @@ public:
 
 		U16 charCode = static_cast<U16>(wParam);
 
-		XEditBox2* eb2 = (XEditBox2*)dui_controlArray[XWIN5_EDITBOX2_INPUT];
-		assert(nullptr != eb2);
-
-		if (DUI_KEY_RETURN == charCode)
+		if (charCode >= 0x20) // tab key
 		{
-			U16 msgLen = 0;
-			U16* msg = eb2->getText(&msgLen);
-			
-			r = DUI_STATUS_NEEDRAW;
-		}
-		else
-		{
+			XEditBox2* eb2 = (XEditBox2*)dui_controlArray[XWIN5_EDITBOX2_INPUT];
+			assert(nullptr != eb2);
 			r = eb2->OnKeyBoard(XKEYBOARD_NORMAL, charCode);
 		}
 
@@ -439,13 +431,35 @@ public:
 		switch (keyCode)
 		{
 		case VK_RETURN:
+			{
+				U16 len, *txt;
+				txt = eb2->getText(&len);
+				if (len > 0)
+				{
+					eb2->clearText();
+					r++;
+				}
+				if (heldControl)
+				{
+					len = 0;
+				}
+			}
+			break;
 		case VK_BACK:
+			r++;
+			break;
 		case VK_DELETE:
+			r++;
+			break;
 		case VK_TAB:
+			r++;
+			break;
 		case VK_LEFT:
+			r++;
 			r = eb2->MoveCursorLR(-1);
 			break;
 		case VK_RIGHT:
+			r++;
 			r = eb2->MoveCursorLR(1);
 			break;
 		case VK_UP:
@@ -454,6 +468,11 @@ public:
 		case VK_END:
 		case VK_INSERT:
 		case 'C':
+			if (heldControl)
+			{
+				r++;
+			}
+			break;
 		case 'X':
 		case 'A':
 		case 'V':

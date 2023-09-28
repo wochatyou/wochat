@@ -1,4 +1,5 @@
 #include "wochat.h"
+#include "mqtt.h"
 #include "xbitmapdata.h"
 #include "resource.h"
 #include "xwindef.h"
@@ -21,10 +22,13 @@ FT_Face				g_ftFace0     = nullptr;
 FT_Face				g_ftFace1     = nullptr;
 FT_Face				g_ftFace2     = nullptr;
 ID2D1Factory*       g_pD2DFactory = nullptr;
+
+uint8_t  g_KEY[32] = { 0 };
 uint8_t  g_SKey[32] = { 0 };
 uint8_t  g_PKey[33] = { 0 };
+uint8_t  g_PKeyPlain[66] = { 0 };
 uint8_t  g_PKey1[33] = { 0 };
-uint8_t  g_PKey1Plan[66] = { 0 };
+uint8_t  g_PKey1Plain[66] = { 0 };
 
 HCURSOR g_hCursorWE    = nullptr;
 HCURSOR g_hCursorNS    = nullptr;
@@ -153,7 +157,8 @@ public:
 };
 
 void InitToolTipMessage();
-int GetPKfromSK(U8* sk, U8* pk);
+int GetPKfromSK(U8* sk, U8* pk, U8* pkPlain);
+int GetKeyfromSKPK(U8* sk, U8* pk, U8* k);
 
 static int InitInstance(HINSTANCE hInstance)
 {
@@ -241,7 +246,7 @@ static int InitInstance(HINSTANCE hInstance)
 			return 1;
 		}
 		_lseek(fd, 0, SEEK_SET);
-		bytes = (DWORD)_read(fd, g_PKey1Plan, 66);
+		bytes = (DWORD)_read(fd, g_PKey1Plain, 66);
 		if (66 != bytes)
 		{
 			_close(fd);
@@ -250,7 +255,7 @@ static int InitInstance(HINSTANCE hInstance)
 		_close(fd);
 		for (i = 0; i < 33; i++)
 		{
-			cH = g_PKey1Plan[i << 1]; cL = g_PKey1Plan[(i << 1) + 1];
+			cH = g_PKey1Plain[i << 1]; cL = g_PKey1Plain[(i << 1) + 1];
 			if (!IsHexLetter(cH))
 				return -1;
 			if (!IsHexLetter(cL))
@@ -266,7 +271,8 @@ static int InitInstance(HINSTANCE hInstance)
 			g_PKey1[i] = cH << 4 | cL;
 		}
 
-		GetPKfromSK(g_SKey, g_PKey);
+		GetPKfromSK(g_SKey, g_PKey, g_PKeyPlain);
+		GetKeyfromSKPK(g_SKey, g_PKey1, g_KEY);
 	}
 
 
@@ -402,6 +408,10 @@ static int InitInstance(HINSTANCE hInstance)
 		}
 	}
 #endif
+	iRet = MQTT::MQTT_Init();
+	if (MOSQ_ERR_SUCCESS != iRet)
+		return (-1);
+
 	iRet = DUI_Init();
 
 	return iRet;
@@ -414,6 +424,7 @@ static void ExitInstance(HINSTANCE hInstance)
 	// tell all threads to quit
 	InterlockedIncrement(&g_Quit);
 
+	MQTT::MQTT_Term();
 	DUI_Term();
 
 	assert(nullptr != g_pD2DFactory);

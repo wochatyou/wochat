@@ -643,6 +643,11 @@ public:
         return (U16*)m_Text;
     }
 
+    void clearText()
+    {
+        m_TextLen = 0;
+    }
+
     int Draw();
     int Init(void* ptr0 = nullptr, void* ptr1 = nullptr, U32 flag = 0);
     void Term();

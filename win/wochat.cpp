@@ -1,4 +1,5 @@
 #include <secp256k1/secp256k1.h>
+#include <secp256k1/secp256k1_ecdh.h>
 #include "dui/dui.h"
 #include "xwindef.h"
 #include "bitcoin/src/crypto/chacha20.h"
@@ -45,9 +46,10 @@ void InitToolTipMessage()
 	dui_tooltip[XWIN5_BUTTON_SENDMESSAGE] = (U16*)wochat_SENDMESSAGE;
 }
 
-int GetPKfromSK(U8* sk, U8* pk)
+int GetPKfromSK(U8* sk, U8* pk, U8* pkPlain)
 {
 	int r;
+	U8 c, cH, cL;
 	size_t len;
 	secp256k1_context* ctx;
 	secp256k1_pubkey pubkey;
@@ -57,6 +59,30 @@ int GetPKfromSK(U8* sk, U8* pk)
 	r = secp256k1_ec_pubkey_create(ctx, &pubkey, sk);
 	len = 33;
 	r = secp256k1_ec_pubkey_serialize(ctx, pk, &len, &pubkey, SECP256K1_EC_COMPRESSED);
+
+	for (int i = 0; i < 33; i++)
+	{
+		cH = pk[i] >> 4;
+		cL = pk[i] & 0x0F;
+		c = (cH > 9) ? (cH - 10 + 'A') : (cH + '0');
+		pkPlain[i << 1] = c;
+		c = (cL > 9) ? (cL - 10 + 'A') : (cL + '0');
+		pkPlain[(i << 1) + 1] = c;
+	}
+
+	secp256k1_context_destroy(ctx);
+	return 0;
+}
+
+int GetKeyfromSKPK(U8* sk, U8* pk, U8* k)
+{
+	int r;
+	secp256k1_context* ctx;
+	secp256k1_pubkey pubkey;
+	ctx = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
+
+	r = secp256k1_ec_pubkey_parse(ctx, &pubkey, pk, 33);
+	r = secp256k1_ecdh(ctx, k, &pubkey, sk, NULL, NULL);
 
 	secp256k1_context_destroy(ctx);
 	return 0;

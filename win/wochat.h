@@ -57,6 +57,7 @@
 #include <harfbuzz/hb-ft.h>
 #include <cairo/cairo.h>
 #include <cairo/cairo-ft.h>
+#include <modpbase64/modp_b64.h>
 
 #include "dui/dui.h"
 #include "dui/dui_mempool.h"
@@ -77,6 +78,15 @@ typedef struct XChatGroup
 	MemoryContext mempool;
 } XChatGroup;
 
+typedef struct XMQTTMessage
+{
+	char* host;
+	int   port;
+	char* topic;
+	char* message;
+	int   msglen;
+} XMQTTMessage;
+
 extern UINT				g_Quit;
 extern LONG				g_threadCount;
 extern HINSTANCE		g_hInstance;
@@ -87,10 +97,12 @@ extern HCURSOR g_hCursorNS;
 extern HCURSOR g_hCursorHand;
 extern HCURSOR g_hCursorIBeam;
 
+extern uint8_t  g_KEY[32];
 extern uint8_t  g_SKey[32];
 extern uint8_t  g_PKey[33];
+extern uint8_t  g_PKeyPlain[66];
 extern uint8_t  g_PKey1[33];
-extern uint8_t  g_PKey1Plan[66];
+extern uint8_t  g_PKey1Plain[66];
 
 #define XFONT_SIZE0		14
 #define XFONT_SIZE1		11

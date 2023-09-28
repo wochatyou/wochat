@@ -43,6 +43,319 @@
 *************************************************************************************************
 */
 
+static bool process_messages = true;
+static int msg_count = 0;
+static int last_mid = 0;
+static bool timed_out = false;
+static int connack_result = 0;
+static bool connack_received = false;
+
+static U16 xmsgUTF16[XWIN_MAX_INPUTSTRING + 1] = { 0 };
+static U8  xmsgUTF8[XWIN_MAX_INPUTSTRING + XWIN_MAX_INPUTSTRING + 1] = { 0 };
+
+static int PostMQTTMessage(HWND hWnd, const struct mosquitto_message* message, const mosquitto_property* properties)
+{
+	U8* p;
+	U8* msg;
+	size_t len;
+	size_t bytes;
+
+	assert(nullptr != message);
+
+	msg = (U8*)message->payload;
+	assert(nullptr != msg);
+	len = (size_t)message->payloadlen;
+	assert(len > 0);
+#if 0
+	if (len > XWIN_MAX_INPUTSTRING)
+		len = XWIN_MAX_INPUTSTRING;
+
+	len = modp_b64_encode_len(len);
+	p = (U8*)xmsgUTF16;
+	bytes = modp_b64_decode((const unsigned char*)msg, len, (unsigned char*)p);
+	p[bytes] = 0; p[bytes + 1] = 0;
+
+	if (::IsWindow(hWnd))
+	{
+		::PostMessage(hWnd, WM_MQTT_SUBMSG, (WPARAM)xmsgUTF16, (LPARAM)bytes / 2);
+	}
+#endif
+	return 0;
+}
+
+static void MQTT_Message_Callback(struct mosquitto* mosq, void* obj, const struct mosquitto_message* message, const mosquitto_property* properties)
+{
+	int i;
+	bool res;
+	struct mosq_config* pMQTTConf;
+	HWND hWnd;
+
+	UNUSED(properties);
+
+	pMQTTConf = (struct mosq_config*)obj;
+	assert(nullptr != pMQTTConf);
+
+	hWnd = (HWND)(pMQTTConf->userdata);
+	assert(::IsWindow(hWnd));
+
+	if (process_messages == false) return;
+
+	if (pMQTTConf->retained_only && !message->retain && process_messages)
+	{
+		process_messages = false;
+		if (last_mid == 0)
+		{
+			mosquitto_disconnect_v5(mosq, 0, pMQTTConf->disconnect_props);
+		}
+		return;
+	}
+
+	if (message->retain && pMQTTConf->no_retain)
+		return;
+
+	if (pMQTTConf->filter_outs)
+	{
+		for (i = 0; i < pMQTTConf->filter_out_count; i++)
+		{
+			mosquitto_topic_matches_sub(pMQTTConf->filter_outs[i], message->topic, &res);
+			if (res) return;
+		}
+	}
+
+	if (pMQTTConf->remove_retained && message->retain)
+	{
+		mosquitto_publish(mosq, &last_mid, message->topic, 0, NULL, 1, true);
+	}
+
+	PostMQTTMessage(hWnd, message, properties);
+
+	if (pMQTTConf->msg_count > 0)
+	{
+		msg_count++;
+		if (pMQTTConf->msg_count == msg_count)
+		{
+			process_messages = false;
+			if (last_mid == 0)
+			{
+				mosquitto_disconnect_v5(mosq, 0, pMQTTConf->disconnect_props);
+			}
+		}
+	}
+}
+
+static void MQTT_Connect_Callback(struct mosquitto* mosq, void* obj, int result, int flags, const mosquitto_property* properties)
+{
+	int i;
+	struct mosq_config* pMQTTConf;
+
+	UNUSED(flags);
+	UNUSED(properties);
+
+	pMQTTConf = (struct mosq_config*)obj;
+	assert(nullptr != pMQTTConf);
+
+	connack_received = true;
+
+	connack_result = result;
+	if (!result)
+	{
+		mosquitto_subscribe_multiple(mosq, NULL, pMQTTConf->topic_count, pMQTTConf->topics, pMQTTConf->qos, pMQTTConf->sub_opts, pMQTTConf->subscribe_props);
+
+		for (i = 0; i < pMQTTConf->unsub_topic_count; i++)
+		{
+			mosquitto_unsubscribe_v5(mosq, NULL, pMQTTConf->unsub_topics[i], pMQTTConf->unsubscribe_props);
+		}
+	}
+	else
+	{
+		if (result)
+		{
+			if (pMQTTConf->protocol_version == MQTT_PROTOCOL_V5)
+			{
+				if (result == MQTT_RC_UNSUPPORTED_PROTOCOL_VERSION)
+				{
+					//err_printf(&cfg, "Connection error: %s. Try connecting to an MQTT v5 broker, or use MQTT v3.x mode.\n", mosquitto_reason_string(result));
+				}
+				else
+				{
+					//err_printf(&cfg, "Connection error: %s\n", mosquitto_reason_string(result));
+				}
+			}
+			else {
+				//err_printf(&cfg, "Connection error: %s\n", mosquitto_connack_string(result));
+			}
+		}
+		mosquitto_disconnect_v5(mosq, 0, pMQTTConf->disconnect_props);
+	}
+}
+
+static void MQTT_Disconnect_Callback(struct mosquitto* mosq, void* obj, int result, const mosquitto_property* properties)
+{
+
+}
+
+static void MQTT_Publish_Callback(struct mosquitto* mosq, void* obj, int mid, int reason_code, const mosquitto_property* properties)
+{
+	int i;
+
+	i = 1;
+}
+
+static void MQTT_Subscribe_Callback(struct mosquitto* mosq, void* obj, int mid, int qos_count, const int* granted_qos)
+{
+	int i;
+	struct mosq_config* pMQTTConf;
+	bool some_sub_allowed = (granted_qos[0] < 128);
+	bool should_print;
+
+	pMQTTConf = (struct mosq_config*)obj;
+	assert(nullptr != pMQTTConf);
+	should_print = pMQTTConf->debug && !pMQTTConf->quiet;
+
+#if 0
+	if (should_print)
+		printf("Subscribed (mid: %d): %d", mid, granted_qos[0]);
+#endif
+	for (i = 1; i < qos_count; i++)
+	{
+		//if (should_print) printf(", %d", granted_qos[i]);
+		some_sub_allowed |= (granted_qos[i] < 128);
+	}
+	//if (should_print) printf("\n");
+
+	if (some_sub_allowed == false)
+	{
+		mosquitto_disconnect_v5(mosq, 0, pMQTTConf->disconnect_props);
+		//err_printf(&cfg, "All subscription requests were denied.\n");
+	}
+
+	if (pMQTTConf->exit_after_sub)
+	{
+		mosquitto_disconnect_v5(mosq, 0, pMQTTConf->disconnect_props);
+	}
+
+}
+
+static void MQTT_Log_Callback(struct mosquitto* mosq, void* obj, int level, const char* str)
+{
+}
+
+
+static MQTT_Methods mqtt_callback =
+{
+	MQTT_Message_Callback,
+	MQTT_Connect_Callback,
+	MQTT_Disconnect_Callback,
+	MQTT_Subscribe_Callback,
+	MQTT_Publish_Callback,
+	MQTT_Log_Callback
+};
+
+static XMQTTMessage mqtt_message = { 0 };
+
+static HANDLE xMQTTHandles[2];
+
+static DWORD WINAPI MQTTPubThread(LPVOID lpData)
+{
+	int ret;
+	DWORD dwRet;
+	Mosquitto q;
+	HWND hWnd = (HWND)(lpData);
+
+	ATLASSERT(::IsWindow(hWnd));
+
+	InterlockedIncrement(&g_threadCount);
+
+	q = MQTT::MQTT_PubInit(hWnd, mqtt_message.host, mqtt_message.port, &mqtt_callback);
+	if (nullptr == q) // something is wrong in MQTT pub routine
+	{
+		PostMessage(hWnd, WM_INIT_THREAD, 2, 0);
+		goto QuitMQTTPubThread;
+	}
+
+	while (true)
+	{
+		dwRet = MsgWaitForMultipleObjects(2, xMQTTHandles, FALSE, INFINITE, QS_ALLINPUT);
+		switch (dwRet)
+		{
+		case WAIT_OBJECT_0 + 0:		// the request from UI thread
+		{
+			char* topic = mqtt_message.topic;
+			char* message = mqtt_message.message;
+			int msglen = mqtt_message.msglen;
+			if (nullptr != topic && nullptr != message && 0 != msglen)
+			{
+				ret = MQTT::MQTT_PubMessage(q, topic, message, msglen);
+			}
+		}
+		break;
+		case WAIT_OBJECT_0 + 1:		// we have to quit
+			goto QuitMQTTPubThread;
+		default:
+			break;
+		}
+	}
+
+QuitMQTTPubThread:
+	MQTT::MQTT_PubTerm(q);
+	InterlockedDecrement(&g_threadCount);
+
+	return 0;
+}
+
+static DWORD WINAPI MQTTSubThread(LPVOID lpData)
+{
+	int ret;
+	Mosquitto q;
+	HWND hWnd = (HWND)(lpData);
+
+	ATLASSERT(::IsWindow(hWnd));
+
+	InterlockedIncrement(&g_threadCount);
+
+	// We put some long running intialized work in the seperated thread
+	// to speed up the start of WoChat application.
+	ret = 0; // BitCoinInit();
+	if (0 != ret) // The intialization is failed
+	{
+		PostMessage(hWnd, WM_INIT_THREAD, 1, 0);
+		goto QuitMQTTSubThread;
+	}
+
+	q = MQTT::MQTT_SubInit(hWnd, (char*)DEFAULT_MQTT_SERVER, DEFAULT_MQTT_PORT, &mqtt_callback);
+
+	if (nullptr == q) // something is wrong in MQTT sub routine
+	{
+		PostMessage(hWnd, WM_INIT_THREAD, 2, 0);
+		goto QuitMQTTSubThread;
+	}
+
+	ret = MQTT::MQTT_AddSubTopic(CLIENT_SUB, (char*)g_PKeyPlain);
+	if (0 != ret) // The intialization is failed
+	{
+		PostMessage(hWnd, WM_INIT_THREAD, 3, 0);
+		goto QuitMQTTSubThread;
+	}
+
+#if 0
+	ret = MQTT::MQTT_AddSubTopic(CLIENT_SUB, (char*)"WOCHAT");
+	if (0 != ret) // The intialization is failed
+	{
+		PostMessage(hWnd, WM_INIT_THREAD, 3, 0);
+		goto QuitMQTTSubThread;
+	}
+#endif
+	MQTT::MQTT_SubLoop(q);  // main loop go here.
+
+	MQTT::MQTT_SubTerm(q);
+
+	q = nullptr;
+
+QuitMQTTSubThread:
+	InterlockedDecrement(&g_threadCount);
+	return 0;
+}
+
 // Splitter extended styles
 #define SPLIT_LEFTALIGNED		0x00000001
 #define SPLIT_BOTTOMLIGNED		0x00000002
@@ -167,6 +480,8 @@ public:
 		MESSAGE_HANDLER(WM_NCPAINT, OnNCPaint)
 		MESSAGE_HANDLER(WM_PAINT, OnPaint)
 		MESSAGE_HANDLER(WM_TIMER, OnTimer)
+		MESSAGE_HANDLER(WM_MQTT_PUBMSG, OnMQTTPubMessage)
+		MESSAGE_HANDLER(WM_MQTT_SUBMSG, OnMQTTSubMessage)
 		MESSAGE_RANGE_HANDLER(WM_MOUSEFIRST, WM_MOUSELAST, OnMouseMessage)
 		NOTIFY_CODE_HANDLER(TTN_GETDISPINFO, OnGetToolTipInfo)
 		MESSAGE_HANDLER(WM_MOUSEMOVE, OnMouseMove)
@@ -191,6 +506,7 @@ public:
 		MESSAGE_HANDLER(WM_SETCURSOR, OnSetCursor)
 		MESSAGE_HANDLER(WM_SETFOCUS, OnSetFocus)
 		MESSAGE_HANDLER(WM_MOUSEACTIVATE, OnMouseActivate)
+		MESSAGE_HANDLER(WM_INIT_THREAD, OnInitThread)
 		MESSAGE_HANDLER(WM_CREATE, OnCreate)
 		MESSAGE_HANDLER(WM_DESTROY, OnDestroy)
 	END_MSG_MAP()
@@ -261,6 +577,34 @@ public:
 		return 0;
 	}
 
+	LRESULT OnInitThread(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		MessageBox(_T("Initilization failed!"), _T("WoChat"), MB_OK);
+
+		PostMessage(WM_CLOSE);
+
+		return 0;
+	}
+
+	LRESULT OnMQTTPubMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& /*bHandled*/)
+	{
+		return 0;
+	}
+
+	LRESULT OnMQTTSubMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& /*bHandled*/)
+	{
+		U16* msg = (U16*)wParam;
+		int len = (int)lParam;
+
+		if (len > 0)
+		{
+			m_win4.UpdateChatHistory(msg, len);
+			Invalidate();
+		}
+
+		return 0;
+	}
+
 	LRESULT OnGetToolTipInfo(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/)
 	{
 		LPNMTTDISPINFO pToolTipInfo = (LPNMTTDISPINFO)pnmh;
@@ -277,6 +621,11 @@ public:
 
 	LRESULT OnDestroy(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
+		SetEvent(xMQTTHandles[1]); // tell MQTT pub thread to quit gracefully
+		Sleep(1000);
+		CloseHandle(xMQTTHandles[0]);
+		CloseHandle(xMQTTHandles[1]);
+
 		KillTimer(XWIN_666MS_TIMER);
 		SafeRelease(&m_pixelBitmap);
 		SafeRelease(&m_pD2DRenderTarget);
@@ -292,12 +641,30 @@ public:
 
 	LRESULT OnCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
+		DWORD dwThreadID0;
+		DWORD dwThreadID1;
+
+		mqtt_message.host = (char*)DEFAULT_MQTT_SERVER;
+		mqtt_message.port = DEFAULT_MQTT_PORT;
+		mqtt_message.topic = nullptr;
+		mqtt_message.message = nullptr;
+		mqtt_message.msglen = 0;
+#if 0
+		//HANDLE hThread0 = ::CreateThread(NULL, 0, MQTTSubThread, m_hWnd, 0, &dwThreadID0);
+		//HANDLE hThread1 = ::CreateThread(NULL, 0, MQTTPubThread, m_hWnd, 0, &dwThreadID1);
+
+		if (nullptr == hThread0 || nullptr == hThread1)
+		{
+			MessageBox(TEXT("MQTT thread creation is failed!"), TEXT("WoChat Error"), MB_OK);
+		}
+#endif
 		if (DUIWindowInitFailed())
 		{
 			MessageBox(_T("WM_CREATE failed!"), _T("Error"), MB_OK);
 			PostMessage(WM_CLOSE);
 			return 0;
 		}
+
 
 		m_nDPI = GetDpiForWindow(m_hWnd);
 

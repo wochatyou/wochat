@@ -1164,7 +1164,7 @@ int XEditBox2::Draw()
             }
             if (XCONTROL_STATE_PRESSED == m_status && (XCONTROL_PROP_CARET & m_property))
             {
-                ScreenFillRect(m_parentBuf, m_parentW, m_parentH, 0xFF000000, 1, h - 4, left + 1, top + 2);
+                ScreenFillRect(m_parentBuf, m_parentW, m_parentH, 0xFF000000, 1, m_lineHeight, left + 1, top + 2);
             }
         }
         else
@@ -1240,7 +1240,7 @@ int XEditBox2::Draw()
             }
             if (XCONTROL_STATE_PRESSED == m_status && (XCONTROL_PROP_CARET & m_property))
             {
-                ScreenFillRect(m_parentBuf, m_parentW, m_parentH, 0xFF000000, 1, h - 4, left + cursorPos, top + 2);
+                ScreenFillRect(m_parentBuf, m_parentW, m_parentH, 0xFF000000, 1, m_lineHeight, left + cursorPos, top + 2);
             }
         }
     }
