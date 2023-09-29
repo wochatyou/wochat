@@ -135,6 +135,16 @@ typedef struct tagXRECT
     int    bottom;
 } XRECT;
 
+typedef struct tagXTextDrawInfo
+{
+    U16* text;
+    U16  textLen;
+    U16  left;
+    U16  top;
+    U16  right;
+    U16  bottom;
+} XTextDrawInfo;
+
 // a pure 32-bit true color bitmap object
 typedef struct XBitmap
 {
@@ -158,10 +168,13 @@ extern XBitmap   dui_bitmapArray[DUI_MAX_BUTTON_BITMAPS];
 extern U16*      dui_tooltip[DUI_MAX_CONTROLS];
 
 #define DUI_GLOBAL_STATE_IN_NONE_MODE   0x0000000000000000
-#define DUI_GLOBAL_STATE_IN_DRAG_MODE   0x0000000000000001
-#define DUI_GLOBAL_STATE_NEED_REDRAW    0x0000000000000002
+#define DUI_GLOBAL_STATE_NEED_REDRAW    0x0000000000000001
+#define DUI_GLOBAL_STATE_IN_DRAG_MODE   0x0000000000000002
 #define DUI_GLOBAL_STATE_SET_CURSOR     0x0000000000000004
 #define DUI_GLOBAL_STATE_INIT_FAILED    0x0000000000000008
+#define DUI_GLOBAL_STATE_CTRL_PRESSED   0x0000000000000010
+#define DUI_GLOBAL_STATE_SHIFT_PRESSED  0x0000000000000020
+#define DUI_GLOBAL_STATE_ALT_PRESSED    0x0000000000000040
 
 // this gloable variable is shared by all virtual windows so they can know each other
 extern U64 dui_status;
@@ -434,6 +447,7 @@ class XLabel : public XControl
 {
 private:
     bool m_initialized = false;
+    XTextDrawInfo* m_textDrawInfo = nullptr;
     // cairo/harfbuzz issue to cache to speed up
     cairo_glyph_t* m_cairo_glyphs = nullptr;
     cairo_font_face_t* m_cairo_face = nullptr;

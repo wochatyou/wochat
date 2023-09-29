@@ -118,6 +118,8 @@ int XLabel::Init(void* ptr0, void* ptr1, U32 flag)
     double fontSize = (double)flag;
     cairo_font_extents_t font_extents = { 0 };
 
+    m_textDrawInfo = (XTextDrawInfo*)ptr0;
+
     assert(nullptr != ftFace);
     m_initialized = false;
 
@@ -280,6 +282,17 @@ void XLabel::setText(U16* text, U16 len)
 
 int XLabel::Draw()
 {
+    if (nullptr != m_textDrawInfo)
+    {
+        U16 offset = 2;
+        m_textDrawInfo->left = left + offset;
+        m_textDrawInfo->top = top + offset;
+        m_textDrawInfo->right = right + offset;
+        m_textDrawInfo->bottom = bottom + offset;
+        m_textDrawInfo->text = m_Text;
+        m_textDrawInfo->textLen = m_TextLen;
+    }
+#if 0
     if (nullptr != m_parentBuf)
     {
         U32 glyphLen, i, W = 0;
@@ -349,6 +362,7 @@ int XLabel::Draw()
             }
         }
     }
+#endif
     return 0;
 }
 

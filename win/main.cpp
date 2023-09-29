@@ -22,6 +22,9 @@ FT_Face				g_ftFace0     = nullptr;
 FT_Face				g_ftFace1     = nullptr;
 FT_Face				g_ftFace2     = nullptr;
 ID2D1Factory*       g_pD2DFactory = nullptr;
+IDWriteFactory*     g_pDWriteFactory = nullptr;
+IDWriteTextFormat*  g_pTextFormatTitle = nullptr;
+
 
 uint8_t  g_Nonce[12] = { 0 };
 uint8_t  g_KEY[32] = { 0 };
@@ -292,6 +295,35 @@ static int InitInstance(HINSTANCE hInstance)
 		return (-1);
 	}
 
+	g_pDWriteFactory = nullptr;
+	hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&g_pDWriteFactory));
+	if (S_OK != hr || nullptr == g_pDWriteFactory)
+	{
+		MessageBox(NULL, _T("The calling of DWriteCreateFactory() is failed"), _T("Wochat Error"), MB_OK);
+		return (-1);
+	}
+
+	g_pTextFormatTitle = nullptr;
+	hr = g_pDWriteFactory->CreateTextFormat(
+		L"Microsoft Yahei",
+		NULL,
+		DWRITE_FONT_WEIGHT_NORMAL,
+		DWRITE_FONT_STYLE_NORMAL,
+		DWRITE_FONT_STRETCH_NORMAL,
+		15.0f,
+		L"en-US",
+		&g_pTextFormatTitle
+	);
+
+	if (S_OK != hr || nullptr == g_pTextFormatTitle)
+	{
+		MessageBox(NULL, _T("The calling of CreateTextFormat() is failed"), _T("Wochat Error"), MB_OK);
+		return (-1);
+	}
+
+	g_pTextFormatTitle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);  // DWRITE_TEXT_ALIGNMENT_LEADING / DWRITE_TEXT_ALIGNMENT_TRAILING / DWRITE_TEXT_ALIGNMENT_CENTER / DWRITE_TEXT_ALIGNMENT_JUSTIFIED
+	g_pTextFormatTitle->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+
 	/* load the build-in font file(*.ttf) */
 	res = FindResource(hInstance, MAKEINTRESOURCE(IDR_DEFAULTFONT), RT_RCDATA);
 	if (NULL == res)
@@ -430,6 +462,10 @@ static void ExitInstance(HINSTANCE hInstance)
 	DUI_Term();
 
 	assert(nullptr != g_pD2DFactory);
+	SafeRelease(&g_pTextFormatTitle);
+	g_pTextFormatTitle = nullptr;
+	SafeRelease(&g_pDWriteFactory);
+	g_pDWriteFactory = nullptr;
 	SafeRelease(&g_pD2DFactory);
 	g_pD2DFactory = nullptr;
 

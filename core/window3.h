@@ -84,18 +84,23 @@ public:
 		{
 			XLabel* label = new(mem)XLabel;
 			assert(nullptr != label);
-			if (0 != label->Init(nullptr, g_ftFace0, XFONT_SIZE0))
+			m_textDrawInfo = (XTextDrawInfo*)palloc(m_pool, sizeof(XTextDrawInfo));
+			if (nullptr != m_textDrawInfo)
 			{
-				pfree(mem);
-			}
-			else
-			{
-				label->setText(titlewin3, 7);
-				label->setRoundColor(m_backgroundColor, m_backgroundColor);
-				label->setBkgFrontColor(m_backgroundColor, 0xFF333333);
-				label->setId(id);
-				dui_controlArray[id] = label;
-				m_endControl = id;
+				m_textDrawInfoCount = 1;
+				if (0 != label->Init(m_textDrawInfo, g_ftFace0, XFONT_SIZE0))
+				{
+					pfree(mem);
+				}
+				else
+				{
+					label->setText(titlewin3, 7);
+					label->setRoundColor(m_backgroundColor, m_backgroundColor);
+					label->setBkgFrontColor(m_backgroundColor, 0xFF333333);
+					label->setId(id);
+					dui_controlArray[id] = label;
+					m_endControl = id;
+				}
 			}
 		}
 	}

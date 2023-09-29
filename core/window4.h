@@ -726,10 +726,10 @@ public:
 						cairo_set_font_size(cr, XFONT_SIZE0);
 						cairo_font_extents(cr, &m_font_extents);
 						baseline = (XFONT_SIZE0 - m_font_extents.height) * 0.5 + m_font_extents.ascent + 12;
-						cairo_translate(cr, GAP_LEFT4, baseline);
+						cairo_translate(cr, GAP_LEFT4, baseline+3);
 						cairo_set_source_rgba(cr, R, G, B, 1);
 						cairo_paint(cr);
-						cairo_set_source_rgba(cr, 0.3, 0.3, 0.3, 1);
+						cairo_set_source_rgba(cr, 0., 0., 0., 1);
 
 						lines = *m++;
 						strLen = p->message[0];

@@ -25,8 +25,10 @@
 #include <atlctrlx.h>
 #include <dwmapi.h>
 #include <d2d1.h>
-#include <d2d1helper.h>
+
+#include <dwrite.h>
 #pragma comment(lib, "d2d1.lib")
+#pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "dwmapi.lib")
@@ -88,10 +90,13 @@ typedef struct XMQTTMessage
 	int   msglen;
 } XMQTTMessage;
 
-extern UINT				g_Quit;
-extern LONG				g_threadCount;
-extern HINSTANCE		g_hInstance;
-extern ID2D1Factory*    g_pD2DFactory;
+extern UINT				  g_Quit;
+extern LONG				  g_threadCount;
+extern HINSTANCE		  g_hInstance;
+extern ID2D1Factory*      g_pD2DFactory;
+extern IDWriteFactory*    g_pDWriteFactory;
+extern IDWriteTextFormat* g_pTextFormatTitle;
+
 
 extern HCURSOR g_hCursorWE;
 extern HCURSOR g_hCursorNS;
@@ -108,7 +113,7 @@ extern uint8_t  g_PKeyPlain[67];
 extern uint8_t  g_PKey1[33];
 extern uint8_t  g_PKey1Plain[67];
 
-#define XFONT_SIZE0		14
+#define XFONT_SIZE0		15
 #define XFONT_SIZE1		11
 
 extern FT_Library		g_ftLibrary;

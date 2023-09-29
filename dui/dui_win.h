@@ -87,6 +87,8 @@ public:
     U32  m_scrollbarColor  = DEFAULT_SCROLLBKG_COLOR;
     U32  m_thumbColor      = DEFAULT_SCROLLTHUMB_COLOR;
 
+    XTextDrawInfo* m_textDrawInfo = nullptr;
+    U16            m_textDrawInfoCount = 0;
 public:
     XWindowT()
     {
@@ -141,6 +143,14 @@ public:
     }
 
     void InitControl() {}
+
+    tagXTextDrawInfo* GetTextDrawInfo(U16* size)
+    {
+        if (nullptr != size)
+            *size = m_textDrawInfoCount;
+
+        return m_textDrawInfo;
+    }
 
     // < 0 : I do not handle this message
     // = 0 : I handled, but I do not need to upgrade the screen
@@ -343,34 +353,7 @@ public:
     }
 
     void UpdateControlPosition() {}
-#if 0
-    void SetPosition(XRECT* r, U32* screen, U32 size = 0)
-    {
-        if (nullptr != r)
-        {
-            m_area.left   = r->left; 
-            m_area.top    = r->top; 
-            m_area.right  = r->right; 
-            m_area.bottom = r->bottom;
-        }
-        else
-        {
-            m_area.left = m_area.top = m_area.right = m_area.bottom = 0;
-        }
 
-        m_screen = screen;
-        m_size = (size != 0)? size : (U32)((m_area.right - m_area.left) * (m_area.bottom - m_area.top));
-        
-        if (nullptr != r)
-        {
-            T* pT = static_cast<T*>(this);
-            pT->UpdateControlPosition();
-        }
-
-        m_status |= DUI_STATUS_NEEDRAW;
-        InvalidateDUIWindow();
-    }
-#endif
 
     int Do_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int On_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
