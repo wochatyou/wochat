@@ -5,12 +5,12 @@
 
 U16 msg[] = { 12, 0x5468,0x661f,0x661f,0xff1a,0x4e0d,0x77e5,0x6211,0x8005,0x8c13,0x6211,0x4f55,0x6c42 };
 
-U16 gname[19];
+U16 gname[15];
 
 U16 gname1[] = { 6, 0x0044,0x0042,0x0041,0x57f9,0x8bad,0x7fa4 };
 U16 gname2[] = { 4, 0x6587, 0x4ef6, 0x4f20, 0x8f93 };
 U16 gname3[] = { 7, 0x0041,0x0049,0x804a,0x5929,0x673a,0x5668,0x4eba };
-U16 timestamp[] = { 8, 0x0031,0x0037,0x003a,0x0033,0x0035,0x0020,0x0050,0x004d };
+U16 timestamp[] = { 11, 0x0030,0x0039,0x003a,0x0032,0x0038,0x003a,0x0033,0x0032,0x0020,0x0041,0x004d };
 
 class XWindow2 : public XWindowT <XWindow2>
 {
@@ -37,6 +37,7 @@ private:
 
 	XChatGroup cg[64] = { 0 };
 
+#if 0
 	// cairo/harfbuzz issue to cache to speed up
 	cairo_font_extents_t m_font_extents = { 0 };
 	cairo_glyph_t* m_cairo_glyphs = nullptr;
@@ -44,6 +45,7 @@ private:
 	hb_font_t* m_hb_font0 = nullptr;
 	hb_font_t* m_hb_font1 = nullptr;
 	hb_buffer_t* m_hb_buffer = nullptr;
+#endif
 
 public:
 	XWindow2()
@@ -75,35 +77,32 @@ public:
 			p = m_chatgroupRoot;
 			p->id = 0;
 			p->icon = (U32*)xbmpGroup;
-			gname[0]  = 18;
+			gname[0]  = 14;
 			gname[1]  = g_PKey1Plain[0];
 			gname[2]  = g_PKey1Plain[1];
 			gname[3]  = g_PKey1Plain[2];
 			gname[4]  = g_PKey1Plain[3];
 			gname[5]  = g_PKey1Plain[4];
 			gname[6]  = g_PKey1Plain[5];
-			gname[7]  = g_PKey1Plain[6];
-			gname[8]  = g_PKey1Plain[7];
-			gname[9]  = L'-';
-			gname[10] = L'-';
-			gname[11] = g_PKey1Plain[58];
-			gname[12] = g_PKey1Plain[59];
-			gname[13] = g_PKey1Plain[60];
-			gname[14] = g_PKey1Plain[61];
-			gname[15] = g_PKey1Plain[62];
-			gname[16] = g_PKey1Plain[63];
-			gname[17] = g_PKey1Plain[64];
-			gname[18] = g_PKey1Plain[65];
+			gname[7]  = L'-';
+			gname[8] = L'-';
+			gname[9] = g_PKey1Plain[60];
+			gname[10] = g_PKey1Plain[61];
+			gname[11] = g_PKey1Plain[62];
+			gname[12] = g_PKey1Plain[63];
+			gname[13] = g_PKey1Plain[64];
+			gname[14] = g_PKey1Plain[65];
 
 			p->name = (U16*)gname;
 			p->w = ICON_HEIGHT;
 			p->h = ICON_HEIGHT;
 			p->height = ITEM_HEIGHT;
 			p->lastmsg = (U16*)msg;
+			p->tsText = (U16*)timestamp;
 			p->next = nullptr;
 
 			total = 1;
-			for (i = 1; i < 32; i++)
+			for (i = 1; i < 128; i++)
 			{
 				q = (XChatGroup*)palloc0(m_pool, sizeof(XChatGroup));
 				if (nullptr == q)
@@ -115,6 +114,7 @@ public:
 				p->id = i;
 				p->height = ITEM_HEIGHT;
 				p->lastmsg = (U16*)msg;
+				p->tsText = (U16*)timestamp;
 				switch (i % 3)
 				{
 				case 0:
@@ -143,6 +143,7 @@ public:
 	int Do_DUI_CREATE(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{ 
 		int ret = 0;
+#if 0
 		hb_bool_t hs = 0;
 
 		assert(nullptr == m_cairo_glyphs);
@@ -202,7 +203,7 @@ public:
 
 			return (-4);
 		}
-
+#endif
 		ret = LoadChatGroupList();
 
 		return ret; 
@@ -210,6 +211,7 @@ public:
 
 	int Do_DUI_DESTROY(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{
+#if 0
 		assert(nullptr != m_cairo_glyphs);
 		cairo_glyph_free(m_cairo_glyphs);
 		m_cairo_glyphs = nullptr;
@@ -230,7 +232,7 @@ public:
 		assert(nullptr != m_cairo_face);
 		cairo_font_face_destroy(m_cairo_face);
 		m_cairo_face = nullptr;
-
+#endif
 		return 0;
 	}
 
@@ -319,6 +321,10 @@ public:
 				tdi->bottom = tdi->top + ITEM_HEIGHT;
 				tdi->textLen0 = p->name[0];
 				tdi->text0 = p->name+1;
+				tdi->textLen1 = p->lastmsg[0];
+				tdi->text1 = p->lastmsg + 1;
+				tdi->textLen2 = p->tsText[0];
+				tdi->text2 = p->tsText + 1;
 				m_textDrawInfoCount++;
 				tdi = tdi->next;
 			}

@@ -4,7 +4,7 @@
 #include "dui.h"
 #include "dui_mempool.h"
 
-#define DUI_MINIMAL_THUMB_SIZE          32
+#define DUI_MINIMAL_THUMB_SIZE          64
 #define DUI_ALLOCSET_DEFAULT_INITSIZE   (8 * 1024)
 #define DUI_ALLOCSET_DEFAULT_MAXSIZE    (8 * 1024 * 1024)
 #define DUI_ALLOCSET_SMALL_INITSIZE     (1 * 1024)

@@ -1615,6 +1615,15 @@ public:
 					layoutRect.left = p->left + xr->left; layoutRect.top = p->top + xr->top + 10;
 					layoutRect.right = p->right + xr->left; layoutRect.bottom = layoutRect.top + 20; // p->bottom + xr->top;
 					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text0, p->textLen0, g_pTextFormatTitle, layoutRect, m_pTextBrush);
+
+					layoutRect.bottom = p->bottom + xr->top - 10;
+					layoutRect.top = layoutRect.bottom - 16;
+					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text1, p->textLen1, g_pTextFormatMessageSmall0, layoutRect, m_pTextBrush);
+
+					layoutRect.left = p->left + xr->left; layoutRect.top = p->top + xr->top + 10;
+					layoutRect.right = xr->right - 10; layoutRect.bottom = layoutRect.top + 20; // p->bottom + xr->top;
+					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text2, p->textLen2, g_pTextFormatMessageSmall1, layoutRect, m_pTextBrush);
+
 					p = p->next;
 					count--;
 					if (0 == count)
@@ -1650,7 +1659,7 @@ public:
 				while (nullptr != p && count > 0)
 				{
 					layoutRect.left = p->left + xr->left; layoutRect.top = p->top + xr->top;
-					layoutRect.right = p->right + xr->left; layoutRect.bottom = p->bottom + xr->top;
+					layoutRect.right = xr->right; layoutRect.bottom = p->bottom + xr->top;
 					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text0, p->textLen0, g_pTextFormatTitle, layoutRect, m_pTextBrush);
 					p = p->next;
 					count--;

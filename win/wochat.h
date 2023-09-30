@@ -77,6 +77,7 @@ typedef struct XChatGroup
 	U16  member;		// how many members in this group?
 	U16* name;			// the group name
 	U64  ts;			// the time stamp. 
+	U16* tsText;			// the group name
 	U16* lastmsg;		// the last message of this group
 	MemoryContext mempool;
 } XChatGroup;
@@ -96,7 +97,9 @@ extern HINSTANCE		  g_hInstance;
 extern ID2D1Factory*      g_pD2DFactory;
 extern IDWriteFactory*    g_pDWriteFactory;
 extern IDWriteTextFormat* g_pTextFormatTitle;
-
+extern IDWriteTextFormat* g_pTextFormatMessage;
+extern IDWriteTextFormat* g_pTextFormatMessageSmall0;
+extern IDWriteTextFormat* g_pTextFormatMessageSmall1;
 
 extern HCURSOR g_hCursorWE;
 extern HCURSOR g_hCursorNS;
