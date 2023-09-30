@@ -89,9 +89,9 @@ int GetKeyfromSKPK(U8* sk, U8* pk, U8* k)
 	return 0;
 }
 
-int GetTextHeightInPixel(U16* text, U16 length, int width)
+int GetTextHeightInPixel(U16* text, U16 length, int width, int* h, int* w)
 {
-	int height = 0;
+	int r = 1;
 	HRESULT hr = S_OK;
 	IDWriteTextLayout* pTextLayout = nullptr;
 
@@ -102,9 +102,17 @@ int GetTextHeightInPixel(U16* text, U16 length, int width)
 	{
 		DWRITE_TEXT_METRICS tm;
 		pTextLayout->GetMetrics(&tm);
-		height = (int)(tm.height) + 1;
+		int H = (int)(tm.height) + 32;
+		int W = (int)(tm.width) + 32;
+		if (W > width)
+			W = width;
+		if (nullptr != h)
+			*h = H;
+		if (nullptr != w)
+			*w = W;
 		SafeRelease(&pTextLayout);
+		r = 0;
 	}
 
-	return height;
+	return r;
 }

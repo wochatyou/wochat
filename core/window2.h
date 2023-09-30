@@ -106,6 +106,7 @@ public:
 				p->w = ICON_HEIGHT;
 				p->h = ICON_HEIGHT;
 				p->height = ITEM_HEIGHT;
+				p->width = 0;
 				p->lastmsg = (U16*)msg;
 				p->tsText = (U16*)timestamp;
 				p->next = nullptr;
@@ -118,7 +119,7 @@ public:
 			}
 
 			total = 1;
-			for (i = 1; i < 8; i++)
+			for (i = 1; i < 64; i++)
 			{
 				q = (XChatGroup*)palloc0(m_pool, sizeof(XChatGroup));
 				if (nullptr == q)

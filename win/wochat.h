@@ -88,8 +88,9 @@ typedef struct XChatGroup
 	XChatGroup* next;
 	U16  id;			// Group ID
 	U32* icon;			// the bitmap data of this icon
-	U8   w;			// the width in pixel of this icon
-	U8   h;			// the height in pixel of this icon
+	U8   w;			    // the width in pixel of this icon
+	U8   h;			    // the height in pixel of this icon
+	U16  width;		    // in pixel
 	U16  height;		// in pixel
 	U16  unread;		// how many unread messages? if more than 254, use ... 
 	U16  member;		// how many members in this group?
@@ -148,8 +149,7 @@ void InitToolTipMessage();
 int GetPKfromSK(U8* sk, U8* pk, U8* pkPlain);
 int GetKeyfromSKPK(U8* sk, U8* pk, U8* k);
 
-int GetTextHeightInPixel(U16* text, U16 length, int width);
-
+int GetTextHeightInPixel(U16* text, U16 length, int width, int* h, int* w);
 
 #endif  /* __DUIAPP_H__ */
 
