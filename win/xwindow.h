@@ -1491,6 +1491,10 @@ public:
 		{
 			int w, h;
 			U32* src = nullptr;
+			U16 count;
+			XTextDrawInfo* p;
+			D2D1_RECT_F clipRect;
+			D2D1_RECT_F layoutRect;
 
 			m_pD2DRenderTarget->BeginDraw();
 			////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1593,6 +1597,8 @@ public:
 #endif
 				ID2D1Bitmap* pBitmap = nullptr;
 				XRECT* xr = m_win2.GetWindowArea();
+				clipRect.left = xr->left; clipRect.right = xr->right; clipRect.top = xr->top; clipRect.bottom = xr->bottom;
+				m_pD2DRenderTarget->PushAxisAlignedClip(clipRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
 				w = xr->right - xr->left; h = xr->bottom - xr->top;
 				hr = m_pD2DRenderTarget->CreateBitmap(D2D1::SizeU(w, h), src, (w << 2),
 					D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)), &pBitmap);
@@ -1602,6 +1608,20 @@ public:
 					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
 				}
 				SafeRelease(&pBitmap);
+
+				p = m_win2.GetTextDrawInfo(&count);
+				while (nullptr != p && count > 0)
+				{
+					layoutRect.left = p->left + xr->left; layoutRect.top = p->top + xr->top + 10;
+					layoutRect.right = p->right + xr->left; layoutRect.bottom = layoutRect.top + 20; // p->bottom + xr->top;
+					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text0, p->textLen0, g_pTextFormatTitle, layoutRect, m_pTextBrush);
+					p = p->next;
+					count--;
+					if (0 == count)
+						break;
+				}
+
+				m_pD2DRenderTarget->PopAxisAlignedClip();
 				m_win2.SetScreenValide(); // prevent un-necessary draw again
 			}
 
@@ -1609,13 +1629,13 @@ public:
 			src = m_win3.GetDUIBuffer();
 			if (nullptr != src)
 			{
-				XTextDrawInfo* textDrawInfo;
-				U16 count = 0;
 #ifdef _DEBUG
 				m3++;
 #endif
 				ID2D1Bitmap* pBitmap = nullptr;
 				XRECT* xr = m_win3.GetWindowArea();
+				clipRect.left = xr->left; clipRect.right = xr->right; clipRect.top = xr->top; clipRect.bottom = xr->bottom;
+				m_pD2DRenderTarget->PushAxisAlignedClip(clipRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
 				w = xr->right - xr->left; h = xr->bottom - xr->top;
 				hr = m_pD2DRenderTarget->CreateBitmap(D2D1::SizeU(w, h), src, (w << 2),
 					D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)), &pBitmap);
@@ -1626,19 +1646,18 @@ public:
 				}
 				SafeRelease(&pBitmap);
 
-				textDrawInfo = m_win3.GetTextDrawInfo(&count);
-				if (nullptr != textDrawInfo && count > 0)
+				p = m_win3.GetTextDrawInfo(&count);
+				while (nullptr != p && count > 0)
 				{
-					XTextDrawInfo* p;
-					D2D1_RECT_F layoutRect;
-					for (U16 i = 0; i < count; i++)
-					{
-						p = textDrawInfo + i;
-						layoutRect.left = p->left + xr->left; layoutRect.top = p->top + xr->top; 
-						layoutRect.right = p->right + xr->left; layoutRect.bottom = p->bottom + xr->top;
-						m_pD2DRenderTarget->DrawText((const WCHAR*)p->text, p->textLen, g_pTextFormatTitle, layoutRect, m_pTextBrush);
-					}
+					layoutRect.left = p->left + xr->left; layoutRect.top = p->top + xr->top;
+					layoutRect.right = p->right + xr->left; layoutRect.bottom = p->bottom + xr->top;
+					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text0, p->textLen0, g_pTextFormatTitle, layoutRect, m_pTextBrush);
+					p = p->next;
+					count--;
+					if (0 == count)
+						break;
 				}
+				m_pD2DRenderTarget->PopAxisAlignedClip();
 				m_win3.SetScreenValide(); // prevent un-necessary draw again
 			}
 

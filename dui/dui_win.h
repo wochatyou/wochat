@@ -144,11 +144,10 @@ public:
 
     void InitControl() {}
 
-    tagXTextDrawInfo* GetTextDrawInfo(U16* size)
+    tagXTextDrawInfo* GetTextDrawInfo(U16* count)
     {
-        if (nullptr != size)
-            *size = m_textDrawInfoCount;
-
+        if (nullptr != count)
+            *count = m_textDrawInfoCount;
         return m_textDrawInfo;
     }
 
@@ -742,57 +741,70 @@ public:
         m_DragMode = XDragMode::DragNone;
         m_ptOffsetOld.x = -1, m_ptOffsetOld.y = -1;
 
-        if (XWinPointInRect(xPos, yPos, &m_area) && (m_startControl > 0))
+        if (XWinPointInRect(xPos, yPos, &m_area))
         {
-            int hit = -1;
-            // transfer the coordination from real window to local virutal window
-            xPos -= m_area.left;
-            yPos -= m_area.top;
-            assert(xPos >= 0);
-            assert(yPos >= 0);
-            assert(m_endControl >= m_startControl);
+            if (m_startControl > 0)
+            {
+                int hit = -1;
+                    // transfer the coordination from real window to local virutal window
+                    xPos -= m_area.left;
+                    yPos -= m_area.top;
+                    assert(xPos >= 0);
+                    assert(yPos >= 0);
+                    assert(m_endControl >= m_startControl);
 
-            for (int i = m_startControl; i <= m_endControl; i++)
-            {
-                xctl = dui_controlArray[i];
-                assert(nullptr != xctl);
-                assert(xctl->m_id == i);
-                if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
-                {
-                    hit = i;
-                    break;
-                }
-            }
-            if (-1 != hit) // we are hitting some button
-            {
-                assert(hit == xctl->m_id);
-                if (DUI_PROP_BTNACTIVE & m_property)
-                {
-                    int oldActive = m_activeControl;
-                    m_activeControl = hit;
-                    if (oldActive >= 0)
+                    for (int i = m_startControl; i <= m_endControl; i++)
                     {
-                        assert(oldActive >= m_startControl);
-                        assert(oldActive <= m_endControl);
-                        XControl* xctlOld = dui_controlArray[oldActive];
-                        r += xctlOld->setStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
+                        xctl = dui_controlArray[i];
+                        assert(nullptr != xctl);
+                        assert(xctl->m_id == i);
+                        if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
+                        {
+                            hit = i;
+                            break;
+                        }
                     }
-                    r += xctl->setStatus(XCONTROL_STATE_ACTIVE, XMOUSE_LBUP);
+                if (-1 != hit) // we are hitting some button
+                {
+                    assert(hit == xctl->m_id);
+                    if (DUI_PROP_BTNACTIVE & m_property)
+                    {
+                        int oldActive = m_activeControl;
+                        m_activeControl = hit;
+                        if (oldActive >= 0)
+                        {
+                            assert(oldActive >= m_startControl);
+                            assert(oldActive <= m_endControl);
+                            XControl* xctlOld = dui_controlArray[oldActive];
+                            r += xctlOld->setStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
+                        }
+                        r += xctl->setStatus(XCONTROL_STATE_ACTIVE, XMOUSE_LBUP);
+                    }
+                    else
+                    {
+                        m_activeControl = -1;
+                        r += xctl->setStatus(XCONTROL_STATE_HOVERED, XMOUSE_LBUP);
+                    }
+                    xctl->ShowCursor();
+                    if (nullptr != xctl->pfAction)
+                    {
+                        xctl->pfAction(this, m_message, 0, xctl->m_id);
+                    }
                 }
                 else
                 {
-                    m_activeControl = -1;
-                    r += xctl->setStatus(XCONTROL_STATE_HOVERED, XMOUSE_LBUP);
-                }
-                xctl->ShowCursor();
-                if (nullptr != xctl->pfAction)
-                {
-                    xctl->pfAction(this, m_message, 0, xctl->m_id);
+                    r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
                 }
             }
-            else
+            else 
             {
-                r += SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
+                if (DUI_PROP_HASVSCROLL & m_property)
+                {
+                    if (DUI_STATUS_VSCROLL & m_status)
+                    {
+                        r++;
+                    }
+                }
             }
         }
         else // the mouse is not in our area

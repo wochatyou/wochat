@@ -44,9 +44,10 @@ public:
 
 	void InitControl()
 	{
-
 		U8 id, *mem;
 		U32 objSize;
+
+		assert(m_textDrawInfoCount == 0);
 
 		assert(nullptr != m_pool);
 
@@ -87,10 +88,12 @@ public:
 			m_textDrawInfo = (XTextDrawInfo*)palloc(m_pool, sizeof(XTextDrawInfo));
 			if (nullptr != m_textDrawInfo)
 			{
-				m_textDrawInfoCount = 1;
+				m_textDrawInfo->next = nullptr;
+				m_textDrawInfoCount++;
 				if (0 != label->Init(m_textDrawInfo, g_ftFace0, XFONT_SIZE0))
 				{
 					pfree(mem);
+					pfree(m_textDrawInfo);
 				}
 				else
 				{

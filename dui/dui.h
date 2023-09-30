@@ -137,12 +137,18 @@ typedef struct tagXRECT
 
 typedef struct tagXTextDrawInfo
 {
-    U16* text;
-    U16  textLen;
-    U16  left;
-    U16  top;
-    U16  right;
-    U16  bottom;
+    struct tagXTextDrawInfo* next;
+    U16  id;
+    U16* text0;
+    U16  textLen0;
+    U16* text1;
+    U16  textLen1;
+    U16* text2;
+    U16  textLen2;
+    int  left;
+    int  top;
+    int  right;
+    int  bottom;
 } XTextDrawInfo;
 
 // a pure 32-bit true color bitmap object

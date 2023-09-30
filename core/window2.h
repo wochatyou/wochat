@@ -103,7 +103,7 @@ public:
 			p->next = nullptr;
 
 			total = 1;
-			for (i = 1; i < 0; i++)
+			for (i = 1; i < 32; i++)
 			{
 				q = (XChatGroup*)palloc0(m_pool, sizeof(XChatGroup));
 				if (nullptr == q)
@@ -234,6 +234,104 @@ public:
 		return 0;
 	}
 
+	void UpdateControlPosition()
+	{
+		int w = m_area.right - m_area.left;
+		int h = m_area.bottom - m_area.top;
+		int H = ITEM_HEIGHT;
+		XTextDrawInfo* tdi;
+		XTextDrawInfo* p;
+		XTextDrawInfo* q;
+
+		U16 count = (U16)(h / H + 2);
+		U16 total = 0;
+		p = m_textDrawInfo;
+		while (nullptr != p)
+		{
+			total++;
+			p = p->next;
+		}
+
+		if (total < count)
+		{
+			U16 items = count - total;
+			tdi = (XTextDrawInfo*)palloc0(m_pool, sizeof(XTextDrawInfo)*items);
+			if (nullptr != tdi)
+			{
+				q = nullptr;
+				for (U16 i = 0; i < items; i++)
+				{
+					p = tdi + i;
+					p->next = q;
+					q = p;
+				}
+				if (nullptr == m_textDrawInfo)
+					m_textDrawInfo = p;
+				else
+				{
+					q = m_textDrawInfo;
+					while (nullptr != q->next)
+						q = q->next;
+					q->next = p;
+				}
+			}
+		}
+	}
+
+	int Do_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
+	{
+		U32 color;
+		int dx, dy, pos;
+		int w = m_area.right - m_area.left;
+		int h = m_area.bottom - m_area.top;
+		int margin = (DUI_STATUS_VSCROLL & m_status) ? m_scrollWidth : 0;
+		int W = DUI_ALIGN_DEFAULT32(w - ITEM_MARGIN - ITEM_MARGIN - ICON_HEIGHT - margin - 4);
+		int H = ITEM_HEIGHT;
+
+		XTextDrawInfo* tdi = m_textDrawInfo;
+		m_textDrawInfoCount = 0;
+		dx = ITEM_MARGIN;
+		XChatGroup* p = m_chatgroupRoot;
+		pos = 0;
+		while (nullptr != p)
+		{
+			if (pos + ITEM_HEIGHT > m_ptOffset.y)
+			{
+				if (p == m_chatgroupSelected)
+				{
+					color = SELECTED_COLOR;
+				}
+				else if (p == m_chatgroupHovered)
+				{
+					color = HOVERED_COLOR;
+				}
+				else
+				{
+					color = DEFAULT_COLOR;
+				}
+				dy = pos - m_ptOffset.y;
+				ScreenFillRect(m_screen, w, h, color, w - margin, ITEM_HEIGHT, 0, dy);
+				ScreenDrawRectRound(m_screen, w, h, p->icon, p->w, p->h, dx, dy + ITEM_MARGIN, color, color);
+				assert(nullptr != tdi);
+				tdi->left = ITEM_MARGIN + ITEM_MARGIN + ICON_HEIGHT;
+				tdi->top = dy;
+				tdi->right = w - margin;
+				tdi->bottom = tdi->top + ITEM_HEIGHT;
+				tdi->textLen0 = p->name[0];
+				tdi->text0 = p->name+1;
+				m_textDrawInfoCount++;
+				tdi = tdi->next;
+			}
+			p = p->next;
+			pos += ITEM_HEIGHT;
+			if (pos >= (m_ptOffset.y + h))
+				break;
+
+		}
+		return 0;
+	}
+
+#if 0
 	int Do_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{
 		U32 color;
@@ -397,7 +495,7 @@ public:
 		}
 		return 0;
 	}
-
+#endif
 	int Do_DUI_MOUSEMOVE(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{ 
 		int hit = -1, margin;

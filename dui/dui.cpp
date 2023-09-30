@@ -289,8 +289,8 @@ int XLabel::Draw()
         m_textDrawInfo->top = top + offset;
         m_textDrawInfo->right = right + offset;
         m_textDrawInfo->bottom = bottom + offset;
-        m_textDrawInfo->text = m_Text;
-        m_textDrawInfo->textLen = m_TextLen;
+        m_textDrawInfo->text0 = m_Text;
+        m_textDrawInfo->textLen0 = m_TextLen;
     }
 #if 0
     if (nullptr != m_parentBuf)
