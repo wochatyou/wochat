@@ -139,6 +139,22 @@ public:
 		xctl->setPosition(dx, dy);
 	}
 
+	int UpdateTitle(U16* title)
+	{
+		int r = DUI_STATUS_NODRAW;
+
+		if (nullptr != title)
+		{
+			XLabel* label = (XLabel*)dui_controlArray[XWIN3_LABEL_TITLE];
+			assert(nullptr != label);
+			U16 len = title[0];
+			label->setText(title + 1, len);
+			m_status |= DUI_STATUS_NEEDRAW;
+			r = DUI_STATUS_NEEDRAW;
+		}
+		return DUI_STATUS_NEEDRAW;
+	}
+
 };
 
 #endif  /* __WOCHAT_WINDOWS3_H__ */

@@ -135,10 +135,12 @@ typedef struct tagXRECT
     int    bottom;
 } XRECT;
 
+#define XTEXTDRAWINFO_ISME  0x00000001
+
 typedef struct tagXTextDrawInfo
 {
     struct tagXTextDrawInfo* next;
-    U16  id;
+    U32  status;
     U16* text0;
     U16  textLen0;
     U16* text1;
@@ -200,7 +202,21 @@ extern U64 dui_status;
 #define DUIWindowInitFailed()           (DUI_GLOBAL_STATE_INIT_FAILED & dui_status)
 #define SetDUIWindowInitFailed()        do { dui_status |= DUI_GLOBAL_STATE_INIT_FAILED; } while(0)
 
+#define DUIShiftKeyIsPressed()          (DUI_GLOBAL_STATE_SHIFT_PRESSED & dui_status)
+#define DUICtrlKeyIsPressed()           (DUI_GLOBAL_STATE_CTRL_PRESSED & dui_status)
+#define DUIAltKeyIsPressed()            (DUI_GLOBAL_STATE_ALT_PRESSED & dui_status)
+
+#define SetDUIWindowShiftKey()          do { dui_status |= DUI_GLOBAL_STATE_SHIFT_PRESSED; } while(0)
+#define SetDUIWindowCtrlKey()           do { dui_status |= DUI_GLOBAL_STATE_CTRL_PRESSED; } while(0)
+#define SetDUIWindowAltKey()            do { dui_status |= DUI_GLOBAL_STATE_ALT_PRESSED; } while(0)
+
+#define ClearDUIWindowShiftKey()        do { dui_status &= ~DUI_GLOBAL_STATE_SHIFT_PRESSED; } while(0)
+#define ClearDUIWindowCtrlKey()         do { dui_status &= ~DUI_GLOBAL_STATE_CTRL_PRESSED; } while(0)
+#define ClearDUIWindowAltKey()          do { dui_status &= ~DUI_GLOBAL_STATE_ALT_PRESSED; } while(0)
+
+
 #define IsHexLetter(c)                  (((c) >= '0' && (c) <= '9') || ((c) >= 'A' && (c) <= 'F') || ((c) >='a' && (c) <= 'f'))
+#define IsAlphabet(c)		            (((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
 
 int DUI_Init();
 void DUI_Term();

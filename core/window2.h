@@ -59,54 +59,76 @@ public:
 	~XWindow2()	{}
 
 public:
-
+	XChatGroup* GetSelectedChatGroup()
+	{
+		return m_chatgroupSelected;
+	}
 
 	int LoadChatGroupList()
 	{
 		int i, total = 0;
-		XChatGroup* p;
-		XChatGroup* q;
-
 		assert(nullptr == m_chatgroupRoot);
 		assert(nullptr != m_pool);
+
+		m_sizeAll.cy = 0;
+		m_sizeLine.cy = 0;
 
 		m_chatgroupRoot = (XChatGroup*)palloc0(m_pool, sizeof(XChatGroup));
 		if (nullptr != m_chatgroupRoot)
 		{
-			m_chatgroupSelected = m_chatgroupRoot;
-			p = m_chatgroupRoot;
-			p->id = 0;
-			p->icon = (U32*)xbmpGroup;
-			gname[0]  = 14;
-			gname[1]  = g_PKey1Plain[0];
-			gname[2]  = g_PKey1Plain[1];
-			gname[3]  = g_PKey1Plain[2];
-			gname[4]  = g_PKey1Plain[3];
-			gname[5]  = g_PKey1Plain[4];
-			gname[6]  = g_PKey1Plain[5];
-			gname[7]  = L'-';
-			gname[8] = L'-';
-			gname[9] = g_PKey1Plain[60];
-			gname[10] = g_PKey1Plain[61];
-			gname[11] = g_PKey1Plain[62];
-			gname[12] = g_PKey1Plain[63];
-			gname[13] = g_PKey1Plain[64];
-			gname[14] = g_PKey1Plain[65];
+			XChatGroup* p;
+			XChatGroup* q;
 
-			p->name = (U16*)gname;
-			p->w = ICON_HEIGHT;
-			p->h = ICON_HEIGHT;
-			p->height = ITEM_HEIGHT;
-			p->lastmsg = (U16*)msg;
-			p->tsText = (U16*)timestamp;
-			p->next = nullptr;
+			p = m_chatgroupRoot;
+			p->mempool = mempool_create(0, DUI_ALLOCSET_SMALL_INITSIZE, DUI_ALLOCSET_SMALL_MAXSIZE);
+			if (nullptr != p->mempool)
+			{
+				m_chatgroupSelected = m_chatgroupRoot;
+				p->id = 0;
+				p->icon = (U32*)xbmpGroup;
+				gname[0] = 14;
+				gname[1] = g_PKey1Plain[0];
+				gname[2] = g_PKey1Plain[1];
+				gname[3] = g_PKey1Plain[2];
+				gname[4] = g_PKey1Plain[3];
+				gname[5] = g_PKey1Plain[4];
+				gname[6] = g_PKey1Plain[5];
+				gname[7] = L'-';
+				gname[8] = L'-';
+				gname[9] = g_PKey1Plain[60];
+				gname[10] = g_PKey1Plain[61];
+				gname[11] = g_PKey1Plain[62];
+				gname[12] = g_PKey1Plain[63];
+				gname[13] = g_PKey1Plain[64];
+				gname[14] = g_PKey1Plain[65];
+
+				p->name = (U16*)gname;
+				p->w = ICON_HEIGHT;
+				p->h = ICON_HEIGHT;
+				p->height = ITEM_HEIGHT;
+				p->lastmsg = (U16*)msg;
+				p->tsText = (U16*)timestamp;
+				p->next = nullptr;
+			}
+			else
+			{
+				pfree(m_chatgroupRoot);
+				m_chatgroupRoot = nullptr;
+				return 1;
+			}
 
 			total = 1;
-			for (i = 1; i < 128; i++)
+			for (i = 1; i < 8; i++)
 			{
 				q = (XChatGroup*)palloc0(m_pool, sizeof(XChatGroup));
 				if (nullptr == q)
 					break;
+				q->mempool = mempool_create(0, DUI_ALLOCSET_SMALL_INITSIZE, DUI_ALLOCSET_SMALL_MAXSIZE);
+				if (nullptr == q->mempool)
+				{
+					pfree(q);
+					break;
+				}
 				total++;
 				p->next = q;
 				p = q;
@@ -135,6 +157,8 @@ public:
 			}
 
 		}
+		else return 0;
+
 		m_sizeAll.cy = total * ITEM_HEIGHT;
 		m_sizeLine.cy = ITEM_HEIGHT/3;
 		return 0;
@@ -233,6 +257,16 @@ public:
 		cairo_font_face_destroy(m_cairo_face);
 		m_cairo_face = nullptr;
 #endif
+		XChatGroup* p = m_chatgroupRoot;
+		
+		while (nullptr != p)
+		{
+			assert(nullptr != p->mempool);
+			mempool_destroy(p->mempool);
+			p->mempool = nullptr;
+			p = p->next;
+		}
+
 		return 0;
 	}
 
@@ -244,6 +278,8 @@ public:
 		XTextDrawInfo* tdi;
 		XTextDrawInfo* p;
 		XTextDrawInfo* q;
+
+		assert(nullptr != m_pool);
 
 		U16 count = (U16)(h / H + 2);
 		U16 total = 0;
@@ -664,6 +700,7 @@ public:
 			if (m_chatgroupSelectPrev != m_chatgroupSelected)
 			{
 				// do something here
+				NotifyParent(m_message, (U64)m_chatgroupSelected, 0);
 			}
 			m_chatgroupSelectPrev = m_chatgroupSelected; // prevent double selection
 		}

@@ -421,8 +421,11 @@ private:
 	U32 drag = 0;
 #endif
 	ID2D1HwndRenderTarget* m_pD2DRenderTarget = nullptr;
-	ID2D1Bitmap*           m_pixelBitmap = nullptr;
-	ID2D1SolidColorBrush*  m_pTextBrush = nullptr;
+	ID2D1Bitmap*           m_pixelBitmap0 = nullptr;
+	ID2D1Bitmap*           m_pixelBitmap1 = nullptr;
+	ID2D1Bitmap*           m_pixelBitmap2 = nullptr;
+	ID2D1SolidColorBrush*  m_pTextBrush0 = nullptr;
+	ID2D1SolidColorBrush*  m_pTextBrush1 = nullptr;
 
 public:
 	DECLARE_XWND_CLASS(NULL, IDR_MAINFRAME, 0)
@@ -692,8 +695,11 @@ public:
 
 		KillTimer(XWIN_666MS_TIMER);
 
-		SafeRelease(&m_pTextBrush);
-		SafeRelease(&m_pixelBitmap);
+		SafeRelease(&m_pTextBrush0);
+		SafeRelease(&m_pTextBrush1);
+		SafeRelease(&m_pixelBitmap0);
+		SafeRelease(&m_pixelBitmap1);
+		SafeRelease(&m_pixelBitmap2);
 		SafeRelease(&m_pD2DRenderTarget);
 
 		if (m_tooltip.IsWindow()) 
@@ -758,6 +764,13 @@ public:
 			//m_tooltip.SetDelayTime(TTDT_AUTOPOP, ms * 1000);
 			//m_tooltip.SetDelayTime(TTDT_RESHOW,  ms * 1000);
 			m_tooltip.Activate(TRUE);
+		}
+		
+		{
+			XChatGroup* cg = m_win2.GetSelectedChatGroup();
+			ATLASSERT(nullptr != cg);
+			m_win3.UpdateTitle(cg->name);
+			m_win4.SetChatGroup(cg);
 		}
 
 		SetTimer(XWIN_666MS_TIMER, 666);
@@ -1351,6 +1364,16 @@ public:
 
 	LRESULT OnWin2Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
+		int r = 0;
+		XChatGroup* cg = (XChatGroup*)wParam;
+		ATLASSERT(nullptr != cg);
+
+		r += m_win3.UpdateTitle(cg->name);
+		r += m_win4.SetChatGroup(cg);
+
+		if (r)
+			Invalidate();
+
 		return 0;
 	}
 
@@ -1475,19 +1498,35 @@ public:
 			if (S_OK == hr && nullptr != m_pD2DRenderTarget)
 			{
 				U32 pixel[1] = { 0xFFEEEEEE };
-				SafeRelease(&m_pixelBitmap);
+				SafeRelease(&m_pixelBitmap0);
 				hr = m_pD2DRenderTarget->CreateBitmap(
 					D2D1::SizeU(1, 1), pixel, 4, D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)),
-					&m_pixelBitmap);
-				if (S_OK == hr && nullptr != m_pixelBitmap)
+					&m_pixelBitmap0);
+				if (S_OK == hr && nullptr != m_pixelBitmap0)
 				{
-					hr = m_pD2DRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x666666), &m_pTextBrush);
+					pixel[0] = 0xFFFFFFFF;
+					hr = m_pD2DRenderTarget->CreateBitmap(
+						D2D1::SizeU(1, 1), pixel, 4, D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)),
+						&m_pixelBitmap1);
+					ATLASSERT(S_OK == hr);
+
+					pixel[0] = 0xFF6AEA9E;
+					hr = m_pD2DRenderTarget->CreateBitmap(
+						D2D1::SizeU(1, 1), pixel, 4, D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)),
+						&m_pixelBitmap2);
+					ATLASSERT(S_OK == hr);
+
+					hr = m_pD2DRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x666666), &m_pTextBrush0);
+					if (S_OK == hr && nullptr != m_pTextBrush0)
+					{
+						hr = m_pD2DRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x000000), &m_pTextBrush1);
+					}
 				}
 
 			}
 		}
 
-		if (S_OK == hr && nullptr != m_pD2DRenderTarget && nullptr != m_pixelBitmap && nullptr != m_pTextBrush)
+		if (S_OK == hr && nullptr != m_pD2DRenderTarget && nullptr != m_pixelBitmap0 && nullptr != m_pTextBrush0 && nullptr != m_pTextBrush1)
 		{
 			int w, h;
 			U32* src = nullptr;
@@ -1502,7 +1541,7 @@ public:
 			//m_pD2DRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::White));
 
 			// draw seperator lines
-			if (nullptr != m_pixelBitmap)
+			if (nullptr != m_pixelBitmap0)
 			{
 				if(m_splitterVPos > 0)
 				{
@@ -1512,7 +1551,7 @@ public:
 						static_cast<FLOAT>(m_splitterVPos + SPLITLINE_WIDTH), // m_cxySplitBar),
 						static_cast<FLOAT>(m_rectClient.bottom)
 					);
-					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap, &rect);
+					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap0, &rect);
 				}
 				if (m_splitterHPosfix0 > 0)
 				{
@@ -1522,7 +1561,7 @@ public:
 						static_cast<FLOAT>(m_splitterVPos),
 						static_cast<FLOAT>(m_splitterHPosfix0 + SPLITLINE_WIDTH)
 					);
-					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap, &rect);
+					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap0, &rect);
 				}
 				if (m_splitterHPosfix1 > 0)
 				{
@@ -1532,7 +1571,7 @@ public:
 						static_cast<FLOAT>(m_rectClient.right),
 						static_cast<FLOAT>(m_splitterHPosfix1 + SPLITLINE_WIDTH)
 					);
-					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap, &rect);
+					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap0, &rect);
 				}
 				if (m_splitterHPos > 0)
 				{
@@ -1542,7 +1581,7 @@ public:
 						static_cast<FLOAT>(m_rectClient.right),
 						static_cast<FLOAT>(m_splitterHPos + SPLITLINE_WIDTH)
 					);
-					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap, &rect);
+					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap0, &rect);
 				}
 			}
 
@@ -1614,15 +1653,15 @@ public:
 				{
 					layoutRect.left = p->left + xr->left; layoutRect.top = p->top + xr->top + 10;
 					layoutRect.right = p->right + xr->left; layoutRect.bottom = layoutRect.top + 20; // p->bottom + xr->top;
-					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text0, p->textLen0, g_pTextFormatTitle, layoutRect, m_pTextBrush);
+					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text0, p->textLen0, g_pTextFormatTitle, layoutRect, m_pTextBrush0);
 
 					layoutRect.bottom = p->bottom + xr->top - 10;
 					layoutRect.top = layoutRect.bottom - 16;
-					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text1, p->textLen1, g_pTextFormatMessageSmall0, layoutRect, m_pTextBrush);
+					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text1, p->textLen1, g_pTextFormatMessageSmall0, layoutRect, m_pTextBrush0);
 
 					layoutRect.left = p->left + xr->left; layoutRect.top = p->top + xr->top + 10;
 					layoutRect.right = xr->right - 10; layoutRect.bottom = layoutRect.top + 20; // p->bottom + xr->top;
-					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text2, p->textLen2, g_pTextFormatMessageSmall1, layoutRect, m_pTextBrush);
+					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text2, p->textLen2, g_pTextFormatMessageSmall1, layoutRect, m_pTextBrush0);
 
 					p = p->next;
 					count--;
@@ -1660,7 +1699,7 @@ public:
 				{
 					layoutRect.left = p->left + xr->left; layoutRect.top = p->top + xr->top;
 					layoutRect.right = xr->right; layoutRect.bottom = p->bottom + xr->top;
-					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text0, p->textLen0, g_pTextFormatTitle, layoutRect, m_pTextBrush);
+					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text0, p->textLen0, g_pTextFormatTitle, layoutRect, m_pTextBrush0);
 					p = p->next;
 					count--;
 					if (0 == count)
@@ -1679,6 +1718,8 @@ public:
 #endif
 				ID2D1Bitmap* pBitmap = nullptr;
 				XRECT* xr = m_win4.GetWindowArea();
+				clipRect.left = xr->left; clipRect.right = xr->right; clipRect.top = xr->top; clipRect.bottom = xr->bottom;
+				m_pD2DRenderTarget->PushAxisAlignedClip(clipRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
 				w = xr->right - xr->left; h = xr->bottom - xr->top;
 				hr = m_pD2DRenderTarget->CreateBitmap(D2D1::SizeU(w, h), src, (w << 2),
 					D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)), &pBitmap);
@@ -1688,6 +1729,22 @@ public:
 					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
 				}
 				SafeRelease(&pBitmap);
+
+				p = m_win4.GetTextDrawInfo(&count);
+				while (nullptr != p && count > 0)
+				{
+					layoutRect.left = p->left + xr->left + 100; layoutRect.top = p->top + xr->top;
+					layoutRect.right = p->right + xr->left - 10; layoutRect.bottom = p->bottom + xr->top - 2 ;
+					m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap2, &layoutRect);
+					layoutRect.left += 4;
+					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text0, p->textLen0, g_pTextFormatMessage, layoutRect, m_pTextBrush1);
+					p = p->next;
+					count--;
+					if (0 == count)
+						break;
+				}
+
+				m_pD2DRenderTarget->PopAxisAlignedClip();
 				m_win4.SetScreenValide(); // prevent un-necessary draw again
 			}
 

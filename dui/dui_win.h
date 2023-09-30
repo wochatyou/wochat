@@ -978,8 +978,8 @@ public:
     int Do_DUI_CREATE(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int On_DUI_CREATE(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
-        U32 initSize = DUI_ALLOCSET_SMALL_INITSIZE;
-        U32 maxSize = DUI_ALLOCSET_SMALL_MAXSIZE;
+        int r = 0;
+        T* pT = static_cast<T*>(this);
 
 #ifdef _WIN32
         m_hWnd = (HWND)wParam;
@@ -987,33 +987,37 @@ public:
 #else
         m_hWnd = nullptr;
 #endif
-        if (DUI_PROP_LARGEMEMPOOL & m_property)
         {
-            initSize = DUI_ALLOCSET_DEFAULT_INITSIZE;
-            maxSize = DUI_ALLOCSET_DEFAULT_MAXSIZE;
-        }
-        m_pool = mempool_create(0, initSize, maxSize);
-        if (nullptr != m_pool)
-        {
-            T* pT = static_cast<T*>(this);
-            pT->InitControl();
-            XControl* xctl;
-            for (int i = m_startControl; i <= m_endControl; i++)
-            {
-                xctl = dui_controlArray[i];
-                assert(nullptr != xctl);
-                assert(xctl->m_id = i);
-                xctl->pfAction = XControlAction;
-            }
+            U32 initSize = DUI_ALLOCSET_SMALL_INITSIZE;
+            U32 maxSize = DUI_ALLOCSET_SMALL_MAXSIZE;
 
-            int r = pT->Do_DUI_CREATE(uMsg, wParam, lParam, lpData);
-            if(r)
+            if (DUI_PROP_LARGEMEMPOOL & m_property)
+            {
+                initSize = DUI_ALLOCSET_DEFAULT_INITSIZE;
+                maxSize = DUI_ALLOCSET_DEFAULT_MAXSIZE;
+            }
+            m_pool = mempool_create(0, initSize, maxSize);
+            if (nullptr != m_pool)
+            {
+                pT->InitControl();
+                XControl* xctl;
+                for (int i = m_startControl; i <= m_endControl; i++)
+                {
+                    xctl = dui_controlArray[i];
+                    assert(nullptr != xctl);
+                    assert(xctl->m_id = i);
+                    xctl->pfAction = XControlAction;
+                }
+            }
+            else
                 SetDUIWindowInitFailed();
         }
-        else
+
+        r = pT->Do_DUI_CREATE(uMsg, wParam, lParam, lpData);
+        if (r)
             SetDUIWindowInitFailed();
 
-        return 0;
+        return r;
     }
 };
 

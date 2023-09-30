@@ -11,25 +11,7 @@ U16 xname[] = { 4, 0x7b11,0x50b2,0x6c5f,0x6e56 };
 
 U32 littleArrowMe[4 * 8] = { 0 };
 
-#define IsAlphabet(c)		(((c) >= 0x41 && (c) <= 0x5A) || ((c) >= 0x61 && (c) <= 0x7A))
 
-typedef struct XChatMessage
-{
-	XChatMessage* next;
-	XChatMessage* prev;
-	U32  id;
-	U32* icon;     // the bitmap data of this icon
-	U8   w;        // the width in pixel of this icon
-	U8   h;        // the height in pixel of this icon
-	int  height;   // in pixel
-	int  width;    // in pixel
-	U16  state;
-	U64  ts;		// the time stamp. 
-	U16* name;      // The name of this people      
-	U16* message;  // real message
-	U16* textWrapTab; // the struct of this table is the same as _TextWrapIdxTab
-	U8*  obj;       // point to GIF/APNG/Video/Pic etc
-} XChatMessage;
 
 // _TextWrapIdxTab[0] is the length of the elements behind it.
 // The first two bytes are the lines parsered. Each element has two parts: 2-byte string base index, and 2-byte string length
@@ -65,7 +47,10 @@ public:
 		U32* q;
 		m_backgroundColor = 0xFFF5F5F5;
 		m_message = WM_XWINDOWS04;
-		m_property |= (DUI_PROP_HASVSCROLL | DUI_PROP_HANDLEVWHEEL | DUI_PROP_LARGEMEMPOOL);
+		m_property |= (DUI_PROP_HASVSCROLL | DUI_PROP_HANDLEVWHEEL);
+
+		m_sizeAll.cy = GAP_MESSAGE;
+		m_sizeLine.cy = GAP_MESSAGE;
 
 		p = (U32*)xbmpXMeArrow;
 		q = (U32*)littleArrowMe;
@@ -83,7 +68,10 @@ public:
 	int		m_lineHeight0 = 0;
 	int		m_lineHeight1 = 0;
 	int     m_widthOld = 0;
+	
+	XChatGroup* m_chatGroup = nullptr;
 
+#if 0
 	// cairo/harfbuzz issue to cache to speed up
 	cairo_font_extents_t m_font_extents = { 0 };
 	cairo_glyph_t* m_cairo_glyphs = nullptr;
@@ -91,23 +79,29 @@ public:
 	hb_font_t* m_hb_font0 = nullptr;
 	hb_font_t* m_hb_font1 = nullptr;
 	hb_buffer_t* m_hb_buffer = nullptr;
-
 	XChatMessage* m_headMessage = nullptr;
 	XChatMessage* m_tailMessage = nullptr;
+#endif
 
 	int UpdateChatHistory(U16* msgText, U16 len, U8 msgtype = 0)
 	{
+		int w = m_area.right - m_area.left;
+		int h = m_area.bottom - m_area.top;
+
+		assert(nullptr != m_chatGroup);
+		assert(nullptr != m_chatGroup->mempool);
+
 		XChatMessage* p = nullptr;
 		XChatMessage* q = nullptr;
 
-		assert(m_pool);
-
-		p = (XChatMessage*)palloc0(m_pool, sizeof(XChatMessage));
+		p = (XChatMessage*)palloc0(m_chatGroup->mempool, sizeof(XChatMessage));
 		if (nullptr != p)
 		{
-			p->message = (U16*)palloc(m_pool, sizeof(U16) * (len + 1));
+			p->message = (U16*)palloc(m_chatGroup->mempool, sizeof(U16) * (len + 1));
 			if (nullptr != p->message)
 			{
+				int w = m_area.right - m_area.left;
+
 				p->message[0] = len; // save the string length to the first 2 bytes
 				for (U16 i = 0; i < len; i++)
 					p->message[i + 1] = msgText[i];
@@ -120,17 +114,25 @@ public:
 				
 				p->next = p->prev = nullptr;
 
-				if (nullptr == m_headMessage)
-					m_headMessage = p;
-				if (nullptr == m_tailMessage)
-					m_tailMessage = p;
+				if (nullptr == m_chatGroup->headMessage)
+					m_chatGroup->headMessage = p;
+				if (nullptr == m_chatGroup->tailMessage)
+					m_chatGroup->tailMessage = p;
 				else
 				{
-					m_tailMessage->next = p;
-					p->prev = m_tailMessage;
-					m_tailMessage = p;
+					m_chatGroup->tailMessage->next = p;
+					p->prev = m_chatGroup->tailMessage;
+					m_chatGroup->tailMessage = p;
 				}
-				ReWrapFromHead();
+				w -= (p->w + 32);
+				p->width = (w * 2) / 3;
+				p->height = GetTextHeightInPixel(msgText, len, p->width) + GAP_MESSAGE;
+				
+				m_sizeAll.cy += p->height;
+				m_ptOffset.y = m_sizeAll.cy - h;
+				if (m_ptOffset.y < 0)
+					m_ptOffset.y = 0;
+
 				InvalidateScreen();
 			}
 		}
@@ -196,9 +198,25 @@ public:
 		return 0;
 	}
 
+	int SetChatGroup(XChatGroup* cg)
+	{
+		int r = DUI_STATUS_NODRAW;
+		assert(nullptr != cg);
+		XChatGroup* prev = m_chatGroup;
+		m_chatGroup = cg;
+
+		if (prev != m_chatGroup)
+		{
+			m_status |= DUI_STATUS_NEEDRAW;
+			r = DUI_STATUS_NEEDRAW;
+		}
+		return r;
+	}
+
 	int Do_DUI_CREATE(UINT uMsg, WPARAM wParam, LPARAM lParam, void* lpData = nullptr)
 	{
 		int ret = 0;
+#if 0
 		hb_bool_t hs = 0;
 
 		assert(nullptr != m_pool);
@@ -285,7 +303,7 @@ public:
 			return(-1);
 
 		m_sizeLine.cy = m_lineHeight0;
-
+#endif
 		LoadChatHistory();
 
 		return 0;
@@ -293,6 +311,7 @@ public:
 
 	int Do_DUI_DESTROY(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{
+#if 0
 		assert(nullptr != m_cairo_glyphs);
 		cairo_glyph_free(m_cairo_glyphs);
 		m_cairo_glyphs = nullptr;
@@ -312,6 +331,59 @@ public:
 		assert(nullptr != m_cairo_face);
 		cairo_font_face_destroy(m_cairo_face);
 		m_cairo_face = nullptr;
+#endif
+		return 0;
+	}
+
+	int Do_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
+	{
+		int x, y, dx, dy, W, H, pos, width;
+		XChatMessage* p;
+
+		int w = m_area.right - m_area.left;
+		int h = m_area.bottom - m_area.top;
+		int margin = (DUI_STATUS_VSCROLL & m_status) ? m_scrollWidth : 0;
+
+		if (nullptr == m_chatGroup)
+			return 0;
+
+		XTextDrawInfo* tdi = m_textDrawInfo;
+		m_textDrawInfoCount = 0;
+
+		pos = GAP_MESSAGE;
+		p = m_chatGroup->headMessage;
+		while (nullptr != p)
+		{
+			H = p->height;
+
+			if (pos + H > m_ptOffset.y && pos < m_ptOffset.y + h)
+			{
+				dy = pos - m_ptOffset.y;
+				if (p->state % 2) // me
+				{
+					x = w - m_scrollWidth - p->w - 6;
+				}
+				else
+				{
+					x = 10;
+				}
+				ScreenDrawRectRound(m_screen, w, h, (U32*)p->icon, p->w, p->h, x, dy, m_backgroundColor, m_backgroundColor);
+				assert(nullptr != tdi);
+				tdi->left = 0;
+				tdi->top = dy;
+				tdi->right = x;
+				tdi->bottom = tdi->top + p->height;
+				tdi->textLen0 = p->message[0];
+				tdi->text0 = p->message + 1;
+				m_textDrawInfoCount++;
+				tdi = tdi->next;
+			}
+
+			pos += H;
+			if (pos >= m_ptOffset.y + h) // out of the scope of the drawing area
+				break;
+			p = p->next;
+		}
 
 		return 0;
 	}
@@ -323,14 +395,49 @@ public:
 	// do the text layout from top to bottom (head to tail)
 	void UpdateControlPosition()
 	{
-#if 0
-		int ret = ReWrapFromTail();
-		if(0 != ret)
-			CreatePlatformThread(TextLayoutThread, this);
-#endif
-		ReWrapFromHead();
+		int w = m_area.right - m_area.left;
+		int h = m_area.bottom - m_area.top;
+		int H = GAP_MESSAGE;
+		XTextDrawInfo* tdi;
+		XTextDrawInfo* p;
+		XTextDrawInfo* q;
+
+		assert(nullptr != m_pool);
+		U16 count = (U16)(h / H + 2);
+		U16 total = 0;
+		p = m_textDrawInfo;
+		while (nullptr != p)
+		{
+			total++;
+			p = p->next;
+		}
+		if (total < count)
+		{
+			U16 items = count - total;
+			tdi = (XTextDrawInfo*)palloc0(m_pool, sizeof(XTextDrawInfo) * items);
+			if (nullptr != tdi)
+			{
+				q = nullptr;
+				for (U16 i = 0; i < items; i++)
+				{
+					p = tdi + i;
+					p->next = q;
+					q = p;
+				}
+				if (nullptr == m_textDrawInfo)
+					m_textDrawInfo = p;
+				else
+				{
+					q = m_textDrawInfo;
+					while (nullptr != q->next)
+						q = q->next;
+					q->next = p;
+				}
+			}
+		}
 	}
 
+#if 0
 	int ReWrapFromHead()
 	{
 		int W, H, width;
@@ -661,9 +768,12 @@ public:
 	{
 		return 0;
 	}
+#endif
 
+#if 0
 	int Do_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{
+
 		int x, y, dx, dy, pos, width;
 		U16 i, lines, baseIdx, charNum;
 		unsigned int idx, glyphLen;
@@ -784,11 +894,13 @@ public:
 			if (pos >= m_ptOffset.y + h) // out of the scope of the drawing area
 				break;
 		}
+
 		return 0;
 	}
-
+#endif
 };
 
+#if 0
 U32 TextLayoutThread(void* lpData)
 {
 	XWindow4* xw = (XWindow4*)lpData;
@@ -798,6 +910,6 @@ U32 TextLayoutThread(void* lpData)
 	}
 	return 0;
 }
-
+#endif
 #endif  /* __WOCHAT_WINDOWS4_H__ */
 

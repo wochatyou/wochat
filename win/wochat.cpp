@@ -1,3 +1,4 @@
+#include "wochat.h"
 #include <secp256k1/secp256k1.h>
 #include <secp256k1/secp256k1_ecdh.h>
 #include "dui/dui.h"
@@ -86,4 +87,24 @@ int GetKeyfromSKPK(U8* sk, U8* pk, U8* k)
 
 	secp256k1_context_destroy(ctx);
 	return 0;
+}
+
+int GetTextHeightInPixel(U16* text, U16 length, int width)
+{
+	int height = 0;
+	HRESULT hr = S_OK;
+	IDWriteTextLayout* pTextLayout = nullptr;
+
+	assert(nullptr != g_pDWriteFactory);
+
+	hr = g_pDWriteFactory->CreateTextLayout((const wchar_t*)text, length, g_pTextFormatMessage, width, 1, &pTextLayout);
+	if (S_OK == hr && nullptr != pTextLayout)
+	{
+		DWRITE_TEXT_METRICS tm;
+		pTextLayout->GetMetrics(&tm);
+		height = (int)(tm.height) + 1;
+		SafeRelease(&pTextLayout);
+	}
+
+	return height;
 }

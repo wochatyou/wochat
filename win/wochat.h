@@ -65,6 +65,24 @@
 #include "dui/dui.h"
 #include "dui/dui_mempool.h"
 
+typedef struct XChatMessage
+{
+	XChatMessage* next;
+	XChatMessage* prev;
+	U32  id;
+	U32* icon;     // the bitmap data of this icon
+	U8   w;        // the width in pixel of this icon
+	U8   h;        // the height in pixel of this icon
+	int  height;   // in pixel
+	int  width;    // in pixel
+	U16  state;
+	U64  ts;		// the time stamp. 
+	U16* name;      // The name of this people      
+	U16* message;  // real message
+	U16* textWrapTab; // the struct of this table is the same as _TextWrapIdxTab
+	U8* obj;       // point to GIF/APNG/Video/Pic etc
+} XChatMessage;
+
 typedef struct XChatGroup
 {
 	XChatGroup* next;
@@ -79,6 +97,8 @@ typedef struct XChatGroup
 	U64  ts;			// the time stamp. 
 	U16* tsText;			// the group name
 	U16* lastmsg;		// the last message of this group
+	XChatMessage* headMessage;
+	XChatMessage* tailMessage;
 	MemoryContext mempool;
 } XChatGroup;
 
@@ -127,6 +147,9 @@ extern FT_Face			g_ftFace2;
 void InitToolTipMessage();
 int GetPKfromSK(U8* sk, U8* pk, U8* pkPlain);
 int GetKeyfromSKPK(U8* sk, U8* pk, U8* k);
+
+int GetTextHeightInPixel(U16* text, U16 length, int width);
+
 
 #endif  /* __DUIAPP_H__ */
 
