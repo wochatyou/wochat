@@ -4,11 +4,6 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include <harfbuzz/hb.h>
-#include <harfbuzz/hb-ft.h>
-#include <cairo/cairo.h>
-#include <cairo/cairo-ft.h>
-
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN 
 #include <windows.h>
