@@ -1713,6 +1713,7 @@ public:
 			src = m_win4.GetDUIBuffer();
 			if (nullptr != src)
 			{
+				int margin = 8;
 #ifdef _DEBUG
 				m4++;
 #endif
@@ -1733,13 +1734,20 @@ public:
 				p = m_win4.GetTextDrawInfo(&count);
 				while (nullptr != p && count > 0)
 				{
-					layoutRect.left = p->left + xr->left + 4; layoutRect.top = p->top + xr->top;
-					layoutRect.right = p->right + xr->left; layoutRect.bottom = p->bottom + xr->top - 2 ;
+					layoutRect.left   = p->left + xr->left;
+					layoutRect.top    = p->top + xr->top; // -(margin >> 2);
+					layoutRect.right  = p->right  + xr->left + margin; 
+					layoutRect.bottom = p->bottom + xr->top; // +(margin >> 2);
+#if 10
 					if(XTEXTDRAWINFO_ISME & p->status)
 						m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap2, &layoutRect);
 					else 
 						m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap1, &layoutRect);
-					layoutRect.left += 4;
+#endif
+					layoutRect.left   += margin;
+					//layoutRect.top    += (margin<<4);
+					layoutRect.right  -= margin;
+					//layoutRect.bottom -= (margin<<4);
 					m_pD2DRenderTarget->DrawText((const WCHAR*)p->text0, p->textLen0, g_pTextFormatMessage, layoutRect, m_pTextBrush1);
 					p = p->next;
 					count--;

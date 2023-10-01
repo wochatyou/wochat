@@ -54,11 +54,12 @@
 
 #include <cassert>
 #include <string>
-
+#if 0
 #include <harfbuzz/hb.h>
 #include <harfbuzz/hb-ft.h>
 #include <cairo/cairo.h>
 #include <cairo/cairo-ft.h>
+#endif
 #include <modpbase64/modp_b64.h>
 #include <mbedtls/chacha20.h>
 
@@ -117,6 +118,12 @@ extern LONG				  g_threadCount;
 extern HINSTANCE		  g_hInstance;
 extern ID2D1Factory*      g_pD2DFactory;
 extern IDWriteFactory*    g_pDWriteFactory;
+
+#define TEXT_TITLE				1
+#define TEXT_MESSAGE			2
+#define TEXT_MESSAGE_SMALL0		3
+#define TEXT_MESSAGE_SMALL1		4
+
 extern IDWriteTextFormat* g_pTextFormatTitle;
 extern IDWriteTextFormat* g_pTextFormatMessage;
 extern IDWriteTextFormat* g_pTextFormatMessageSmall0;
@@ -140,16 +147,18 @@ extern uint8_t  g_PKey1Plain[67];
 #define XFONT_SIZE0		15
 #define XFONT_SIZE1		11
 
+#if 0
 extern FT_Library		g_ftLibrary;
 extern FT_Face			g_ftFace0;
 extern FT_Face			g_ftFace1;
 extern FT_Face			g_ftFace2;
-
+#endif
 void InitToolTipMessage();
 int GetPKfromSK(U8* sk, U8* pk, U8* pkPlain);
 int GetKeyfromSKPK(U8* sk, U8* pk, U8* k);
 
 int GetTextHeightInPixel(U16* text, U16 length, int width, int* h, int* w);
+int GetLineHeightInPixel(U32 txtype);
 
 #endif  /* __DUIAPP_H__ */
 

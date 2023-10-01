@@ -44,6 +44,7 @@ public:
 
 	void InitControl()
 	{
+		int lineheight;
 		U8 id, *mem;
 		U32 objSize;
 
@@ -78,31 +79,36 @@ public:
 		}
 		else return;
 
-		id = XWIN3_LABEL_TITLE;
-		objSize = sizeof(XLabel);
-		mem = (U8*)palloc(m_pool, objSize);
-		if (NULL != mem)
+		lineheight = GetLineHeightInPixel(TEXT_TITLE);
+		if (lineheight > 0)
 		{
-			XLabel* label = new(mem)XLabel;
-			assert(nullptr != label);
-			m_textDrawInfo = (XTextDrawInfo*)palloc(m_pool, sizeof(XTextDrawInfo));
-			if (nullptr != m_textDrawInfo)
+			id = XWIN3_LABEL_TITLE;
+			objSize = sizeof(XLabel);
+			mem = (U8*)palloc(m_pool, objSize);
+			if (NULL != mem)
 			{
-				m_textDrawInfo->next = nullptr;
-				m_textDrawInfoCount++;
-				if (0 != label->Init(m_textDrawInfo, g_ftFace0, XFONT_SIZE0))
+				XLabel* label = new(mem)XLabel;
+				assert(nullptr != label);
+				m_textDrawInfo = (XTextDrawInfo*)palloc(m_pool, sizeof(XTextDrawInfo));
+				if (nullptr != m_textDrawInfo)
 				{
-					pfree(mem);
-					pfree(m_textDrawInfo);
-				}
-				else
-				{
-					label->setText(titlewin3, 7);
-					label->setRoundColor(m_backgroundColor, m_backgroundColor);
-					label->setBkgFrontColor(m_backgroundColor, 0xFF333333);
-					label->setId(id);
-					dui_controlArray[id] = label;
-					m_endControl = id;
+					m_textDrawInfo->next = nullptr;
+					m_textDrawInfoCount++;
+					if (0 != label->Init(m_textDrawInfo))
+					{
+						pfree(mem);
+						pfree(m_textDrawInfo);
+					}
+					else
+					{
+						label->setLineHeight(lineheight);
+						label->setText(titlewin3, 7);
+						label->setRoundColor(m_backgroundColor, m_backgroundColor);
+						label->setBkgFrontColor(m_backgroundColor, 0xFF333333);
+						label->setId(id);
+						dui_controlArray[id] = label;
+						m_endControl = id;
+					}
 				}
 			}
 		}
@@ -123,20 +129,18 @@ public:
 
 		if (w > (sw + GAP_RIGHT3) && h > (sh + GAP_BOTTOM3))
 		{
-			int dx = w - sw - GAP_RIGHT3;
-			int dy = h - sh - GAP_BOTTOM3;
+			dx = w - sw - GAP_RIGHT3;
+			dy = h - sh - GAP_BOTTOM3;
 			xctl->setPosition(dx, dy);
 		}
 
 		xctl = dui_controlArray[XWIN3_LABEL_TITLE];
 		assert(nullptr != xctl);
-		sw = xctl->getWidth();
 		sh = xctl->getHeight();
 		assert(h > sh);
-		assert(w > sw);
 		dx = GAP_LEFT3;
 		dy = (h - sh) >> 1;
-		xctl->setPosition(dx, dy);
+		xctl->setPosition(dx, dy, w - sw - GAP_RIGHT3, dy + sh);
 	}
 
 	int UpdateTitle(U16* title)

@@ -116,3 +116,43 @@ int GetTextHeightInPixel(U16* text, U16 length, int width, int* h, int* w)
 
 	return r;
 }
+
+int GetLineHeightInPixel(U32 txtype)
+{
+	int height = 0;
+	IDWriteTextFormat* textFormat = nullptr;
+	switch (txtype)
+	{
+	case TEXT_TITLE:
+		textFormat = g_pTextFormatTitle;
+		break;
+	case TEXT_MESSAGE:
+		textFormat = g_pTextFormatMessage;
+		break;
+	case TEXT_MESSAGE_SMALL0:
+		textFormat = g_pTextFormatMessageSmall0;
+		break;
+	case TEXT_MESSAGE_SMALL1:
+		textFormat = g_pTextFormatMessageSmall1;
+		break;
+	default:
+		break;
+	}
+
+	if (nullptr != textFormat)
+	{
+		HRESULT hr = S_OK;
+		IDWriteTextLayout* pTextLayout = nullptr;
+		wchar_t text[] = { 0x5f7c, 0x9ecd, 0x79bb, 0x79bb, 0 };
+		assert(nullptr != g_pDWriteFactory);
+		hr = g_pDWriteFactory->CreateTextLayout((const wchar_t*)text, 4, textFormat, 1024, 1024, &pTextLayout);
+		if (S_OK == hr && nullptr != pTextLayout)
+		{
+			DWRITE_TEXT_METRICS tm;
+			pTextLayout->GetMetrics(&tm);
+			height = (int)(tm.height) + 2;
+			SafeRelease(&pTextLayout);
+		}
+	}
+	return height;
+}

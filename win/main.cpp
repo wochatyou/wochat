@@ -17,10 +17,12 @@
 LONG 				g_threadCount = 0;
 UINT				g_Quit        = 0;
 HINSTANCE			g_hInstance   = nullptr;
+#if 0
 FT_Library			g_ftLibrary   = nullptr;
 FT_Face				g_ftFace0     = nullptr;
 FT_Face				g_ftFace1     = nullptr;
 FT_Face				g_ftFace2     = nullptr;
+#endif
 ID2D1Factory*       g_pD2DFactory = nullptr;
 IDWriteFactory*     g_pDWriteFactory = nullptr;
 IDWriteTextFormat*  g_pTextFormatTitle = nullptr;
@@ -392,6 +394,7 @@ static int InitInstance(HINSTANCE hInstance)
 	g_pTextFormatMessageSmall1->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
 
 	/* load the build-in font file(*.ttf) */
+#if 0
 	res = FindResource(hInstance, MAKEINTRESOURCE(IDR_DEFAULTFONT), RT_RCDATA);
 	if (NULL == res)
 	{
@@ -462,7 +465,7 @@ static int InitInstance(HINSTANCE hInstance)
 			return (-3);
 		}
 	}
-#if 10
+
 	/* load the build-in font file(*.ttf) */
 	res = FindResource(hInstance, MAKEINTRESOURCE(IDR_ASCIIFONT), RT_RCDATA);
 	if (NULL == res)
@@ -540,6 +543,7 @@ static void ExitInstance(HINSTANCE hInstance)
 	SafeRelease(&g_pD2DFactory);
 	g_pD2DFactory = nullptr;
 
+#if 0
 	if (nullptr != g_ftFace1)
 	{
 		FT_Done_Face(g_ftFace1);
@@ -557,7 +561,7 @@ static void ExitInstance(HINSTANCE hInstance)
 		FT_Done_FreeType(g_ftLibrary);
 		g_ftLibrary = nullptr;
 	}
-
+#endif
 	// wait for all threads to quit gracefully
 	tries = 10;
 	while (g_threadCount && tries) 

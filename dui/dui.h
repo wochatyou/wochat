@@ -470,12 +470,6 @@ class XLabel : public XControl
 private:
     bool m_initialized = false;
     XTextDrawInfo* m_textDrawInfo = nullptr;
-    // cairo/harfbuzz issue to cache to speed up
-    cairo_glyph_t* m_cairo_glyphs = nullptr;
-    cairo_font_face_t* m_cairo_face = nullptr;
-    hb_font_t* m_hb_font = nullptr;
-    hb_buffer_t* m_hb_buffer = nullptr;
-    double m_fontSize = 16;
     double m_r0 = 1;
     double m_g0 = 1;
     double m_b0 = 1;
@@ -498,6 +492,12 @@ public:
     int Init(void* ptr0 = nullptr, void* ptr1 = nullptr, U32 flag = 0);
     void Term();
     void setText(U16* text, U16 len = 0);
+
+    void setLineHeight(int height)
+    {
+        m_lineHeight = height;
+        bottom = top + m_lineHeight;
+    }
 
     void setBkgFrontColor(U32 c0, U32 c1)
     {
@@ -527,18 +527,7 @@ class XEditBox : public XControl
 {
 private:
     bool m_initialized = false;
-    // cairo/harfbuzz issue to cache to speed up
-    cairo_glyph_t* m_cairo_glyphs = nullptr;
-    cairo_font_face_t* m_cairo_face = nullptr;
-    hb_font_t* m_hb_font = nullptr;
-    hb_buffer_t* m_hb_buffer = nullptr;
     double m_fontSize = 15;
-    double m_r0 = 1;
-    double m_g0 = 1;
-    double m_b0 = 1;
-    double m_r1 = 0;
-    double m_g1 = 0;
-    double m_b1 = 0;
     U32  m_txtColor = 0xFF000000;
     U32  m_bkgColor = 0xFFFFFFFF;
 
@@ -582,20 +571,6 @@ public:
 
         m_bkgColor = c0;
         m_txtColor = c1;
-
-        cr = (U8)(m_bkgColor >> 0);
-        m_r0 = (double)cr / 255;
-        cr = (U8)(m_bkgColor >> 8);
-        m_g0 = (double)cr / 255;
-        cr = (U8)(m_bkgColor >> 16);
-        m_b0 = (double)cr / 255;
-
-        cr = (U8)(m_txtColor >> 0);
-        m_r1 = (double)cr / 255;
-        cr = (U8)(m_txtColor >> 8);
-        m_g1 = (double)cr / 255;
-        cr = (U8)(m_txtColor >> 16);
-        m_b1 = (double)cr / 255;
     }
 
     int OnKeyBoard(U16 flag, U16 keycode) final
@@ -647,18 +622,6 @@ class XEditBox2 : public XControl
 {
 private:
     bool m_initialized = false;
-    // cairo/harfbuzz issue to cache to speed up
-    cairo_glyph_t* m_cairo_glyphs = nullptr;
-    cairo_font_face_t* m_cairo_face = nullptr;
-    hb_font_t* m_hb_font = nullptr;
-    hb_buffer_t* m_hb_buffer = nullptr;
-    double m_fontSize = 15;
-    double m_r0 = 1;
-    double m_g0 = 1;
-    double m_b0 = 1;
-    double m_r1 = 0;
-    double m_g1 = 0;
-    double m_b1 = 0;
     U32  m_txtColor = 0xFF000000;
     U32  m_bkgColor = 0xFFBBBBBB;
 
@@ -714,7 +677,7 @@ public:
 
         m_bkgColor = c0;
         m_txtColor = c1;
-
+#if 0
         cr = (U8)(m_bkgColor >> 0);
         m_r0 = (double)cr / 255;
         cr = (U8)(m_bkgColor >> 8);
@@ -728,6 +691,7 @@ public:
         m_g1 = (double)cr / 255;
         cr = (U8)(m_txtColor >> 16);
         m_b1 = (double)cr / 255;
+#endif
     }
 
     int OnKeyBoard(U16 flag, U16 keycode) final

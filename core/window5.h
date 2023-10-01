@@ -103,7 +103,7 @@ public:
 		{
 			XEditBox2* eb2 = new(mem)XEditBox2;
 			assert(nullptr != eb2);
-			if (0 != eb2->Init(g_hCursorIBeam, g_ftFace0, 16))
+			if (0 != eb2->Init(g_hCursorIBeam))
 			{
 				pfree(mem);
 				return;

@@ -113,125 +113,14 @@ int XButton::Draw()
 
 int XLabel::Init(void* ptr0, void* ptr1, U32 flag)
 {
-    hb_bool_t hs = 0;
-    FT_Face ftFace = (FT_Face)ptr1;
-    double fontSize = (double)flag;
-    cairo_font_extents_t font_extents = { 0 };
-
     m_textDrawInfo = (XTextDrawInfo*)ptr0;
-
-    assert(nullptr != ftFace);
-    m_initialized = false;
-
-    if (nullptr != m_cairo_glyphs)
-    {
-        cairo_glyph_free(m_cairo_glyphs);
-        m_cairo_glyphs = nullptr;
-    }
-    m_cairo_glyphs = cairo_glyph_allocate(DUI_MAX_LABEL_STRING);
-    if (nullptr == m_cairo_glyphs)
-        return 1;
-
-    if (nullptr != m_cairo_face)
-    {
-        cairo_font_face_destroy(m_cairo_face);
-        m_cairo_face = nullptr;
-    }
-    m_cairo_face = cairo_ft_font_face_create_for_ft_face(ftFace, 0);
-    if (nullptr == m_cairo_face)
-    {
-        cairo_glyph_free(m_cairo_glyphs);
-        m_cairo_glyphs = nullptr;
-        return 2;
-    }
-
-    if (nullptr != m_hb_font)
-    {
-        hb_font_destroy(m_hb_font);
-        m_hb_font = nullptr;
-    }
-    m_hb_font = hb_ft_font_create(ftFace, NULL);
-    if (nullptr == m_hb_font)
-    {
-        cairo_glyph_free(m_cairo_glyphs);
-        m_cairo_glyphs = nullptr;
-        cairo_font_face_destroy(m_cairo_face);
-        m_cairo_face = nullptr;
-        return 3;
-    }
-
-    if (nullptr != m_hb_buffer)
-    {
-        hb_buffer_destroy(m_hb_buffer);
-        m_hb_buffer = nullptr;
-    }
-    m_hb_buffer = hb_buffer_create();
-    hs = hb_buffer_allocation_successful(m_hb_buffer);
-    if (0 == hs || nullptr == m_hb_buffer)
-    {
-        cairo_glyph_free(m_cairo_glyphs);
-        m_cairo_glyphs = nullptr;
-        cairo_font_face_destroy(m_cairo_face);
-        m_cairo_face = nullptr;
-        hb_font_destroy(m_hb_font);
-        m_hb_font = nullptr;
-        return 4;
-    }
-
-    // detect the line height
-    m_lineHeight = 0;
-    {
-        cairo_surface_t* cairo_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 64, 64);
-        cairo_status_t cs = cairo_surface_status(cairo_surface);
-        if (CAIRO_STATUS_SUCCESS == cs)
-        {
-            cairo_t* cr = cairo_create(cairo_surface);
-            cs = cairo_status(cr);
-            if (CAIRO_STATUS_SUCCESS == cs)
-            {
-                cairo_set_font_face(cr, m_cairo_face);
-                cairo_set_font_size(cr, (double)m_fontSize);
-                cairo_font_extents(cr, &font_extents);
-
-                m_lineHeight = (int)font_extents.height;
-                cairo_destroy(cr);
-            }
-            cairo_surface_destroy(cairo_surface);
-        }
-    }
-    if (0 == m_lineHeight)
-        return 5;
-
-    bottom = top + m_lineHeight;
-    m_fontSize = fontSize;
     m_initialized = true;
+    left = top = right = bottom = 0;
     return 0;
 }
 
 void XLabel::Term()
 {
-    assert(m_initialized);
-
-    if (nullptr != m_cairo_glyphs)
-    {
-        cairo_glyph_free(m_cairo_glyphs);
-        m_cairo_glyphs = nullptr;
-    }
-    if (nullptr != m_hb_buffer)
-    {
-        hb_buffer_destroy(m_hb_buffer);
-        m_hb_buffer = nullptr;
-    }
-    if (nullptr != m_hb_font)
-    {
-        hb_font_destroy(m_hb_font);
-        m_hb_font = nullptr;
-    }
-    if (nullptr != m_cairo_face)
-    {
-        cairo_font_face_destroy(m_cairo_face);
-        m_cairo_face = nullptr;
-    }
 }
 
 void XLabel::setText(U16* text, U16 len)
@@ -259,24 +148,6 @@ void XLabel::setText(U16* text, U16 len)
         }
         m_Text[i] = 0;
         m_TextLen = i;
-
-        hb_buffer_reset(m_hb_buffer);
-        hb_buffer_add_utf16(m_hb_buffer, (const uint16_t*)m_Text, m_TextLen, 0, m_TextLen);
-        hb_buffer_guess_segment_properties(m_hb_buffer);
-        hb_shape(m_hb_font, m_hb_buffer, NULL, 0); /* Shape it! */
-        glyphLen = hb_buffer_get_length(m_hb_buffer); /* Get glyph information and positions out of the buffer. */
-        assert(glyphLen <= DUI_MAX_LABEL_STRING);
-        if (glyphLen > 0)
-        {
-            U32 charWidth;
-            hb_glyph_position_t* hbpos = hb_buffer_get_glyph_positions(m_hb_buffer, NULL);
-            for (i = 0; i < glyphLen; i++)
-            {
-                charWidth = (DUI_ALIGN_TRUETYPE(hbpos[i].x_advance) >> 6);
-                W += charWidth;
-            }
-        }
-        right = left + W;
     }
 }
 
@@ -284,7 +155,7 @@ int XLabel::Draw()
 {
     if (nullptr != m_textDrawInfo)
     {
-        U16 offset = 2;
+        U16 offset = 0;
         m_textDrawInfo->left = left + offset;
         m_textDrawInfo->top = top + offset;
         m_textDrawInfo->right = right + offset;
@@ -292,77 +163,6 @@ int XLabel::Draw()
         m_textDrawInfo->text0 = m_Text;
         m_textDrawInfo->textLen0 = m_TextLen;
     }
-#if 0
-    if (nullptr != m_parentBuf)
-    {
-        U32 glyphLen, i, W = 0;
-        hb_glyph_info_t* hbinfo;
-        hb_glyph_position_t* hbpos;
-
-        assert(m_parentW > 0);
-        assert(m_parentH > 0);
-
-        hb_buffer_reset(m_hb_buffer);
-        hb_buffer_add_utf16(m_hb_buffer, (const uint16_t*)m_Text, m_TextLen, 0, m_TextLen);
-        hb_buffer_guess_segment_properties(m_hb_buffer);
-        hb_shape(m_hb_font, m_hb_buffer, NULL, 0); /* Shape it! */
-        glyphLen = hb_buffer_get_length(m_hb_buffer); /* Get glyph information and positions out of the buffer. */
-        assert(glyphLen <= DUI_MAX_LABEL_STRING);
-        if (glyphLen > 0)
-        {
-            int w, h;
-            U32 charWidth, charHeight, xOffset, yOffset;
-            double baseline, current_x, current_y;
-            hbinfo = hb_buffer_get_glyph_infos(m_hb_buffer, NULL);
-            hbpos = hb_buffer_get_glyph_positions(m_hb_buffer, NULL);
-
-            current_x = current_y = 0;
-            for (i = 0; i < glyphLen; i++)
-            {
-                m_cairo_glyphs[i].index = hbinfo[i].codepoint;
-                charWidth = (DUI_ALIGN_TRUETYPE(hbpos[i].x_advance) >> 6);
-                charHeight = (DUI_ALIGN_TRUETYPE(hbpos[i].y_advance) >> 6);
-                xOffset = (DUI_ALIGN_TRUETYPE(hbpos[i].x_offset) >> 6);
-                yOffset = (DUI_ALIGN_TRUETYPE(hbpos[i].y_offset) >> 6);
-                m_cairo_glyphs[i].x = current_x + hbpos[i].x_offset / 64.0;
-                m_cairo_glyphs[i].y = -(current_y + hbpos[i].y_offset / 64.0);
-                current_x += hbpos[i].x_advance / 64.0;
-                current_y += hbpos[i].y_advance / 64.0;
-                W += charWidth;
-            }
-            w = right - left;
-            h = bottom - top;
-            assert(w > 0);
-            assert(h > 0);
-            //assert(w == W);
-            // draw it by cairo
-            cairo_surface_t* cairo_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, w, h);
-            cairo_status_t cs = cairo_surface_status(cairo_surface);
-            if (CAIRO_STATUS_SUCCESS == cs)
-            {
-                cairo_t* cr = cairo_create(cairo_surface);
-                cs = cairo_status(cr);
-                if (CAIRO_STATUS_SUCCESS == cs)
-                {
-                    cairo_font_extents_t font_extents = { 0 };
-                    cairo_set_font_face(cr, m_cairo_face);
-                    cairo_set_font_size(cr, m_fontSize);
-                    cairo_font_extents(cr, &font_extents);
-                    baseline = (m_fontSize - font_extents.height) * 0.5 + font_extents.ascent + 6;
-                    cairo_set_source_rgba(cr, m_r0, m_g0, m_b0, 1);
-                    cairo_paint(cr);
-                    cairo_set_source_rgba(cr, m_r1, m_g1, m_b1, 1);
-                    cairo_translate(cr, 0, baseline);
-                    cairo_show_glyphs(cr, m_cairo_glyphs, glyphLen); // draw the text here!
-                    U32* crdata = (U32*)cairo_image_surface_get_data(cairo_surface);
-                    ScreenDrawRect(m_parentBuf, m_parentW, m_parentH, crdata, w, h, left, top);
-                    cairo_destroy(cr);
-                }
-                cairo_surface_destroy(cairo_surface);
-            }
-        }
-    }
-#endif
     return 0;
 }
 
@@ -790,6 +590,7 @@ void ImGuiInputTextState::OnKeyPressed(int key)
 
 int XEditBox::Init(void* ptr0, void* ptr1, U32 flag)
 {
+#if 0
     hb_bool_t hs = 0;
     FT_Face ftFace = (FT_Face)ptr1;
     double fontSize = (double)flag;
@@ -881,12 +682,14 @@ int XEditBox::Init(void* ptr0, void* ptr1, U32 flag)
 
     bottom = top + m_lineHeight;
     m_fontSize = fontSize;
+#endif
     m_initialized = true;
     return 0;
 }
 
 void XEditBox::Term()
 {
+#if 0
     assert(m_initialized);
 
     if (nullptr != m_cairo_glyphs)
@@ -909,10 +712,12 @@ void XEditBox::Term()
         cairo_font_face_destroy(m_cairo_face);
         m_cairo_face = nullptr;
     }
+#endif
 }
 
 int XEditBox::Draw()
 {
+#if 0
     if (nullptr != m_parentBuf)
     {
         int w = right - left;
@@ -1021,12 +826,14 @@ int XEditBox::Draw()
             }
         }
     }
+#endif
     return 0;
 }
 
 
 int XEditBox2::Init(void* ptr0, void* ptr1, U32 flag)
 {
+#if 0
     hb_bool_t hs = 0;
     FT_Face ftFace = (FT_Face)ptr1;
     double fontSize = (double)flag;
@@ -1118,12 +925,14 @@ int XEditBox2::Init(void* ptr0, void* ptr1, U32 flag)
 
     bottom = top + m_lineHeight;
     m_fontSize = fontSize;
+#endif
     m_initialized = true;
     return 0;
 }
 
 void XEditBox2::Term()
 {
+#if 0
     assert(m_initialized);
 
     if (nullptr != m_cairo_glyphs)
@@ -1146,10 +955,12 @@ void XEditBox2::Term()
         cairo_font_face_destroy(m_cairo_face);
         m_cairo_face = nullptr;
     }
+#endif
 }
 
 int XEditBox2::Draw()
 {
+#if 0
     if (nullptr != m_parentBuf)
     {
         int w = right - left;
@@ -1258,6 +1069,7 @@ int XEditBox2::Draw()
             }
         }
     }
+#endif
     return 0;
 }
 

@@ -12,7 +12,6 @@ U16 xname[] = { 4, 0x7b11,0x50b2,0x6c5f,0x6e56 };
 U32 littleArrowMe[4 * 8] = { 0 };
 
 
-
 // _TextWrapIdxTab[0] is the length of the elements behind it.
 // The first two bytes are the lines parsered. Each element has two parts: 2-byte string base index, and 2-byte string length
 // 
@@ -27,7 +26,10 @@ U32 littleArrowMe[4 * 8] = { 0 };
 //
 static U16 _TextWrapIdxTab[MAX_INPUT_MESSAGE_LEN + 1];
 
-U32 TextLayoutThread(void* lpData);
+
+#define XMESSAGE_FROM_ME  0x0001
+#define XWIN4_MARGIN	  32
+#define XWIN4_OFFSET	  10
 
 class XWindow4 : public XWindowT <XWindow4>
 {
@@ -71,18 +73,6 @@ public:
 	
 	XChatGroup* m_chatGroup = nullptr;
 
-#if 0
-	// cairo/harfbuzz issue to cache to speed up
-	cairo_font_extents_t m_font_extents = { 0 };
-	cairo_glyph_t* m_cairo_glyphs = nullptr;
-	cairo_font_face_t* m_cairo_face = nullptr;
-	hb_font_t* m_hb_font0 = nullptr;
-	hb_font_t* m_hb_font1 = nullptr;
-	hb_buffer_t* m_hb_buffer = nullptr;
-	XChatMessage* m_headMessage = nullptr;
-	XChatMessage* m_tailMessage = nullptr;
-#endif
-
 	int UpdateChatHistory(U16* msgText, U16 len, U8 msgtype = 0)
 	{
 		int W, H, r;
@@ -105,9 +95,12 @@ public:
 				for (U16 i = 0; i < len; i++)
 					p->message[i + 1] = msgText[i];
 
-				p->icon = (msgtype % 2) ? (U32*)xbmpHeadMe: (U32*)xbmpHeadGirl;
+				p->state = msgtype ? XMESSAGE_FROM_ME : 0;
+				if (XMESSAGE_FROM_ME & p->state)
+					p->icon = (U32*)xbmpHeadMe;
+				else 
+					p->icon = (U32*)xbmpHeadGirl;
 				p->w = p->h = 34;
-				p->state = msgtype;
 				p->id = msgtype;
 				p->name = (U16*)xname;
 				
@@ -124,7 +117,7 @@ public:
 					m_chatGroup->tailMessage = p;
 				}
 
-				W =  w - (p->w + 32);
+				W =  w - (p->w + XWIN4_MARGIN);
 				W = (W << 1) / 3;
 				r = GetTextHeightInPixel(msgText, len, W, &H, &W);
 				if (0 == r)
@@ -237,7 +230,8 @@ public:
 
 	int Do_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{
-		int x, y, dx, dy, W, H, pos, width;
+		U32 color;
+		int x, y, dx, dy, W, H, pos;
 		XChatMessage* p;
 
 		int w = m_area.right - m_area.left;
@@ -259,23 +253,23 @@ public:
 			if (pos + H > m_ptOffset.y && pos < m_ptOffset.y + h)
 			{
 				dy = pos - m_ptOffset.y;
-				x = w - m_scrollWidth - p->w - 10;
-				if (p->state % 2) // me
+				x = w - m_scrollWidth - p->w - XWIN4_OFFSET;
+				if (XMESSAGE_FROM_ME & p->state) // me
 				{
+					color = 0xFF6AEA9E;
 					tdi->status |= XTEXTDRAWINFO_ISME;
-					tdi->right = x - 10;
-					tdi->left = p->w + 110;
-					if ((tdi->right - tdi->left) > p->width)
+					tdi->right = w - (p->w + XWIN4_MARGIN);
+					tdi->left = p->w + (XWIN4_OFFSET << 1);
+					if (tdi->right > p->width)
 						tdi->left = tdi->right - p->width;
 				}
 				else
 				{
+					color = 0xFFFFFFFF;
 					tdi->status &= ~XTEXTDRAWINFO_ISME;
-					tdi->left = p->w + 20;
-					tdi->right = x - 100;
-					if (tdi->right > tdi->left + p->width)
-						tdi->right = tdi->left + p->width;
-					x = 10;
+					tdi->left = p->w + (XWIN4_OFFSET<<1);
+					tdi->right = tdi->left + p->width;
+					x = XWIN4_OFFSET;
 				}
 				ScreenDrawRectRound(m_screen, w, h, (U32*)p->icon, p->w, p->h, x, dy, m_backgroundColor, m_backgroundColor);
 #if 0
@@ -283,7 +277,9 @@ public:
 					ScreenDrawRect(m_screen, w, h, (U32*)littleArrowMe, 4, 8, x + p->w + 4, dy + 13);
 #endif
 				tdi->top = dy;
-				tdi->bottom = tdi->top + p->height - GAP_MESSAGE;
+				tdi->bottom = tdi->top + p->height - GAP_MESSAGE - 8;
+				//ScreenFillRectRound(m_screen, w, h, color, tdi->right - tdi->left + 4, p->height - GAP_MESSAGE, tdi->left, dy, m_backgroundColor, m_backgroundColor);
+
 				tdi->textLen0 = p->message[0];
 				tdi->text0 = p->message + 1;
 				m_textDrawInfoCount++;
@@ -359,7 +355,7 @@ public:
 				{
 					if (nullptr != m->message)
 					{
-						W = w - (m->w + 32);
+						W = w - (m->w + XWIN4_MARGIN);
 						W = (W << 1) / 3;
 						len = m->message[0];
 						text = m->message + 1;
