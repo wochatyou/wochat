@@ -4,13 +4,15 @@
 /* fill the whole screen with one color */
 int ScreenClear(uint32_t* dst, uint32_t size, uint32_t color)
 {
-	uint64_t newColor = (uint64_t)(color);
+	uint64_t newColor = (uint64_t)(color); 
 	newColor <<= 32;
 	newColor |= (uint64_t)color;
 
 	assert(nullptr != dst);
 
-	uint64_t* p64 = (uint64_t*)dst;
+	// because using pointer 64 bit is 2 times faster than pointer 32 bit
+	// so we use pointer 64 to speed up the copying
+	uint64_t* p64 = (uint64_t*)dst;  
 	for (uint32_t i = 0; i < (size >> 1); i++)
 		*p64++ = newColor;
 

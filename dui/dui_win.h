@@ -12,12 +12,12 @@
 
 enum
 {
-    DUI_STATUS_NODRAW    = 0x00,    // do not need to draw, any value not zero need redraw      
-    DUI_STATUS_VISIBLE   = 0x01,    // is this virtual window visible?
-    DUI_STATUS_VSCROLL   = 0x02,    // is this virtual window has vertical scroll bar?
-    DUI_STATUS_HSCROLL   = 0x04,    // is this virtual window has horizonal scroll bar?
-    DUI_STATUS_ISFOCUS   = 0x08,    // is the input redirected into this virutal window?
-    DUI_STATUS_NEEDRAW   = 0x10     // does this virtual windows need to be redraw?
+    DUI_STATUS_NODRAW    = 0x00000000,    // do not need to draw, any value not zero need redraw      
+    DUI_STATUS_VISIBLE   = 0x00000001,    // is this virtual window visible?
+    DUI_STATUS_VSCROLL   = 0x00000002,    // is this virtual window has vertical scroll bar?
+    DUI_STATUS_HSCROLL   = 0x00000004,    // is this virtual window has horizonal scroll bar?
+    DUI_STATUS_ISFOCUS   = 0x00000008,    // is the keyboard input redirected into this virutal window?
+    DUI_STATUS_NEEDRAW   = 0x00000010     // does this virtual windows need to be redraw?
 };
 
 enum
