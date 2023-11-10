@@ -17,19 +17,12 @@
 LONG 				g_threadCount = 0;
 UINT				g_Quit        = 0;
 HINSTANCE			g_hInstance   = nullptr;
-#if 0
-FT_Library			g_ftLibrary   = nullptr;
-FT_Face				g_ftFace0     = nullptr;
-FT_Face				g_ftFace1     = nullptr;
-FT_Face				g_ftFace2     = nullptr;
-#endif
 ID2D1Factory*       g_pD2DFactory = nullptr;
 IDWriteFactory*     g_pDWriteFactory = nullptr;
 IDWriteTextFormat*  g_pTextFormatTitle = nullptr;
-IDWriteTextFormat* g_pTextFormatMessage = nullptr;
-IDWriteTextFormat* g_pTextFormatMessageSmall0 = nullptr;
-IDWriteTextFormat* g_pTextFormatMessageSmall1 = nullptr;
-
+IDWriteTextFormat*  g_pTextFormatMessage = nullptr;
+IDWriteTextFormat*  g_pTextFormatMessageSmall0 = nullptr;
+IDWriteTextFormat*  g_pTextFormatMessageSmall1 = nullptr;
 
 uint8_t  g_Nonce[12] = { 0 };
 uint8_t  g_KEY[32] = { 0 };
@@ -48,7 +41,7 @@ HCURSOR g_hCursorIBeam = nullptr;
 wchar_t g_AppPath[MAX_PATH + 1] = { 0 };
 
 //static CAtlWinModule _Module;
-CAppModule _Module;
+static CAppModule _Module;
 
 class CWoChatThreadManager
 {
@@ -181,10 +174,16 @@ static int InitInstance(HINSTANCE hInstance)
 	g_hCursorNS    = ::LoadCursor(NULL, IDC_SIZENS);
 	g_hCursorHand  = ::LoadCursor(nullptr, IDC_HAND);
 	g_hCursorIBeam = ::LoadCursor(NULL, IDC_IBEAM);
+	if (NULL == g_hCursorWE || NULL == g_hCursorNS || NULL == g_hCursorHand || NULL == g_hCursorIBeam)
+	{
+		MessageBox(NULL, _T("The calling of LoadCursor() is failed"), _T("WoChat Error"), MB_OK);
+		return (-1);
+	}
 
 	DWORD length = GetModuleFileName(hInstance, g_AppPath, MAX_PATH);
 	ATLASSERT(length > 0);
 
+	if(0)
 	{
 		int	  fd;
 		DWORD i, size, bytes;
@@ -285,13 +284,7 @@ static int InitInstance(HINSTANCE hInstance)
 			g_Nonce[i] = i;
 	}
 
-
-	if (NULL == g_hCursorWE || NULL == g_hCursorNS || NULL == g_hCursorHand || NULL == g_hCursorIBeam)
-	{
-		MessageBox(NULL, _T("The calling of LoadCursor() is failed"), _T("WoChat Error"), MB_OK);
-		return (-1);
-	}
-
+	// Initialize Direct2D and DirectWrite
 	g_pD2DFactory = nullptr;
 	hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &g_pD2DFactory);
 	if (S_OK != hr || nullptr == g_pD2DFactory)

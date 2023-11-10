@@ -419,7 +419,7 @@ public:
 	int Do_DUI_KEYDOWN(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
 	{ 
 		int r = DUI_STATUS_NODRAW;
-
+#if 0
 		U32 keyCode = static_cast<U32>(wParam);
 
 		bool heldShift = (GetKeyState(VK_SHIFT) & 0x80) != 0;
@@ -493,7 +493,7 @@ public:
 		default:
 			break;
 		}
-
+#endif
 		return r;
 	}
 

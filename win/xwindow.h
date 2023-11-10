@@ -601,6 +601,7 @@ public:
 	
 	LRESULT OnMQTTPubMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& /*bHandled*/)
 	{
+#if 0
 		int i;
 		U8* data = (U8*)wParam;
 		U16 len = (U16)lParam;
@@ -617,11 +618,13 @@ public:
 		mqtt_message.message = (char*)xmsgUTF8;
 		mqtt_message.msglen = size + 67;
 		SetEvent(xMQTTHandles[0]); // send this message to remote
+#endif
 		return 0;
 	}
 
 	LRESULT OnMQTTSubMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& /*bHandled*/)
 	{
+#if 0
 		U8* msg = (U8*)wParam;
 		U16 len = (U16)lParam;
 		U8 pk[33] = { 0 };
@@ -667,7 +670,7 @@ public:
 			m_win4.UpdateChatHistory((U16*)g_MSG, size >> 1);
 			Invalidate();
 		}
-
+#endif
 		return 0;
 	}
 
