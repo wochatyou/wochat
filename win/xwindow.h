@@ -360,7 +360,8 @@ wchar_t xtitle[256] = { 0 };
 class XWindow : public ATL::CWindowImpl<XWindow>
 {
 private:
-	enum { 
+	enum 
+	{ 
 		STEPXY = 1, 
 		SPLITLINE_WIDTH = 1 
 	};
@@ -399,8 +400,6 @@ private:
 	int m_splitterHPosfix1 = XWIN3_HEIGHT;
 
 	UINT m_nDPI = 96;
-
-	DWORD m_dwExtendedStyle = (SPLIT_LEFTALIGNED | SPLIT_BOTTOMLIGNED);    // splitter specific extended styles
 
 	XWindow0 m_win0;
 	XWindow1 m_win1;
@@ -452,8 +451,8 @@ public:
 
 	int SetToolTips(int startIdx, int endIdx, int dx, int dy)
 	{
-		RECT area, *r;
-		r = &area;
+		RECT  area;
+		RECT* r = &area;
 
 		XControl* xctl;
 		for (int i = startIdx; i <= endIdx; i++)
@@ -549,10 +548,9 @@ public:
 		m_win4.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
 		m_win5.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
 
-		{
-			if (DUIWindowNeedReDraw())
-				Invalidate();
-		}
+		if (DUIWindowNeedReDraw())
+			Invalidate();
+
 		// to allow the host window to continue to handle the windows message
 		bHandled = FALSE;
 		return 0; 
@@ -750,7 +748,6 @@ public:
 			return 0;
 		}
 
-
 		m_nDPI = GetDpiForWindow(m_hWnd);
 
 		/* Initialize Tooltips */
@@ -789,10 +786,8 @@ public:
 	LRESULT OnGetMinMaxInfo(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM lParam, BOOL& bHandled)
 	{
 		LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
-
 		lpMMI->ptMinTrackSize.x = 800;
 		lpMMI->ptMinTrackSize.y = 600;
-
 		return 0;
 	}
 
@@ -1477,7 +1472,7 @@ public:
 		return 0;
 	}
 
-
+	// the main paint routine to the final screen 
 	LRESULT OnPaint(UINT /*uMsg*/, WPARAM wParam, LPARAM /*lParam*/, BOOL& bHandled)
 	{
 		HRESULT hr = S_OK;
@@ -1487,7 +1482,6 @@ public:
 		if (nullptr == m_pD2DRenderTarget)
 		{
 			D2D1_PIXEL_FORMAT pixelFormat = D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UNORM, D2D1_ALPHA_MODE_IGNORE);
-
 			D2D1_RENDER_TARGET_PROPERTIES renderTargetProperties = D2D1::RenderTargetProperties();
 			renderTargetProperties.dpiX = m_nDPI;
 			renderTargetProperties.dpiY = m_nDPI;
@@ -1525,7 +1519,6 @@ public:
 						hr = m_pD2DRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x000000), &m_pTextBrush1);
 					}
 				}
-
 			}
 		}
 

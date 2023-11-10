@@ -24,7 +24,7 @@ enum
 {
     DUI_PROP_NONE             = 0x00000000,   // None Properties
     DUI_PROP_MOVEWIN          = 0x00000001,   // Move the whole window while LButton is pressed
-    DUI_PROP_BTNACTIVE        = 0x00000002,   // have active button on this virutal window
+    DUI_PROP_BTNACTIVE        = 0x00000002,   // have active button on this virtual window
     DUI_PROP_HASVSCROLL       = 0x00000004,    // have vertical scroll bar
     DUI_PROP_HASHSCROLL       = 0x00000008,
     DUI_PROP_HANDLEVWHEEL     = 0x00000010,   // does this window need to handle mouse wheel?
@@ -64,7 +64,7 @@ public:
 
     MemoryContext m_pool = nullptr;
 
-    int m_startControl  = 0;  // dui_controlArray[0] is not used. We start from 1
+    int m_startControl  =  0;  // dui_controlArray[0] is not used. We start from 1
     int m_endControl    = -1;
     int m_activeControl = -2;
 
