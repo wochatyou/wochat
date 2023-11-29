@@ -360,13 +360,13 @@ public:
         U8 status = m_status & (DUI_STATUS_VISIBLE | DUI_STATUS_NEEDRAW);
 
         // We only draw this virtual window when 1: it is visible, and 2: it needs draw
-        if ((DUI_STATUS_VISIBLE | DUI_STATUS_NEEDRAW) == status)
+        if (((DUI_STATUS_VISIBLE | DUI_STATUS_NEEDRAW) == status) && (nullptr != m_screen))
         {
             int w = m_area.right - m_area.left;
             int h = m_area.bottom - m_area.top;
             XControl* xctl;
 
-            assert(nullptr != m_screen);
+            // assert(nullptr != m_screen);
             // fill the whole screen of this virutal window with a single color
             ScreenClear(m_screen, m_size, m_backgroundColor);
 
@@ -388,6 +388,7 @@ public:
                 ScreenFillRectRound(m_screen, w, h, m_thumbColor, thumb_width, thumb_height, w - m_scrollWidth + 1, thumb_start, m_scrollbarColor, 0xFFD6D3D2);
             }
 
+            // draw the controls within this window
             for (int i = m_startControl; i <= m_endControl; i++)
             {
                 xctl = dui_controlArray[i];
@@ -395,7 +396,7 @@ public:
                 assert(xctl->m_id == i);
                 xctl->Draw();
             }
-
+            // the derived class will draw its content
             T* pT = static_cast<T*>(this);
             pT->Do_DUI_PAINT(uMsg, wParam, lParam, lpData);
         }
