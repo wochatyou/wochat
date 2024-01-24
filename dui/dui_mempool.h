@@ -56,4 +56,6 @@ typedef unsigned long int uint64;
  */
 typedef size_t Size;
 
+#define AllocSetContextCreate AllocSetContextCreateInternal
+
 #endif // __WT_DUI_MEMPOOL_H__

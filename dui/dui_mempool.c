@@ -1,27 +1,99 @@
+#include <stdlib.h>
 #include "dui_mempool.h"
 
 #define Assert(condition)	((void)true)
+#define StaticAssertDecl(condition, errmessage)	((void)true)
 #define StaticAssertStmt(condition, errmessage)	((void)true)
 
+#define VALGRIND_CHECK_MEM_IS_DEFINED(addr, size)			do {} while (0)
+#define VALGRIND_CREATE_MEMPOOL(context, redzones, zeroed)	do {} while (0)
+#define VALGRIND_DESTROY_MEMPOOL(context)					do {} while (0)
+#define VALGRIND_MAKE_MEM_DEFINED(addr, size)				do {} while (0)
+#define VALGRIND_MAKE_MEM_NOACCESS(addr, size)				do {} while (0)
+#define VALGRIND_MAKE_MEM_UNDEFINED(addr, size)				do {} while (0)
+#define VALGRIND_MEMPOOL_ALLOC(context, addr, size)			do {} while (0)
+#define VALGRIND_MEMPOOL_FREE(context, addr)				do {} while (0)
+#define VALGRIND_MEMPOOL_CHANGE(context, optr, nptr, size)	do {} while (0)
+
 /*
- * Recommended default alloc parameters, suitable for "ordinary" contexts
- * that might hold quite a lot of data.
+ * Max
+ *		Return the maximum of two numbers.
  */
-#define ALLOCSET_DEFAULT_MINSIZE   0
-#define ALLOCSET_DEFAULT_INITSIZE  (8 * 1024)
-#define ALLOCSET_DEFAULT_MAXSIZE   (8 * 1024 * 1024)
-#define ALLOCSET_DEFAULT_SIZES \
-	ALLOCSET_DEFAULT_MINSIZE, ALLOCSET_DEFAULT_INITSIZE, ALLOCSET_DEFAULT_MAXSIZE
+#define Max(x, y)		((x) > (y) ? (x) : (y))
 
  /*
-  * Recommended alloc parameters for "small" contexts that are never expected
-  * to contain much data (for example, a context to contain a query plan).
+  * Min
+  *		Return the minimum of two numbers.
   */
-#define ALLOCSET_SMALL_MINSIZE	 0
-#define ALLOCSET_SMALL_INITSIZE  (1 * 1024)
-#define ALLOCSET_SMALL_MAXSIZE	 (8 * 1024)
-#define ALLOCSET_SMALL_SIZES \
-	ALLOCSET_SMALL_MINSIZE, ALLOCSET_SMALL_INITSIZE, ALLOCSET_SMALL_MAXSIZE
+#define Min(x, y)		((x) < (y) ? (x) : (y))
+
+/* Define bytes to use libc memset(). */
+#define MEMSET_LOOP_LIMIT 1024
+
+/* Get a bit mask of the bits set in non-long aligned addresses */
+#define LONG_ALIGN_MASK (sizeof(long) - 1)
+  /*
+   * MemSet
+   *	Exactly the same as standard library function memset(), but considerably
+   *	faster for zeroing small word-aligned structures (such as parsetree nodes).
+   *	This has to be a macro because the main point is to avoid function-call
+   *	overhead.   However, we have also found that the loop is faster than
+   *	native libc memset() on some platforms, even those with assembler
+   *	memset() functions.  More research needs to be done, perhaps with
+   *	MEMSET_LOOP_LIMIT tests in configure.
+   */
+#define MemSet(start, val, len) \
+	do \
+	{ \
+		/* must be void* because we don't know if it is integer aligned yet */ \
+		void   *_vstart = (void *) (start); \
+		int		_val = (val); \
+		Size	_len = (len); \
+\
+		if ((((uintptr_t) _vstart) & LONG_ALIGN_MASK) == 0 && \
+			(_len & LONG_ALIGN_MASK) == 0 && \
+			_val == 0 && \
+			_len <= MEMSET_LOOP_LIMIT && \
+			/* \
+			 *	If MEMSET_LOOP_LIMIT == 0, optimizer should find \
+			 *	the whole "if" false at compile time. \
+			 */ \
+			MEMSET_LOOP_LIMIT != 0) \
+		{ \
+			long *_start = (long *) _vstart; \
+			long *_stop = (long *) ((char *) _start + _len); \
+			while (_start < _stop) \
+				*_start++ = 0; \
+		} \
+		else \
+			memset(_vstart, _val, _len); \
+	} while (0)
+
+   /*
+	* MemSetAligned is the same as MemSet except it omits the test to see if
+	* "start" is word-aligned.  This is okay to use if the caller knows a-priori
+	* that the pointer is suitably aligned (typically, because he just got it
+	* from palloc(), which always delivers a max-aligned pointer).
+	*/
+#define MemSetAligned(start, val, len) \
+	do \
+	{ \
+		long   *_start = (long *) (start); \
+		int		_val = (val); \
+		Size	_len = (len); \
+\
+		if ((_len & LONG_ALIGN_MASK) == 0 && \
+			_val == 0 && \
+			_len <= MEMSET_LOOP_LIMIT && \
+			MEMSET_LOOP_LIMIT != 0) \
+		{ \
+			long *_stop = (long *) ((char *) _start + _len); \
+			while (_start < _stop) \
+				*_start++ = 0; \
+		} \
+		else \
+			memset(_start, _val, _len); \
+	} while (0)
 
 /*
  * MemoryContextCounters
@@ -49,23 +121,6 @@ typedef struct MemoryContextCounters
 typedef struct MemoryContextData* MemoryContext;
 
 /*
- * The first field of every node is NodeTag. Each node created (with makeNode)
- * will have one of the following tags as the value of its first field.
- *
- * Note that inserting or deleting node types changes the numbers of other
- * node types later in the list.  This is no problem during development, since
- * the node numbers are never stored on disk.  But don't do it in a released
- * branch, because that would represent an ABI break for extensions.
- */
-typedef enum NodeTag
-{
-	T_Invalid = 0,
-	T_AllocSetContext = 1,
-	T_GenerationContext = 2,
-	T_SlabContext = 3,
-} NodeTag;
-
-/*
  * MemoryContext
  *		A logical context in which memory allocations occur.
  *
@@ -82,29 +137,41 @@ typedef enum NodeTag
  * to the context struct rather than the struct type itself.
  */
 
-typedef void (*MemoryStatsPrintFunc) (MemoryContext context, void* passthru,
-	const char* stats_string,
-	bool print_to_stderr);
+typedef void (*MemoryStatsPrintFunc) (MemoryContext context, void* passthru, const char* stats_string, bool print_to_stderr);
 
 typedef struct MemoryContextMethods
 {
-	void*		(*alloc) (MemoryContext context, Size size);
+	void*	(*alloc) (MemoryContext context, Size size);
 	/* call this free_p in case someone #define's free() */
-	void		(*free_p) (void* pointer);
-	void*		(*realloc) (void* pointer, Size size);
-	void		(*reset) (MemoryContext context);
-	void		(*delete_context) (MemoryContext context);
+	void	(*free_p) (void* pointer);
+	void*	(*realloc) (void* pointer, Size size);
+	void	(*reset) (MemoryContext context);
+	void	(*delete_context) (MemoryContext context);
 	MemoryContext	(*get_chunk_context) (void* pointer);
-	Size			(*get_chunk_space) (void* pointer);
-	bool			(*is_empty) (MemoryContext context);
-	void			(*stats) (MemoryContext context,
-		MemoryStatsPrintFunc printfunc, void* passthru,
-		MemoryContextCounters* totals,
-		bool print_to_stderr);
+	Size	(*get_chunk_space) (void* pointer);
+	bool	(*is_empty) (MemoryContext context);
+	void	(*stats) (MemoryContext context, MemoryStatsPrintFunc printfunc, void* passthru, MemoryContextCounters* totals,	bool print_to_stderr);
 #ifdef MEMORY_CONTEXT_CHECKING
 	void		(*check) (MemoryContext context);
 #endif
 } MemoryContextMethods;
+
+/*
+ * The first field of every node is NodeTag. Each node created (with makeNode)
+ * will have one of the following tags as the value of its first field.
+ *
+ * Note that inserting or deleting node types changes the numbers of other
+ * node types later in the list.  This is no problem during development, since
+ * the node numbers are never stored on disk.  But don't do it in a released
+ * branch, because that would represent an ABI break for extensions.
+ */
+typedef enum NodeTag
+{
+	T_Invalid = 0,
+	T_AllocSetContext = 1,
+	T_GenerationContext = 2,
+	T_SlabContext = 3,
+} NodeTag;
 
 /*
  * A memory context can have callback functions registered on it.  Any such
@@ -124,8 +191,6 @@ typedef struct MemoryContextCallback
 
 typedef struct MemoryContextData
 {
-	//pg_node_attr(abstract)		/* there are no nodes of this type */
-
 	NodeTag		type;			/* identifies exact kind of context */
 	/* these two fields are placed here to minimize alignment wastage: */
 	bool		isReset;		/* T = no space alloced since last reset */
@@ -140,6 +205,290 @@ typedef struct MemoryContextData
 	const char* ident;			/* context ID if any (just for debugging) */
 	MemoryContextCallback* reset_cbs;	/* list of reset/delete callbacks */
 } MemoryContextData;
+
+/*
+ * MemoryContextMethodID
+ *		A unique identifier for each MemoryContext implementation which
+ *		indicates the index into the mcxt_methods[] array. See mcxt.c.
+ *
+ * For robust error detection, ensure that MemoryContextMethodID has a value
+ * for each possible bit-pattern of MEMORY_CONTEXT_METHODID_MASK, and make
+ * dummy entries for unused IDs in the mcxt_methods[] array.  We also try
+ * to avoid using bit-patterns as valid IDs if they are likely to occur in
+ * garbage data, or if they could falsely match on chunks that are really from
+ * malloc not palloc.  (We can't tell that for most malloc implementations,
+ * but it happens that glibc stores flag bits in the same place where we put
+ * the MemoryContextMethodID, so the possible values are predictable for it.)
+ */
+typedef enum MemoryContextMethodID
+{
+	MCTX_UNUSED1_ID,			/* 000 occurs in never-used memory */
+	MCTX_UNUSED2_ID,			/* glibc malloc'd chunks usually match 001 */
+	MCTX_UNUSED3_ID,			/* glibc malloc'd chunks > 128kB match 010 */
+	MCTX_ASET_ID,
+	MCTX_GENERATION_ID,
+	MCTX_SLAB_ID,
+	MCTX_ALIGNED_REDIRECT_ID,
+	MCTX_UNUSED4_ID				/* 111 occurs in wipe_mem'd memory */
+} MemoryContextMethodID;
+
+
+/* These functions implement the MemoryContext API for AllocSet context. */
+void* AllocSetAlloc(MemoryContext context, Size size);
+void AllocSetFree(void* pointer);
+void* AllocSetRealloc(void* pointer, Size size);
+void AllocSetReset(MemoryContext context);
+void AllocSetDelete(MemoryContext context);
+MemoryContext AllocSetGetChunkContext(void* pointer);
+Size AllocSetGetChunkSpace(void* pointer);
+bool AllocSetIsEmpty(MemoryContext context);
+void AllocSetStats(MemoryContext context,
+	MemoryStatsPrintFunc printfunc, void* passthru,
+	MemoryContextCounters* totals,
+	bool print_to_stderr);
+#ifdef MEMORY_CONTEXT_CHECKING
+void AllocSetCheck(MemoryContext context);
+#endif
+
+/* These functions implement the MemoryContext API for Generation context. */
+void* GenerationAlloc(MemoryContext context, Size size);
+void GenerationFree(void* pointer);
+void* GenerationRealloc(void* pointer, Size size);
+void GenerationReset(MemoryContext context);
+void GenerationDelete(MemoryContext context);
+MemoryContext GenerationGetChunkContext(void* pointer);
+Size GenerationGetChunkSpace(void* pointer);
+bool GenerationIsEmpty(MemoryContext context);
+void GenerationStats(MemoryContext context,
+	MemoryStatsPrintFunc printfunc, void* passthru,
+	MemoryContextCounters* totals,
+	bool print_to_stderr);
+#ifdef MEMORY_CONTEXT_CHECKING
+void GenerationCheck(MemoryContext context);
+#endif
+
+
+/* These functions implement the MemoryContext API for Slab context. */
+void* SlabAlloc(MemoryContext context, Size size);
+void SlabFree(void* pointer);
+void* SlabRealloc(void* pointer, Size size);
+void SlabReset(MemoryContext context);
+void SlabDelete(MemoryContext context);
+MemoryContext SlabGetChunkContext(void* pointer);
+Size SlabGetChunkSpace(void* pointer);
+bool SlabIsEmpty(MemoryContext context);
+void SlabStats(MemoryContext context,
+	MemoryStatsPrintFunc printfunc, void* passthru,
+	MemoryContextCounters* totals,
+	bool print_to_stderr);
+#ifdef MEMORY_CONTEXT_CHECKING
+void SlabCheck(MemoryContext context);
+#endif
+
+/*
+ * These functions support the implementation of palloc_aligned() and are not
+ * part of a fully-fledged MemoryContext type.
+ */
+void AlignedAllocFree(void* pointer);
+void* AlignedAllocRealloc(void* pointer, Size size);
+MemoryContext AlignedAllocGetChunkContext(void* pointer);
+Size AlignedAllocGetChunkSpace(void* pointer);
+
+static void BogusFree(void* pointer) {}
+static void* BogusRealloc(void* pointer, Size size) { return NULL; }
+static MemoryContext BogusGetChunkContext(void* pointer) { return NULL; }
+static Size BogusGetChunkSpace(void* pointer) { return 0; }
+
+/*****************************************************************************
+ *	  GLOBAL MEMORY															 *
+ *****************************************************************************/
+
+static const MemoryContextMethods mcxt_methods[] = {
+	/* aset.c */
+	[MCTX_ASET_ID] .alloc = AllocSetAlloc,
+	[MCTX_ASET_ID].free_p = AllocSetFree,
+	[MCTX_ASET_ID].realloc = AllocSetRealloc,
+	[MCTX_ASET_ID].reset = AllocSetReset,
+	[MCTX_ASET_ID].delete_context = AllocSetDelete,
+	[MCTX_ASET_ID].get_chunk_context = AllocSetGetChunkContext,
+	[MCTX_ASET_ID].get_chunk_space = AllocSetGetChunkSpace,
+	[MCTX_ASET_ID].is_empty = AllocSetIsEmpty,
+	[MCTX_ASET_ID].stats = AllocSetStats,
+#ifdef MEMORY_CONTEXT_CHECKING
+	[MCTX_ASET_ID].check = AllocSetCheck,
+#endif
+
+	/* generation.c */
+	[MCTX_GENERATION_ID].alloc = GenerationAlloc,
+	[MCTX_GENERATION_ID].free_p = GenerationFree,
+	[MCTX_GENERATION_ID].realloc = GenerationRealloc,
+	[MCTX_GENERATION_ID].reset = GenerationReset,
+	[MCTX_GENERATION_ID].delete_context = GenerationDelete,
+	[MCTX_GENERATION_ID].get_chunk_context = GenerationGetChunkContext,
+	[MCTX_GENERATION_ID].get_chunk_space = GenerationGetChunkSpace,
+	[MCTX_GENERATION_ID].is_empty = GenerationIsEmpty,
+	[MCTX_GENERATION_ID].stats = GenerationStats,
+#ifdef MEMORY_CONTEXT_CHECKING
+	[MCTX_GENERATION_ID].check = GenerationCheck,
+#endif
+
+	/* slab.c */
+	[MCTX_SLAB_ID].alloc = SlabAlloc,
+	[MCTX_SLAB_ID].free_p = SlabFree,
+	[MCTX_SLAB_ID].realloc = SlabRealloc,
+	[MCTX_SLAB_ID].reset = SlabReset,
+	[MCTX_SLAB_ID].delete_context = SlabDelete,
+	[MCTX_SLAB_ID].get_chunk_context = SlabGetChunkContext,
+	[MCTX_SLAB_ID].get_chunk_space = SlabGetChunkSpace,
+	[MCTX_SLAB_ID].is_empty = SlabIsEmpty,
+	[MCTX_SLAB_ID].stats = SlabStats,
+#ifdef MEMORY_CONTEXT_CHECKING
+	[MCTX_SLAB_ID].check = SlabCheck,
+#endif
+
+	/* alignedalloc.c */
+	[MCTX_ALIGNED_REDIRECT_ID].alloc = NULL,	/* not required */
+	[MCTX_ALIGNED_REDIRECT_ID].free_p = AlignedAllocFree,
+	[MCTX_ALIGNED_REDIRECT_ID].realloc = AlignedAllocRealloc,
+	[MCTX_ALIGNED_REDIRECT_ID].reset = NULL,	/* not required */
+	[MCTX_ALIGNED_REDIRECT_ID].delete_context = NULL,	/* not required */
+	[MCTX_ALIGNED_REDIRECT_ID].get_chunk_context = AlignedAllocGetChunkContext,
+	[MCTX_ALIGNED_REDIRECT_ID].get_chunk_space = AlignedAllocGetChunkSpace,
+	[MCTX_ALIGNED_REDIRECT_ID].is_empty = NULL, /* not required */
+	[MCTX_ALIGNED_REDIRECT_ID].stats = NULL,	/* not required */
+#ifdef MEMORY_CONTEXT_CHECKING
+	[MCTX_ALIGNED_REDIRECT_ID].check = NULL,	/* not required */
+#endif
+
+	/*
+	 * Unused (as yet) IDs should have dummy entries here.  This allows us to
+	 * fail cleanly if a bogus pointer is passed to pfree or the like.  It
+	 * seems sufficient to provide routines for the methods that might get
+	 * invoked from inspection of a chunk (see MCXT_METHOD calls below).
+	 */
+
+	[MCTX_UNUSED1_ID].free_p = BogusFree,
+	[MCTX_UNUSED1_ID].realloc = BogusRealloc,
+	[MCTX_UNUSED1_ID].get_chunk_context = BogusGetChunkContext,
+	[MCTX_UNUSED1_ID].get_chunk_space = BogusGetChunkSpace,
+
+	[MCTX_UNUSED2_ID].free_p = BogusFree,
+	[MCTX_UNUSED2_ID].realloc = BogusRealloc,
+	[MCTX_UNUSED2_ID].get_chunk_context = BogusGetChunkContext,
+	[MCTX_UNUSED2_ID].get_chunk_space = BogusGetChunkSpace,
+
+	[MCTX_UNUSED3_ID].free_p = BogusFree,
+	[MCTX_UNUSED3_ID].realloc = BogusRealloc,
+	[MCTX_UNUSED3_ID].get_chunk_context = BogusGetChunkContext,
+	[MCTX_UNUSED3_ID].get_chunk_space = BogusGetChunkSpace,
+
+	[MCTX_UNUSED4_ID].free_p = BogusFree,
+	[MCTX_UNUSED4_ID].realloc = BogusRealloc,
+	[MCTX_UNUSED4_ID].get_chunk_context = BogusGetChunkContext,
+	[MCTX_UNUSED4_ID].get_chunk_space = BogusGetChunkSpace,
+};
+
+/*
+ * MemoryContextCreate
+ *		Context-type-independent part of context creation.
+ *
+ * This is only intended to be called by context-type-specific
+ * context creation routines, not by the unwashed masses.
+ *
+ * The memory context creation procedure goes like this:
+ *	1.  Context-type-specific routine makes some initial space allocation,
+ *		including enough space for the context header.  If it fails,
+ *		it can ereport() with no damage done.
+ *	2.	Context-type-specific routine sets up all type-specific fields of
+ *		the header (those beyond MemoryContextData proper), as well as any
+ *		other management fields it needs to have a fully valid context.
+ *		Usually, failure in this step is impossible, but if it's possible
+ *		the initial space allocation should be freed before ereport'ing.
+ *	3.	Context-type-specific routine calls MemoryContextCreate() to fill in
+ *		the generic header fields and link the context into the context tree.
+ *	4.  We return to the context-type-specific routine, which finishes
+ *		up type-specific initialization.  This routine can now do things
+ *		that might fail (like allocate more memory), so long as it's
+ *		sure the node is left in a state that delete will handle.
+ *
+ * node: the as-yet-uninitialized common part of the context header node.
+ * tag: NodeTag code identifying the memory context type.
+ * method_id: MemoryContextMethodID of the context-type being created.
+ * parent: parent context, or NULL if this will be a top-level context.
+ * name: name of context (must be statically allocated).
+ *
+ * Context routines generally assume that MemoryContextCreate can't fail,
+ * so this can contain Assert but not elog/ereport.
+ */
+void MemoryContextCreate(MemoryContext node, NodeTag tag, MemoryContextMethodID method_id, MemoryContext parent, const char* name)
+{
+	/* Creating new memory contexts is not allowed in a critical section */
+	Assert(CritSectionCount == 0);
+
+	/* Initialize all standard fields of memory context header */
+	node->type = tag;
+	node->isReset = true;
+	node->methods = &mcxt_methods[method_id];
+	node->parent = parent;
+	node->firstchild = NULL;
+	node->mem_allocated = 0;
+	node->prevchild = NULL;
+	node->name = name;
+	node->ident = NULL;
+	node->reset_cbs = NULL;
+
+	/* OK to link node into context tree */
+	if (parent)
+	{
+		node->nextchild = parent->firstchild;
+		if (parent->firstchild != NULL)
+			parent->firstchild->prevchild = node;
+		parent->firstchild = node;
+		/* inherit allowInCritSection flag from parent */
+		node->allowInCritSection = parent->allowInCritSection;
+	}
+	else
+	{
+		node->nextchild = NULL;
+		node->allowInCritSection = false;
+	}
+
+	VALGRIND_CREATE_MEMPOOL(node, 0, false);
+}
+
+/*
+ * CurrentMemoryContext
+ *		Default memory context for allocations.
+ */
+MemoryContext CurrentMemoryContext = NULL;
+
+/*
+ * Standard top-level contexts. For a description of the purpose of each
+ * of these contexts, refer to src/backend/utils/mmgr/README
+ */
+MemoryContext TopMemoryContext = NULL;
+MemoryContext ErrorContext = NULL;
+
+
+/*
+ * Recommended default alloc parameters, suitable for "ordinary" contexts
+ * that might hold quite a lot of data.
+ */
+#define ALLOCSET_DEFAULT_MINSIZE   0
+#define ALLOCSET_DEFAULT_INITSIZE  (8 * 1024)
+#define ALLOCSET_DEFAULT_MAXSIZE   (8 * 1024 * 1024)
+#define ALLOCSET_DEFAULT_SIZES \
+	ALLOCSET_DEFAULT_MINSIZE, ALLOCSET_DEFAULT_INITSIZE, ALLOCSET_DEFAULT_MAXSIZE
+
+ /*
+  * Recommended alloc parameters for "small" contexts that are never expected
+  * to contain much data (for example, a context to contain a query plan).
+  */
+#define ALLOCSET_SMALL_MINSIZE	 0
+#define ALLOCSET_SMALL_INITSIZE  (1 * 1024)
+#define ALLOCSET_SMALL_MAXSIZE	 (8 * 1024)
+#define ALLOCSET_SMALL_SIZES \
+	ALLOCSET_SMALL_MINSIZE, ALLOCSET_SMALL_INITSIZE, ALLOCSET_SMALL_MAXSIZE
 
 /*--------------------
  * Chunk freelist k holds chunks of size 1 << (k + ALLOC_MINBITS),
@@ -194,7 +543,7 @@ typedef struct MemoryChunk
 #endif
 
 	/* bitfield for storing details about the chunk */
-	U64		hdrmask;		/* must be last */
+	uint64		hdrmask;		/* must be last */
 } MemoryChunk;
 
 /*
@@ -301,8 +650,6 @@ typedef struct AllocBlockData
 #define AllocBlockIsValid(block) \
 	(PointerIsValid(block) && AllocSetIsValid((block)->aset))
 
-
-MemoryContext CurrentMemoryContext;
 
 /*
  * Rather than repeatedly creating and deleting memory contexts, we keep some
@@ -429,266 +776,197 @@ AllocSetFreeIndex(Size size)
 	return idx;
 }
 
-/*
- * MemoryContextMethodID
- *		A unique identifier for each MemoryContext implementation which
- *		indicates the index into the mcxt_methods[] array. See mcxt.c.
- *
- * For robust error detection, ensure that MemoryContextMethodID has a value
- * for each possible bit-pattern of MEMORY_CONTEXT_METHODID_MASK, and make
- * dummy entries for unused IDs in the mcxt_methods[] array.  We also try
- * to avoid using bit-patterns as valid IDs if they are likely to occur in
- * garbage data, or if they could falsely match on chunks that are really from
- * malloc not palloc.  (We can't tell that for most malloc implementations,
- * but it happens that glibc stores flag bits in the same place where we put
- * the MemoryContextMethodID, so the possible values are predictable for it.)
- */
-typedef enum MemoryContextMethodID
-{
-	MCTX_UNUSED1_ID,			/* 000 occurs in never-used memory */
-	MCTX_UNUSED2_ID,			/* glibc malloc'd chunks usually match 001 */
-	MCTX_UNUSED3_ID,			/* glibc malloc'd chunks > 128kB match 010 */
-	MCTX_ASET_ID,
-	MCTX_GENERATION_ID,
-	MCTX_SLAB_ID,
-	MCTX_ALIGNED_REDIRECT_ID,
-	MCTX_UNUSED4_ID				/* 111 occurs in wipe_mem'd memory */
-} MemoryContextMethodID;
+
 
 /* These functions implement the MemoryContext API for AllocSet context. */
-void* AllocSetAlloc(MemoryContext context, Size size);
-void AllocSetFree(void* pointer);
-void* AllocSetRealloc(void* pointer, Size size);
-void AllocSetReset(MemoryContext context);
-void AllocSetDelete(MemoryContext context);
-MemoryContext AllocSetGetChunkContext(void* pointer);
-Size AllocSetGetChunkSpace(void* pointer);
-bool AllocSetIsEmpty(MemoryContext context);
+void* AllocSetAlloc(MemoryContext context, Size size)
+{
+	return NULL;
+}
+
+void AllocSetFree(void* pointer)
+{
+
+}
+
+void* AllocSetRealloc(void* pointer, Size size)
+{
+	return NULL;
+}
+
+void AllocSetReset(MemoryContext context)
+{
+
+}
+
+void AllocSetDelete(MemoryContext context)
+{
+
+}
+
+MemoryContext AllocSetGetChunkContext(void* pointer)
+{
+	return NULL;
+}
+
+Size AllocSetGetChunkSpace(void* pointer)
+{
+	return 0;
+}
+
+bool AllocSetIsEmpty(MemoryContext context)
+{
+	return false;
+}
+
 void AllocSetStats(MemoryContext context,
 	MemoryStatsPrintFunc printfunc, void* passthru,
 	MemoryContextCounters* totals,
-	bool print_to_stderr);
+	bool print_to_stderr)
+{
+
+}
+
 #ifdef MEMORY_CONTEXT_CHECKING
- void AllocSetCheck(MemoryContext context);
+void AllocSetCheck(MemoryContext context)
+{
+	
+}
 #endif
 
 /* These functions implement the MemoryContext API for Generation context. */
- void* GenerationAlloc(MemoryContext context, Size size);
- void GenerationFree(void* pointer);
- void* GenerationRealloc(void* pointer, Size size);
- void GenerationReset(MemoryContext context);
- void GenerationDelete(MemoryContext context);
- MemoryContext GenerationGetChunkContext(void* pointer);
- Size GenerationGetChunkSpace(void* pointer);
- bool GenerationIsEmpty(MemoryContext context);
- void GenerationStats(MemoryContext context,
+void* GenerationAlloc(MemoryContext context, Size size)
+{
+	return NULL;
+}
+
+void GenerationFree(void* pointer)
+{
+}
+
+void* GenerationRealloc(void* pointer, Size size)
+{
+	return NULL;
+}
+
+void GenerationReset(MemoryContext context)
+{
+}
+
+void GenerationDelete(MemoryContext context)
+{
+}
+
+MemoryContext GenerationGetChunkContext(void* pointer)
+{
+	return NULL;
+}
+
+Size GenerationGetChunkSpace(void* pointer)
+{
+	return 0;
+}
+
+bool GenerationIsEmpty(MemoryContext context)
+{
+	return false;
+}
+
+void GenerationStats(MemoryContext context,
 	MemoryStatsPrintFunc printfunc, void* passthru,
 	MemoryContextCounters* totals,
-	bool print_to_stderr);
+	bool print_to_stderr)
+{
+}
+
 #ifdef MEMORY_CONTEXT_CHECKING
- void GenerationCheck(MemoryContext context);
+void GenerationCheck(MemoryContext context)
+{
+}
+
 #endif
 
 
 /* These functions implement the MemoryContext API for Slab context. */
- void* SlabAlloc(MemoryContext context, Size size);
- void SlabFree(void* pointer);
- void* SlabRealloc(void* pointer, Size size);
- void SlabReset(MemoryContext context);
- void SlabDelete(MemoryContext context);
- MemoryContext SlabGetChunkContext(void* pointer);
- Size SlabGetChunkSpace(void* pointer);
- bool SlabIsEmpty(MemoryContext context);
- void SlabStats(MemoryContext context,
+void* SlabAlloc(MemoryContext context, Size size)
+{
+	return NULL;
+}
+
+void SlabFree(void* pointer)
+{
+}
+
+void* SlabRealloc(void* pointer, Size size)
+{
+	return NULL;
+}
+
+void SlabReset(MemoryContext context)
+{
+}
+
+void SlabDelete(MemoryContext context)
+{
+}
+
+MemoryContext SlabGetChunkContext(void* pointer)
+{
+	return NULL;
+}
+
+Size SlabGetChunkSpace(void* pointer)
+{
+	return 0;
+}
+
+bool SlabIsEmpty(MemoryContext context)
+{
+	return false;
+}
+
+void SlabStats(MemoryContext context,
 	MemoryStatsPrintFunc printfunc, void* passthru,
 	MemoryContextCounters* totals,
-	bool print_to_stderr);
+	bool print_to_stderr)
+{
+}
+
 #ifdef MEMORY_CONTEXT_CHECKING
- void SlabCheck(MemoryContext context);
+void SlabCheck(MemoryContext context)
+{
+}
+
 #endif
 
 /*
  * These functions support the implementation of palloc_aligned() and are not
  * part of a fully-fledged MemoryContext type.
  */
- void AlignedAllocFree(void* pointer);
- void* AlignedAllocRealloc(void* pointer, Size size);
- MemoryContext AlignedAllocGetChunkContext(void* pointer);
- Size AlignedAllocGetChunkSpace(void* pointer);
-
-static void BogusFree(void* pointer) {}
-static void* BogusRealloc(void* pointer, Size size) { return NULL; }
-static MemoryContext BogusGetChunkContext(void* pointer) { return NULL; }
-static Size BogusGetChunkSpace(void* pointer) { return 0; }
-
-/*****************************************************************************
- *	  GLOBAL MEMORY															 *
- *****************************************************************************/
-
-static const MemoryContextMethods mcxt_methods[] = {
-	/* aset.c */
-	[MCTX_ASET_ID] .alloc = AllocSetAlloc,
-	[MCTX_ASET_ID].free_p = AllocSetFree,
-	[MCTX_ASET_ID].realloc = AllocSetRealloc,
-	[MCTX_ASET_ID].reset = AllocSetReset,
-	[MCTX_ASET_ID].delete_context = AllocSetDelete,
-	[MCTX_ASET_ID].get_chunk_context = AllocSetGetChunkContext,
-	[MCTX_ASET_ID].get_chunk_space = AllocSetGetChunkSpace,
-	[MCTX_ASET_ID].is_empty = AllocSetIsEmpty,
-	[MCTX_ASET_ID].stats = AllocSetStats,
-#ifdef MEMORY_CONTEXT_CHECKING
-	[MCTX_ASET_ID].check = AllocSetCheck,
-#endif
-
-	/* generation.c */
-	[MCTX_GENERATION_ID].alloc = GenerationAlloc,
-	[MCTX_GENERATION_ID].free_p = GenerationFree,
-	[MCTX_GENERATION_ID].realloc = GenerationRealloc,
-	[MCTX_GENERATION_ID].reset = GenerationReset,
-	[MCTX_GENERATION_ID].delete_context = GenerationDelete,
-	[MCTX_GENERATION_ID].get_chunk_context = GenerationGetChunkContext,
-	[MCTX_GENERATION_ID].get_chunk_space = GenerationGetChunkSpace,
-	[MCTX_GENERATION_ID].is_empty = GenerationIsEmpty,
-	[MCTX_GENERATION_ID].stats = GenerationStats,
-#ifdef MEMORY_CONTEXT_CHECKING
-	[MCTX_GENERATION_ID].check = GenerationCheck,
-#endif
-
-	/* slab.c */
-	[MCTX_SLAB_ID].alloc = SlabAlloc,
-	[MCTX_SLAB_ID].free_p = SlabFree,
-	[MCTX_SLAB_ID].realloc = SlabRealloc,
-	[MCTX_SLAB_ID].reset = SlabReset,
-	[MCTX_SLAB_ID].delete_context = SlabDelete,
-	[MCTX_SLAB_ID].get_chunk_context = SlabGetChunkContext,
-	[MCTX_SLAB_ID].get_chunk_space = SlabGetChunkSpace,
-	[MCTX_SLAB_ID].is_empty = SlabIsEmpty,
-	[MCTX_SLAB_ID].stats = SlabStats,
-#ifdef MEMORY_CONTEXT_CHECKING
-	[MCTX_SLAB_ID].check = SlabCheck,
-#endif
-
-	/* alignedalloc.c */
-	[MCTX_ALIGNED_REDIRECT_ID].alloc = NULL,	/* not required */
-	[MCTX_ALIGNED_REDIRECT_ID].free_p = AlignedAllocFree,
-	[MCTX_ALIGNED_REDIRECT_ID].realloc = AlignedAllocRealloc,
-	[MCTX_ALIGNED_REDIRECT_ID].reset = NULL,	/* not required */
-	[MCTX_ALIGNED_REDIRECT_ID].delete_context = NULL,	/* not required */
-	[MCTX_ALIGNED_REDIRECT_ID].get_chunk_context = AlignedAllocGetChunkContext,
-	[MCTX_ALIGNED_REDIRECT_ID].get_chunk_space = AlignedAllocGetChunkSpace,
-	[MCTX_ALIGNED_REDIRECT_ID].is_empty = NULL, /* not required */
-	[MCTX_ALIGNED_REDIRECT_ID].stats = NULL,	/* not required */
-#ifdef MEMORY_CONTEXT_CHECKING
-	[MCTX_ALIGNED_REDIRECT_ID].check = NULL,	/* not required */
-#endif
-
-
-	/*
-	 * Unused (as yet) IDs should have dummy entries here.  This allows us to
-	 * fail cleanly if a bogus pointer is passed to pfree or the like.  It
-	 * seems sufficient to provide routines for the methods that might get
-	 * invoked from inspection of a chunk (see MCXT_METHOD calls below).
-	 */
-
-	[MCTX_UNUSED1_ID].free_p = BogusFree,
-	[MCTX_UNUSED1_ID].realloc = BogusRealloc,
-	[MCTX_UNUSED1_ID].get_chunk_context = BogusGetChunkContext,
-	[MCTX_UNUSED1_ID].get_chunk_space = BogusGetChunkSpace,
-
-	[MCTX_UNUSED2_ID].free_p = BogusFree,
-	[MCTX_UNUSED2_ID].realloc = BogusRealloc,
-	[MCTX_UNUSED2_ID].get_chunk_context = BogusGetChunkContext,
-	[MCTX_UNUSED2_ID].get_chunk_space = BogusGetChunkSpace,
-
-	[MCTX_UNUSED3_ID].free_p = BogusFree,
-	[MCTX_UNUSED3_ID].realloc = BogusRealloc,
-	[MCTX_UNUSED3_ID].get_chunk_context = BogusGetChunkContext,
-	[MCTX_UNUSED3_ID].get_chunk_space = BogusGetChunkSpace,
-
-	[MCTX_UNUSED4_ID].free_p = BogusFree,
-	[MCTX_UNUSED4_ID].realloc = BogusRealloc,
-	[MCTX_UNUSED4_ID].get_chunk_context = BogusGetChunkContext,
-	[MCTX_UNUSED4_ID].get_chunk_space = BogusGetChunkSpace,
-};
-
-/*
- * MemoryContextCreate
- *		Context-type-independent part of context creation.
- *
- * This is only intended to be called by context-type-specific
- * context creation routines, not by the unwashed masses.
- *
- * The memory context creation procedure goes like this:
- *	1.  Context-type-specific routine makes some initial space allocation,
- *		including enough space for the context header.  If it fails,
- *		it can ereport() with no damage done.
- *	2.	Context-type-specific routine sets up all type-specific fields of
- *		the header (those beyond MemoryContextData proper), as well as any
- *		other management fields it needs to have a fully valid context.
- *		Usually, failure in this step is impossible, but if it's possible
- *		the initial space allocation should be freed before ereport'ing.
- *	3.	Context-type-specific routine calls MemoryContextCreate() to fill in
- *		the generic header fields and link the context into the context tree.
- *	4.  We return to the context-type-specific routine, which finishes
- *		up type-specific initialization.  This routine can now do things
- *		that might fail (like allocate more memory), so long as it's
- *		sure the node is left in a state that delete will handle.
- *
- * node: the as-yet-uninitialized common part of the context header node.
- * tag: NodeTag code identifying the memory context type.
- * method_id: MemoryContextMethodID of the context-type being created.
- * parent: parent context, or NULL if this will be a top-level context.
- * name: name of context (must be statically allocated).
- *
- * Context routines generally assume that MemoryContextCreate can't fail,
- * so this can contain Assert but not elog/ereport.
- */
-void
-MemoryContextCreate(MemoryContext node,
-	NodeTag tag,
-	MemoryContextMethodID method_id,
-	MemoryContext parent,
-	const char* name)
+void AlignedAllocFree(void* pointer)
 {
-	/* Creating new memory contexts is not allowed in a critical section */
-	Assert(CritSectionCount == 0);
-
-	/* Initialize all standard fields of memory context header */
-	node->type = tag;
-	node->isReset = true;
-	node->methods = &mcxt_methods[method_id];
-	node->parent = parent;
-	node->firstchild = NULL;
-	node->mem_allocated = 0;
-	node->prevchild = NULL;
-	node->name = name;
-	node->ident = NULL;
-	node->reset_cbs = NULL;
-
-	/* OK to link node into context tree */
-	if (parent)
-	{
-		node->nextchild = parent->firstchild;
-		if (parent->firstchild != NULL)
-			parent->firstchild->prevchild = node;
-		parent->firstchild = node;
-		/* inherit allowInCritSection flag from parent */
-		node->allowInCritSection = parent->allowInCritSection;
-	}
-	else
-	{
-		node->nextchild = NULL;
-		node->allowInCritSection = false;
-	}
-
-	VALGRIND_CREATE_MEMPOOL(node, 0, false);
 }
+
+void* AlignedAllocRealloc(void* pointer, Size size)
+{
+	return NULL;
+}
+
+MemoryContext AlignedAllocGetChunkContext(void* pointer)
+{
+	return NULL;
+}
+
+Size AlignedAllocGetChunkSpace(void* pointer)
+{
+	return 0;
+}
+
 
 /*
  * Public routines
  */
 
-#if 0
  /*
   * AllocSetContextCreateInternal
   *		Create a new AllocSet context.
@@ -705,12 +983,7 @@ MemoryContextCreate(MemoryContext node,
   * Note: don't call this directly; go through the wrapper macro
   * AllocSetContextCreate.
   */
-MemoryContext 
-AllocSetContextCreateInternal(MemoryContext parent,
-	const char* name,
-	Size minContextSize,
-	Size initBlockSize,
-	Size maxBlockSize)
+MemoryContext AllocSetContextCreateInternal(MemoryContext parent, const char* name, Size minContextSize, Size initBlockSize, Size maxBlockSize)
 {
 	int			freeListIndex;
 	Size		firstBlockSize;
@@ -718,8 +991,7 @@ AllocSetContextCreateInternal(MemoryContext parent,
 	AllocBlock	block;
 
 	/* ensure MemoryChunk's size is properly maxaligned */
-	StaticAssertDecl(ALLOC_CHUNKHDRSZ == MAXALIGN(ALLOC_CHUNKHDRSZ),
-		"sizeof(MemoryChunk) is not maxaligned");
+	StaticAssertDecl(ALLOC_CHUNKHDRSZ == MAXALIGN(ALLOC_CHUNKHDRSZ), "sizeof(MemoryChunk) is not maxaligned");
 	/* check we have enough space to store the freelist link */
 	StaticAssertDecl(sizeof(AllocFreeListLink) <= (1 << ALLOC_MINBITS),
 		"sizeof(AllocFreeListLink) larger than minimum allocation size");
@@ -736,26 +1008,18 @@ AllocSetContextCreateInternal(MemoryContext parent,
 	 * MEMORYCHUNK_MAX_BLOCKOFFSET bytes into the block if the block was to be
 	 * larger than this.
 	 */
-	Assert(initBlockSize == MAXALIGN(initBlockSize) &&
-		initBlockSize >= 1024);
-	Assert(maxBlockSize == MAXALIGN(maxBlockSize) &&
-		maxBlockSize >= initBlockSize &&
-		AllocHugeSizeIsValid(maxBlockSize)); /* must be safe to double */
-	Assert(minContextSize == 0 ||
-		(minContextSize == MAXALIGN(minContextSize) &&
-			minContextSize >= 1024 &&
-			minContextSize <= maxBlockSize));
+	Assert(initBlockSize == MAXALIGN(initBlockSize) && initBlockSize >= 1024);
+	Assert(maxBlockSize == MAXALIGN(maxBlockSize) && maxBlockSize >= initBlockSize && AllocHugeSizeIsValid(maxBlockSize)); /* must be safe to double */
+	Assert(minContextSize == 0 || (minContextSize == MAXALIGN(minContextSize) && minContextSize >= 1024 && minContextSize <= maxBlockSize));
 	Assert(maxBlockSize <= MEMORYCHUNK_MAX_BLOCKOFFSET);
 
 	/*
 	 * Check whether the parameters match either available freelist.  We do
 	 * not need to demand a match of maxBlockSize.
 	 */
-	if (minContextSize == ALLOCSET_DEFAULT_MINSIZE &&
-		initBlockSize == ALLOCSET_DEFAULT_INITSIZE)
+	if (minContextSize == ALLOCSET_DEFAULT_MINSIZE && initBlockSize == ALLOCSET_DEFAULT_INITSIZE)
 		freeListIndex = 0;
-	else if (minContextSize == ALLOCSET_SMALL_MINSIZE &&
-		initBlockSize == ALLOCSET_SMALL_INITSIZE)
+	else if (minContextSize == ALLOCSET_SMALL_MINSIZE && initBlockSize == ALLOCSET_SMALL_INITSIZE)
 		freeListIndex = 1;
 	else
 		freeListIndex = -1;
@@ -784,16 +1048,14 @@ AllocSetContextCreateInternal(MemoryContext parent,
 				parent,
 				name);
 
-			((MemoryContext)set)->mem_allocated =
-				set->keeper->endptr - ((char*)set);
+			((MemoryContext)set)->mem_allocated = set->keeper->endptr - ((char*)set);
 
 			return (MemoryContext)set;
 		}
 	}
 
 	/* Determine size of initial block */
-	firstBlockSize = MAXALIGN(sizeof(AllocSetContext)) +
-		ALLOC_BLOCKHDRSZ + ALLOC_CHUNKHDRSZ;
+	firstBlockSize = MAXALIGN(sizeof(AllocSetContext)) + ALLOC_BLOCKHDRSZ + ALLOC_CHUNKHDRSZ;
 	if (minContextSize != 0)
 		firstBlockSize = Max(firstBlockSize, minContextSize);
 	else
@@ -808,11 +1070,14 @@ AllocSetContextCreateInternal(MemoryContext parent,
 	{
 		if (TopMemoryContext)
 			MemoryContextStats(TopMemoryContext);
+#if 0
 		ereport(ERROR,
 			(errcode(ERRCODE_OUT_OF_MEMORY),
 				errmsg("out of memory"),
 				errdetail("Failed while creating memory context \"%s\".",
 					name)));
+#endif 
+		return NULL;
 	}
 
 	/*
@@ -820,7 +1085,7 @@ AllocSetContextCreateInternal(MemoryContext parent,
 	 * we'd leak the header/initial block if we ereport in this stretch.
 	 */
 
-	 /* Fill in the initial block's block header */
+	/* Fill in the initial block's block header */
 	block = (AllocBlock)(((char*)set) + MAXALIGN(sizeof(AllocSetContext)));
 	block->aset = set;
 	block->freeptr = ((char*)block) + ALLOC_BLOCKHDRSZ;
@@ -856,8 +1121,7 @@ AllocSetContextCreateInternal(MemoryContext parent,
 	 *
 	 * Also, allocChunkLimit must not exceed ALLOCSET_SEPARATE_THRESHOLD.
 	 */
-	StaticAssertStmt(ALLOC_CHUNK_LIMIT == ALLOCSET_SEPARATE_THRESHOLD,
-		"ALLOC_CHUNK_LIMIT != ALLOCSET_SEPARATE_THRESHOLD");
+	StaticAssertStmt(ALLOC_CHUNK_LIMIT == ALLOCSET_SEPARATE_THRESHOLD,	"ALLOC_CHUNK_LIMIT != ALLOCSET_SEPARATE_THRESHOLD");
 
 	/*
 	 * Determine the maximum size that a chunk can be before we allocate an
@@ -884,6 +1148,5 @@ AllocSetContextCreateInternal(MemoryContext parent,
 
 	return (MemoryContext)set;
 }
-#endif
 
 

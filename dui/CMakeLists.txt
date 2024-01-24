@@ -1,6 +1,6 @@
 project(libdui)
 
-file(GLOB LIBDUI_SRC "dui.cpp" "dui_render.cpp" "dui_mempool.c")
+file(GLOB LIBDUI_SRC "dui.cpp" "dui_render.c" "dui_mempool.c")
 
 add_library(${PROJECT_NAME} ${LIBDUI_SRC})
 set_property(TARGET ${PROJECT_NAME} PROPERTY
