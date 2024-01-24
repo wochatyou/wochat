@@ -4,7 +4,15 @@ project(wochat-win64 CXX)
 set(WOCHATAPP_DIR "${CMAKE_CURRENT_LIST_DIR}"
     CACHE PATH "WoChat application directory")
 
+set(PRECOMPILE_HEADER_FILES pch.h)
+
 add_executable(${PROJECT_NAME} WIN32 main.cpp wochat.rc)
+
+# Specify the precompiled header(s)
+target_precompile_headers(${PROJECT_NAME} PRIVATE ${PRECOMPILE_HEADER_FILES})
+
+# Specify the startup project
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
 # target_link_libraries(${PROJECT_NAME} libdui libbitcoin libmosquitto_static secp256k1 crc32c base64)
