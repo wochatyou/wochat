@@ -6,7 +6,7 @@ add_definitions(-D_UNICODE -DUNICODE -DNOMINMAX)
 
 set(CMAKE_CXX_STANDARD 17)
 add_subdirectory(win)
-# add_subdirectory(dui)
+add_subdirectory(dui)
 # add_subdirectory(bitcoin)
 # add_subdirectory(akelpad)
 # add_subdirectory(mosquitto)
