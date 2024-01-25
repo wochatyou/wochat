@@ -1,8 +1,7 @@
-#ifndef __DUI_WIN_H__
-#define __DUI_WIN_H__
+#ifndef __WT_DUI_WIN_H__
+#define __WT_DUI_WIN_H__
 
 #include "dui.h"
-#include "dui_mempool.h"
 
 #define DUI_MINIMAL_THUMB_SIZE          64
 #define DUI_ALLOCSET_DEFAULT_INITSIZE   (8 * 1024)
@@ -87,7 +86,7 @@ public:
     U32  m_scrollbarColor  = DEFAULT_SCROLLBKG_COLOR;
     U32  m_thumbColor      = DEFAULT_SCROLLTHUMB_COLOR;
 
-    XTextDrawInfo* m_textDrawInfo = nullptr;
+    //XTextDrawInfo* m_textDrawInfo = nullptr;
     U16            m_textDrawInfoCount = 0;
 public:
     XWindowT()
@@ -123,12 +122,13 @@ public:
             assert(nullptr != xctl);
             xctl->Term();
         }
-
+#if 0
         if (nullptr != m_pool)
         {
             mempool_destroy(m_pool);
             m_pool = nullptr;
         }
+#endif
     }
 
     static int XControlAction(void* obj, U32 uMsg, U64 wParam, U64 lParam)
@@ -142,15 +142,15 @@ public:
         return ret;
     }
 
-    void InitControl() {}
-
+    void InitControl(void* ptr) {}
+#if 0
     tagXTextDrawInfo* GetTextDrawInfo(U16* count)
     {
         if (nullptr != count)
             *count = m_textDrawInfoCount;
         return m_textDrawInfo;
     }
-
+#endif
     // < 0 : I do not handle this message
     // = 0 : I handled, but I do not need to upgrade the screen
     // > 0 : I handled this message, and need the host window to upgrade the screen
@@ -1022,5 +1022,5 @@ public:
     }
 };
 
-#endif  /* __DUI_WIN_H__ */
+#endif  /* __WT_DUI_WIN_H__ */
 

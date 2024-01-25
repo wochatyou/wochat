@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <assert.h>
 
+#include "dui_render.h"
+
 /* fill the whole screen with one color */
 int DUI_ScreenClear(uint32_t* dst, uint32_t size, uint32_t color)
 {
@@ -9,7 +11,7 @@ int DUI_ScreenClear(uint32_t* dst, uint32_t size, uint32_t color)
 	newColor <<= 32;
 	newColor |= (uint64_t)color;
 
-	assert(nullptr != dst);
+	assert(NULL != dst);
 
 	// because using pointer 64 bit is 2 times faster than pointer 32 bit
 	// so we use pointer 64 to speed up the copying

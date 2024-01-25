@@ -17,6 +17,10 @@
 #endif
 
 #include "resource.h"
+#include "wochat.h"
+#include "xbitmapdata.h"
+
+#include "win0.h"
 
 #define DECLARE_XWND_CLASS(WndClassName, uIcon, uIconSmall) \
 static ATL::CWndClassInfo& GetWndClassInfo() \
@@ -43,7 +47,6 @@ static ATL::CWndClassInfo& GetWndClassInfo() \
 			return TRUE; \
 	}
 
-
 template <class T>
 void SafeRelease(T** ppT)
 {
@@ -67,6 +70,10 @@ HCURSOR				g_hCursorNS = nullptr;
 HCURSOR				g_hCursorHand = nullptr;
 HCURSOR				g_hCursorIBeam = nullptr;
 wchar_t				g_AppPath[MAX_PATH + 1] = {0};
+// private key and public key
+U8					g_SK[32] = { 0 };
+U8					g_PK[33] = { 0 };
+
 CAtlWinModule _Module;
 
 /************************************************************************************************
@@ -178,6 +185,46 @@ public:
 		return 0;
 	}
 
+private:
+	enum
+	{
+		STEPXY = 1,
+		SPLITLINE_WIDTH = 1
+	};
+
+	enum class DrapMode { dragModeNone, dragModeV, dragModeH };
+	DrapMode m_dragMode = DrapMode::dragModeNone;
+
+	U32* m_screenBuff = nullptr;
+	U32  m_screenSize = 0;
+
+	RECT m_rectClient = { 0 };
+
+	int m_splitterVPos = -1;               // splitter bar position
+	int m_splitterVPosNew = -1;            // internal - new position while moving
+	int m_splitterVPosOld = -1;            // keep align value
+
+	int m_splitterHPos = -1;
+	int m_splitterHPosNew = -1;
+	int m_splitterHPosOld = -1;
+
+	int m_cxDragOffset = 0;		// internal
+	int m_cyDragOffset = 0;		// internal
+
+	int m_splitterVPosToLeft = 300;       // the minum pixel to the left of the client area.
+	int m_splitterVPosToRight = 400;       // the minum pixel to the right of the client area.
+	int m_splitterHPosToTop = (XWIN3_HEIGHT + XWIN4_HEIGHT);        // the minum pixel to the top of the client area.
+	int m_splitterHPosToBottom = XWIN5_HEIGHT;       // the minum pixel to the right of the client area.
+
+	int m_marginLeft = 64;
+	int m_marginRight = 0;
+
+	int m_splitterHPosfix0 = XWIN1_HEIGHT;
+	int m_splitterHPosfix1 = XWIN3_HEIGHT;
+
+	UINT m_nDPI = 96;
+
+	XWindow0 m_win0;
 private:
 	ID2D1HwndRenderTarget* m_pD2DRenderTarget = nullptr;
 	ID2D1Bitmap* m_pixelBitmap = nullptr;
@@ -333,7 +380,7 @@ static int InitInstance(HINSTANCE hInstance)
 		return 3;
 	}
 
-	length = GetModuleFileName(hInstance, g_AppPath, MAX_PATH);
+	length = GetModuleFileNameW(hInstance, g_AppPath, MAX_PATH);
 	if (length > 0)
 	{
 		DWORD i;
@@ -346,15 +393,17 @@ static int InitInstance(HINSTANCE hInstance)
 				break;
 		}
 		g_AppPath[i] = L'\0';
-
-		swprintf((wchar_t*)iniFilePath, MAX_PATH, L"%s\\wochat.ini", g_AppPath);
-		i = GetPrivateProfileString(L"global", L"sk", NULL, sk, 64, iniFilePath);
-		if (i > 0)
-		{
-			i++;
-		}
 	}
-	else g_AppPath[0] = L'\0';
+	else 
+	{
+		g_AppPath[0] = L'\0';
+		return 4;
+	}
+
+	iRet = GetSecretKey(g_AppPath, g_SK);
+
+	if (0 != iRet)
+		return 5;
 
 	return 0;
 }

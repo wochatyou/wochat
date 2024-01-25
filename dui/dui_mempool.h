@@ -1,9 +1,11 @@
 #ifndef __WT_DUI_MEMPOOL_H__
 #define __WT_DUI_MEMPOOL_H__
 
-#include <stdbool.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include "dui.h"
+#include <stdbool.h>
 
 typedef unsigned char uint8;	/* == 8 bits */
 typedef unsigned short uint16;	/* == 16 bits */
@@ -22,10 +24,10 @@ typedef uint16 bits16;			/* >= 16 bits */
 typedef uint32 bits32;			/* >= 32 bits */
 
 #ifndef HAVE_INT64
-typedef long int int64;
+typedef long long int int64;
 #endif
 #ifndef HAVE_UINT64
-typedef unsigned long int uint64;
+typedef unsigned long long int uint64;
 #endif
 
 /* ----------------
@@ -56,6 +58,37 @@ typedef unsigned long int uint64;
  */
 typedef size_t Size;
 
-#define AllocSetContextCreate AllocSetContextCreateInternal
+#define MemoryContext		DUIMemoryContext
+#define MemoryContextData	DUIMemoryContextData
+#define	mempool_create		DUI_mempool_create
+#define	mempool_destroy		DUI_mempool_destroy
+#define mempool_reset		DUI_mempool_reset
+#define mempool_size		DUI_mempool_size
+#define	palloc				DUI_palloc
+#define	palloc0				DUI_palloc0
+#define pfree				DUI_pfree
+
+typedef struct MemoryContextData* MemoryContext;
+
+MemoryContext mempool_create(unsigned int minContextSize, unsigned int initBlockSize, unsigned int maxBlockSize);
+
+void mempool_destroy(MemoryContext cxt);
+
+void mempool_reset(MemoryContext cxt);
+
+#ifdef _DEBUG
+// size_t mempool_size(MemoryContext cxt);
+#endif
+
+void* palloc(MemoryContext cxt, size_t size);
+
+void* palloc0(MemoryContext cxt, size_t size);
+
+void pfree(void* pointer);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __WT_DUI_MEMPOOL_H__
