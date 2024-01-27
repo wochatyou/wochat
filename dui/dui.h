@@ -236,6 +236,9 @@ enum XControlState
     XCONTROL_STATE_FOCUSED = XCONTROL_STATE_PRESSED
 };
 
+typedef void* DUI_Surface;
+typedef void* DUI_Brush;
+
 class XControl
 {
 public:

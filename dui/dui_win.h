@@ -349,6 +349,17 @@ public:
 
     void UpdateControlPosition() {}
 
+    int DoDraw(DUI_Surface surface, DUI_Brush brush) { return 0; }
+    int Draw(DUI_Surface surface, DUI_Brush brush)
+    {
+        if (nullptr != surface)
+        {
+            // the derived class will draw its content
+            T* pT = static_cast<T*>(this);
+            pT->DoDraw(surface, brush);
+        }
+        return 0;
+    }
 
     int Do_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr) { return 0; }
     int On_DUI_PAINT(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)

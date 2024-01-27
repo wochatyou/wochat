@@ -11,7 +11,8 @@ int DUI_ScreenClear(uint32_t* dst, uint32_t size, uint32_t color)
 	newColor <<= 32;
 	newColor |= (uint64_t)color;
 
-	assert(NULL != dst);
+	if (NULL == dst)
+		return 0;
 
 	// because using pointer 64 bit is 2 times faster than pointer 32 bit
 	// so we use pointer 64 to speed up the copying
@@ -34,6 +35,9 @@ int DUI_ScreenDrawRect(uint32_t* dst, int w, int h, uint32_t* src, int sw, int s
 	uint32_t* startSRC;
 	uint32_t* p;
 	int SW, SH;
+
+	if (NULL == dst)
+		return 0;
 
 	if (dx >= w || dy >= h) // not in the scope
 		return 0;
@@ -72,6 +76,9 @@ int DUI_ScreenDrawRectRound(uint32_t* dst, int w, int h, uint32_t* src, int sw, 
 	int SW, SH;
 	int normalLT, normalRT, normalLB, normalRB;
 	
+	if (NULL == dst)
+		return 0;
+
 	assert(dx > 0);
 	normalLT = normalRT = normalLB = normalRB = 1;
 
@@ -150,6 +157,9 @@ int DUI_ScreenFillRect(uint32_t* dst, int w, int h, uint32_t color, int sw, int 
 	uint32_t* startDST;
 	uint32_t* p;
 	int SW, SH;
+
+	if (NULL == dst)
+		return 0;
 
 	assert(dx >= 0);
 

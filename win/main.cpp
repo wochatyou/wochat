@@ -416,6 +416,7 @@ public:
 					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
 				}
 				SafeRelease(&pBitmap);
+				m_win0.Draw(m_pD2DRenderTarget, m_pTextBrush0);
 				m_win0.SetScreenValide(); // prevent un-necessary draw again
 			}
 
@@ -434,6 +435,7 @@ public:
 					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
 				}
 				SafeRelease(&pBitmap);
+				m_win1.Draw(m_pD2DRenderTarget, m_pTextBrush0);
 				m_win1.SetScreenValide(); // prevent un-necessary draw again
 			}
 
