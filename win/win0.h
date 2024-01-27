@@ -94,7 +94,7 @@ private:
 	}
 
 public:
-	void InitControl(void* ptr)
+	void InitControl()
 	{
 		U8 id;
 		int	w = XWIN0_WIDTH;
@@ -119,7 +119,7 @@ public:
 		{
 			button = new(mem)XButton;
 			assert(nullptr != button);
-			button->Init(ptr);
+			button->Init(dui_hCursorHand);
 			bmpN = &dui_bitmapArray[XWIN0_BITMAP_ME];
 			button->setBitmap(bmpN, bmpN, bmpN, bmpN);
 			sw = button->getWidth(); sh = button->getHeight();
@@ -139,7 +139,7 @@ public:
 		{
 			button = new(mem)XButton;
 			assert(nullptr != button);
-			button->Init(ptr);
+			button->Init(dui_hCursorHand);
 			bmpN = &dui_bitmapArray[XWIN0_BITMAP_TALKN];
 			bmpH = &dui_bitmapArray[XWIN0_BITMAP_TALKH];
 			bmpP = &dui_bitmapArray[XWIN0_BITMAP_TALKP];
@@ -165,7 +165,7 @@ public:
 		{
 			button = new(mem)XButton;
 			assert(nullptr != button);
-			button->Init(ptr);
+			button->Init(dui_hCursorHand);
 			bmpN = &dui_bitmapArray[XWIN0_BITMAP_FRIENDN];
 			bmpH = &dui_bitmapArray[XWIN0_BITMAP_FRIENDH];
 			bmpP = &dui_bitmapArray[XWIN0_BITMAP_FRIENDP];
@@ -189,7 +189,7 @@ public:
 		{
 			button = new(mem)XButton;
 			assert(nullptr != button);
-			button->Init(ptr);
+			button->Init(dui_hCursorHand);
 			bmpN = &dui_bitmapArray[XWIN0_BITMAP_QUANN];
 			bmpH = &dui_bitmapArray[XWIN0_BITMAP_QUANH];
 			bmpP = &dui_bitmapArray[XWIN0_BITMAP_QUANP];
@@ -213,7 +213,7 @@ public:
 		{
 			button = new(mem)XButton;
 			assert(nullptr != button);
-			button->Init(ptr);
+			button->Init(dui_hCursorHand);
 			bmpN = &dui_bitmapArray[XWIN0_BITMAP_COINN];
 			bmpH = &dui_bitmapArray[XWIN0_BITMAP_COINH];
 			bmpP = &dui_bitmapArray[XWIN0_BITMAP_COINP];
@@ -237,7 +237,7 @@ public:
 		{
 			button = new(mem)XButton;
 			assert(nullptr != button);
-			button->Init(ptr);
+			button->Init(dui_hCursorHand);
 			bmpN = &dui_bitmapArray[XWIN0_BITMAP_FAVORITEN];
 			bmpH = &dui_bitmapArray[XWIN0_BITMAP_FAVORITEH];
 			bmpP = &dui_bitmapArray[XWIN0_BITMAP_FAVORITEP];
@@ -261,7 +261,7 @@ public:
 		{
 			button = new(mem)XButton;
 			assert(nullptr != button);
-			button->Init(ptr);
+			button->Init(dui_hCursorHand);
 			bmpN = &dui_bitmapArray[XWIN0_BITMAP_FILEN];
 			bmpH = &dui_bitmapArray[XWIN0_BITMAP_FILEH];
 			bmpP = &dui_bitmapArray[XWIN0_BITMAP_FILEP];
@@ -285,7 +285,7 @@ public:
 		{
 			button = new(mem)XButton;
 			assert(nullptr != button);
-			button->Init(ptr);
+			button->Init(dui_hCursorHand);
 			bmpN = &dui_bitmapArray[XWIN0_BITMAP_SETTINGN];
 			bmpH = &dui_bitmapArray[XWIN0_BITMAP_SETTINGH];
 			bmpP = &dui_bitmapArray[XWIN0_BITMAP_SETTINGP];

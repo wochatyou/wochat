@@ -1,16 +1,29 @@
 #include "dui.h"
 
 // global variables
-U8 DUIMessageOSMap[MESSAGEMAP_TABLE_SIZE] = { 0 };
-XControl* dui_controlArray[DUI_MAX_CONTROLS];
-XBitmap   dui_bitmapArray[DUI_MAX_BUTTON_BITMAPS];
-U16* dui_tooltip[DUI_MAX_CONTROLS];
-U64       dui_status;
+U8          DUIMessageOSMap[MESSAGEMAP_TABLE_SIZE] = { 0 };
+XControl*   dui_controlArray[DUI_MAX_CONTROLS];
+XBitmap     dui_bitmapArray[DUI_MAX_BUTTON_BITMAPS];
+U16*        dui_tooltip[DUI_MAX_CONTROLS];
+U64         dui_status;
+
+HCURSOR	dui_hCursorWE = nullptr;
+HCURSOR	dui_hCursorNS = nullptr;
+HCURSOR	dui_hCursorHand = nullptr;
+HCURSOR	dui_hCursorIBeam = nullptr;
 
 int DUI_Init()
 {
     int i;
     U8* p = DUIMessageOSMap;
+
+    //g_hCursorWE = ::LoadCursor(NULL, IDC_SIZEWE);
+    //g_hCursorNS = ::LoadCursor(NULL, IDC_SIZENS);
+    dui_hCursorHand = ::LoadCursor(nullptr, IDC_HAND);
+    dui_hCursorIBeam = ::LoadCursor(NULL, IDC_IBEAM);
+
+    if (nullptr == dui_hCursorHand || nullptr == dui_hCursorIBeam)
+        return DUI_FAILED;
 
     for (i = 0; i < DUI_MAX_CONTROLS; i++)
         dui_controlArray[i] = nullptr;

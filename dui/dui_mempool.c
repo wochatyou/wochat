@@ -1,6 +1,58 @@
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "dui_mempool.h"
+
+typedef unsigned char uint8;	/* == 8 bits */
+typedef unsigned short uint16;	/* == 16 bits */
+typedef unsigned int uint32;	/* == 32 bits */
+
+typedef signed char int8;		/* == 8 bits */
+typedef signed short int16;		/* == 16 bits */
+typedef signed int int32;		/* == 32 bits */
+
+/*
+ * bitsN
+ *		Unit of bitwise operation, AT LEAST N BITS IN SIZE.
+ */
+typedef uint8 bits8;			/* >= 8 bits */
+typedef uint16 bits16;			/* >= 16 bits */
+typedef uint32 bits32;			/* >= 32 bits */
+
+#ifndef HAVE_INT64
+typedef long long int int64;
+#endif
+#ifndef HAVE_UINT64
+typedef unsigned long long int uint64;
+#endif
+
+/* ----------------
+ * Alignment macros: align a length or address appropriately for a given type.
+ * The fooALIGN() macros round up to a multiple of the required alignment,
+ * while the fooALIGN_DOWN() macros round down.  The latter are more useful
+ * for problems like "how many X-sized structures will fit in a page?".
+ *
+ * NOTE: TYPEALIGN[_DOWN] will not work if ALIGNVAL is not a power of 2.
+ * That case seems extremely unlikely to be needed in practice, however.
+ *
+ * NOTE: MAXIMUM_ALIGNOF, and hence MAXALIGN(), intentionally exclude any
+ * larger-than-8-byte types the compiler might have.
+ * ----------------
+ */
+
+#define TYPEALIGN(ALIGNVAL,LEN)  \
+	(((uintptr_t) (LEN) + ((ALIGNVAL) - 1)) & ~((uintptr_t) ((ALIGNVAL) - 1)))
+
+ /* Define as the maximum alignment requirement of any C data type. */
+#define MAXIMUM_ALIGNOF 8
+
+#define MAXALIGN(LEN)			TYPEALIGN(MAXIMUM_ALIGNOF, (LEN))
+
+/*
+ * Size
+ *		Size of any memory resident object, as returned by sizeof.
+ */
+typedef size_t Size;
 
 #define Assert(condition)	((void)true)
 #define StaticAssertDecl(condition, errmessage)	((void)true)
@@ -175,7 +227,7 @@ typedef struct MemoryChunk
  * of memory allocation should just treat it as an abstract type, so we
  * do not provide the struct contents here.
  */
-// typedef struct MemoryContextData* MemoryContext;
+typedef struct MemoryContextData* MemoryContext;
 
 /*
  * MemoryContext
@@ -626,6 +678,30 @@ MemoryChunkSetHdrMaskExternal(MemoryChunk* chunk, MemoryContextMethodID methodid
 	chunk->hdrmask = MEMORYCHUNK_MAGIC | (((uint64)1) << MEMORYCHUNK_EXTERNAL_BASEBIT) | methodid;
 }
 
+/*
+ * MemoryChunkSetHdrMask
+ *		Store the given 'block', 'chunk_size' and 'methodid' in the given
+ *		MemoryChunk.
+ *
+ * The number of bytes between 'block' and 'chunk' must be <=
+ * MEMORYCHUNK_MAX_BLOCKOFFSET.
+ * 'value' must be <= MEMORYCHUNK_MAX_VALUE.
+ */
+static inline void MemoryChunkSetHdrMask(MemoryChunk* chunk, void* block, Size value, MemoryContextMethodID methodid) 
+{
+	Size		blockoffset = (char*)chunk - (char*)block;
+
+	Assert((char*)chunk >= (char*)block);
+	Assert(blockoffset <= MEMORYCHUNK_MAX_BLOCKOFFSET);
+	Assert(value <= MEMORYCHUNK_MAX_VALUE);
+	Assert((int)methodid <= MEMORY_CONTEXT_METHODID_MASK);
+
+	chunk->hdrmask = (((uint64)blockoffset) << MEMORYCHUNK_BLOCKOFFSET_BASEBIT) |
+		(((uint64)value) << MEMORYCHUNK_VALUE_BASEBIT) |
+		methodid;
+}
+
+
 /* private macros for making the inline functions below more simple */
 #define HdrMaskIsExternal(hdrmask) \
 	((hdrmask) & (((uint64) 1) << MEMORYCHUNK_EXTERNAL_BASEBIT))
@@ -845,6 +921,18 @@ typedef struct AllocBlockData
  */
 #define AllocPointerIsValid(pointer) PointerIsValid(pointer)
 
+ /*
+  * The first field of a node of any type is guaranteed to be the NodeTag.
+  * Hence the type of any node can be gotten by casting it to Node. Declaring
+  * a variable to be of Node * (instead of void *) can also facilitate
+  * debugging.
+  */
+typedef struct Node
+{
+	NodeTag		type;
+} Node;
+
+#define nodeTag(nodeptr)		(((const Node*)(nodeptr))->type)
 #define IsA(nodeptr,_type_)		(nodeTag(nodeptr) == T_##_type_)
 
  /*
@@ -2526,18 +2614,19 @@ MemoryContextInit(void)
 	MemoryContextAllowInCriticalSection(ErrorContext, true);
 }
 
-void* palloc(MemoryContext cxt, size_t size)
+void* palloc(MemoryPoolContext cxt, size_t size)
 {
 	/* duplicates MemoryContextAlloc to avoid increased overhead */
 	void* ret;
-	MemoryContext context = cxt;
+	MemoryContext context = (MemoryContext)cxt;
 
 	if (cxt == NULL)
 	{
 		return NULL;
 	}
+
 	Assert(MemoryContextIsValid(context));
-	AssertNotInCriticalSection(context);
+	//AssertNotInCriticalSection(context);
 
 	if (!AllocSizeIsValid(size))
 	{
@@ -2566,11 +2655,11 @@ void* palloc(MemoryContext cxt, size_t size)
 	return ret;
 }
 
-void* palloc0(MemoryContext cxt, size_t size)
+void* palloc0(MemoryPoolContext cxt, size_t size)
 {
 	/* duplicates MemoryContextAllocZero to avoid increased overhead */
 	void* ret;
-	MemoryContext context = cxt;
+	MemoryContext context = (MemoryContext)cxt;
 
 	if (cxt == NULL)
 	{
@@ -2578,7 +2667,7 @@ void* palloc0(MemoryContext cxt, size_t size)
 	}
 
 	Assert(MemoryContextIsValid(context));
-	AssertNotInCriticalSection(context);
+	//AssertNotInCriticalSection(context);
 
 	if (!AllocSizeIsValid(size))
 	{
@@ -2606,6 +2695,32 @@ void* palloc0(MemoryContext cxt, size_t size)
 	MemSetAligned(ret, 0, size);
 
 	return ret;
+}
+
+/*
+ * GetMemoryChunkMethodID
+ *		Return the MemoryContextMethodID from the uint64 chunk header which
+ *		directly precedes 'pointer'.
+ */
+static inline MemoryContextMethodID GetMemoryChunkMethodID(const void* pointer)
+{
+	uint64		header;
+	/*
+	 * Try to detect bogus pointers handed to us, poorly though we can.
+	 * Presumably, a pointer that isn't MAXALIGNED isn't pointing at an
+	 * allocated chunk.
+	 */
+	Assert(pointer == (const void*)MAXALIGN(pointer));
+
+	/* Allow access to the uint64 header */
+	VALGRIND_MAKE_MEM_DEFINED((char*)pointer - sizeof(uint64), sizeof(uint64));
+
+	header = *((const uint64*)((const char*)pointer - sizeof(uint64)));
+
+	/* Disallow access to the uint64 header */
+	VALGRIND_MAKE_MEM_NOACCESS((char*)pointer - sizeof(uint64), sizeof(uint64));
+
+	return (MemoryContextMethodID)(header & MEMORY_CONTEXT_METHODID_MASK);
 }
 
 /*
@@ -2653,11 +2768,10 @@ repalloc(void* pointer, Size size)
 	if (!AllocSizeIsValid(size))
 	{
 		// elog(ERROR, "invalid memory alloc request size %zu", size);
-		return 0;
+		return NULL;
 	}
 
 	// AssertNotInCriticalSection(context);
-
 	/* isReset must be false already */
 	Assert(!context->isReset);
 
@@ -2674,6 +2788,7 @@ repalloc(void* pointer, Size size)
 				errdetail("Failed on request of size %zu in memory context \"%s\".",
 					size, cxt->name)));
 #endif
+		return NULL;
 	}
 
 #ifdef USE_VALGRIND
@@ -2684,7 +2799,7 @@ repalloc(void* pointer, Size size)
 	return ret;
 }
 
-MemoryContext mempool_create(unsigned int minContextSize, unsigned int initBlockSize, unsigned int maxBlockSize)
+MemoryPoolContext mempool_create(const char* mempool_name, unsigned int minContextSize, unsigned int initBlockSize, unsigned int maxBlockSize)
 {
 	MemoryContext cxt;
 
@@ -2693,28 +2808,32 @@ MemoryContext mempool_create(unsigned int minContextSize, unsigned int initBlock
 	if (0 == maxBlockSize)
 		maxBlockSize = ALLOCSET_DEFAULT_MAXSIZE;
 
-	cxt = AllocSetContextCreateInternal(NULL, "dui_mempool", minContextSize, initBlockSize, maxBlockSize);
+	cxt = AllocSetContextCreateInternal(NULL, mempool_name, minContextSize, initBlockSize, maxBlockSize);
 
-	return cxt;
+	return (MemoryPoolContext)cxt;
 }
 
-void mempool_destroy(MemoryContext cxt)
-{
-	if (NULL != cxt)
-		cxt->methods->delete_context(cxt);
-}
-
-void mempool_reset(MemoryContext cxt)
+void mempool_destroy(MemoryPoolContext cxt)
 {
 	if (NULL != cxt)
 	{
+		MemoryContext context = (MemoryContext)cxt;
+		context->methods->delete_context(context);
+	}
+}
+
+void mempool_reset(MemoryPoolContext cxt)
+{
+	if (NULL != cxt)
+	{
+		MemoryContext context = (MemoryContext)cxt;
 		/* save a function call if no pallocs since startup or last reset */
-		if (!cxt->isReset)
+		if (!context->isReset)
 		{
-			cxt->methods->reset(cxt);
-			cxt->isReset = true;
-			VALGRIND_DESTROY_MEMPOOL(cxt);
-			VALGRIND_CREATE_MEMPOOL(cxt, 0, false);
+			context->methods->reset(context);
+			context->isReset = true;
+			VALGRIND_DESTROY_MEMPOOL(context);
+			VALGRIND_CREATE_MEMPOOL(context, 0, false);
 		}
 	}
 }

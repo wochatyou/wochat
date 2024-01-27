@@ -21,6 +21,7 @@
 #include "xbitmapdata.h"
 
 #include "win0.h"
+#include "win1.h"
 
 #define DECLARE_XWND_CLASS(WndClassName, uIcon, uIconSmall) \
 static ATL::CWndClassInfo& GetWndClassInfo() \
@@ -104,77 +105,340 @@ class XWindow : public ATL::CWindowImpl<XWindow>
 public:
 	DECLARE_XWND_CLASS(NULL, IDR_MAINFRAME, 0)
 
+	XWindow()
+	{
+		m_rectClient.left = m_rectClient.right = m_rectClient.top = m_rectClient.bottom = 0;
+		m_win0.SetWindowId((const U8*)"DUIWin0", 7);
+		m_win1.SetWindowId((const U8*)"DUIWin1", 7);
+#if 0
+		m_win2.SetWindowId((const U8*)"DUIWin2", 7);
+		m_win3.SetWindowId((const U8*)"DUIWin3", 7);
+		m_win4.SetWindowId((const U8*)"DUIWin4", 7);
+		m_win5.SetWindowId((const U8*)"DUIWin5", 7);
+#endif
+	}
+
+	~XWindow()
+	{
+		if (nullptr != m_screenBuff)
+			VirtualFree(m_screenBuff, 0, MEM_RELEASE);
+
+		m_screenBuff = nullptr;
+		m_screenSize = 0;
+	}
+
 	BEGIN_MSG_MAP(XWindow)
+		MESSAGE_HANDLER_DUIWINDOW(DUI_ALLMESSAGE, OnDUIWindowMessage)
+		MESSAGE_HANDLER(WM_ERASEBKGND, OnEraseBkgnd)
 		MESSAGE_HANDLER(WM_PAINT, OnPaint)
 		MESSAGE_HANDLER(WM_SIZE, OnSize)
+		MESSAGE_HANDLER(WM_XWINDOWS00, OnWin0Message)
+		MESSAGE_HANDLER(WM_XWINDOWS01, OnWin1Message)
+		MESSAGE_HANDLER(WM_XWINDOWS02, OnWin2Message)
+		MESSAGE_HANDLER(WM_XWINDOWS03, OnWin3Message)
+		MESSAGE_HANDLER(WM_XWINDOWS04, OnWin4Message)
+		MESSAGE_HANDLER(WM_XWINDOWS05, OnWin5Message)
+		MESSAGE_HANDLER(WM_SETCURSOR, OnSetCursor)
+		MESSAGE_HANDLER(WM_CREATE, OnCreate)
 		MESSAGE_HANDLER(WM_DESTROY, OnDestroy)
 	END_MSG_MAP()
 
+	LRESULT OnDUIWindowMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		WPARAM wp = wParam;
+		LPARAM lp = lParam;
+		switch (uMsg)
+		{
+		case WM_SETCURSOR:
+		{
+			DWORD dwPos = ::GetMessagePos();
+			POINT ptPos = { GET_X_LPARAM(dwPos), GET_Y_LPARAM(dwPos) };
+			ScreenToClient(&ptPos);
+			wp = (WPARAM)ptPos.x;
+			lp = (LPARAM)ptPos.y;
+		}
+		break;
+		case WM_MOUSEWHEEL:
+		{
+			POINT pt;
+			pt.x = GET_X_LPARAM(lParam);
+			pt.y = GET_Y_LPARAM(lParam);
+			ScreenToClient(&pt);
+			lp = MAKELONG(pt.x, pt.y);
+		}
+		break;
+		case WM_CREATE:
+			wp = (WPARAM)m_hWnd;
+			break;
+		default:
+			break;
+		}
+
+		m_win0.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
+		m_win1.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
+#if 0
+		m_win2.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
+		m_win3.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
+		m_win4.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
+		m_win5.HandleOSMessage((U32)uMsg, (U64)wp, (U64)lp);
+#endif
+#if 10
+		if (DUIWindowNeedReDraw())
+			Invalidate();
+#endif
+		// to allow the host window to continue to handle the windows message
+		bHandled = FALSE;
+		return 0;
+	}
+
+	LRESULT OnCreate(UINT, WPARAM, LPARAM, BOOL bHandled)
+	{
+		m_nDPI = GetDpiForWindow(m_hWnd);
+		//SetTimer(XWIN_666MS_TIMER, 666);
+		return 0;
+	}
+
+	LRESULT OnEraseBkgnd(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
+	{
+		return 0; // don't want flicker
+	}
+
 	LRESULT OnDestroy(UINT, WPARAM, LPARAM, BOOL bHandled)
 	{
-		SafeRelease(&m_pixelBitmap);
+		KillTimer(XWIN_666MS_TIMER);
+
+		SafeRelease(&m_pTextBrush0);
+		SafeRelease(&m_pTextBrush1);
+		SafeRelease(&m_pixelBitmap0);
+		SafeRelease(&m_pixelBitmap1);
+		SafeRelease(&m_pixelBitmap2);
 		SafeRelease(&m_pD2DRenderTarget);
+
 		PostQuitMessage(0);
+		return 0;
+	}
+
+	LRESULT OnSetCursor(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		bHandled = DUIWindowCursorIsSet() ? TRUE : FALSE;
+
+		ClearDUIWindowCursor();
+#if 0
+		if (((HWND)wParam == m_hWnd) && (LOWORD(lParam) == HTCLIENT))
+		{
+			DWORD dwPos = ::GetMessagePos();
+
+			POINT ptPos = { GET_X_LPARAM(dwPos), GET_Y_LPARAM(dwPos) };
+
+			ScreenToClient(&ptPos);
+
+			DrapMode mode = IsOverSplitterBar(ptPos.x, ptPos.y);
+			if (DrapMode::dragModeNone != mode)
+				bHandled = TRUE;
+		}
+#endif
+		return 0;
+	}
+
+	LRESULT OnWin0Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		if (wParam == 0)
+		{
+			U8 ctlId = (U8)lParam;
+		}
+
+		return 0;
+	}
+
+	LRESULT OnWin1Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		return 0;
+	}
+
+	LRESULT OnWin2Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		return 0;
+	}
+
+	LRESULT OnWin3Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		return 0;
+	}
+
+	LRESULT OnWin4Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		return 0;
+	}
+
+	LRESULT OnWin5Message(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
 		return 0;
 	}
 
 	LRESULT OnSize(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
 		SafeRelease(&m_pD2DRenderTarget);
+
+		if (SIZE_MINIMIZED != wParam)
+		{
+			XRECT area;
+			XRECT* r = &area;
+
+			GetClientRect(&m_rectClient);
+			ATLASSERT(0 == m_rectClient.left);
+			ATLASSERT(0 == m_rectClient.top);
+			ATLASSERT(m_rectClient.right > 0);
+			ATLASSERT(m_rectClient.bottom > 0);
+
+			U32 w = (U32)(m_rectClient.right - m_rectClient.left);
+			U32 h = (U32)(m_rectClient.bottom - m_rectClient.top);
+
+			if (nullptr != m_screenBuff)
+			{
+				VirtualFree(m_screenBuff, 0, MEM_RELEASE);
+				m_screenBuff = nullptr;
+				m_screenSize = 0;
+			}
+
+			m_screenSize = DUI_ALIGN_PAGE(w * h * sizeof(U32));
+			ATLASSERT(m_screenSize >= (w * h * sizeof(U32)));
+
+			m_screenBuff = (U32*)VirtualAlloc(NULL, m_screenSize, MEM_COMMIT, PAGE_READWRITE);
+			if (nullptr == m_screenBuff)
+			{
+				m_win0.UpdateSize(nullptr, nullptr);
+				m_win1.UpdateSize(nullptr, nullptr);
+#if 0
+				m_win2.UpdateSize(nullptr, nullptr);
+				m_win3.UpdateSize(nullptr, nullptr);
+				m_win4.UpdateSize(nullptr, nullptr);
+				m_win5.UpdateSize(nullptr, nullptr);
+#endif
+				Invalidate();
+				return 0;
+			}
+
+			if (nullptr != m_screenBuff)
+			{
+				U32* dst = m_screenBuff;
+				U32 size;
+
+				r->left = m_rectClient.left;
+				r->right = XWIN0_WIDTH;
+				r->top = m_rectClient.top;
+				r->bottom = m_rectClient.bottom;
+				m_win0.UpdateSize(r, dst);
+				size = (U32)((r->right - r->left) * (r->bottom - r->top));
+				dst += size;
+
+				r->left = XWIN0_WIDTH;
+				r->right = m_rectClient.right;
+				r->top = m_rectClient.top;
+				r->bottom = m_rectClient.bottom;
+				m_win1.UpdateSize(r, dst);
+			}
+			Invalidate();
+		}
 		return 0;
 	}
 
 	LRESULT OnPaint(UINT /*uMsg*/, WPARAM wParam, LPARAM /*lParam*/, BOOL& bHandled)
 	{
 		HRESULT hr = S_OK;
-		RECT rc;
 		PAINTSTRUCT ps;
 		BeginPaint(&ps);
 
-		GetClientRect(&rc);
-
 		if (nullptr == m_pD2DRenderTarget)
 		{
-			D2D1_PIXEL_FORMAT pixelFormat = D2D1::PixelFormat(
-				DXGI_FORMAT_R8G8B8A8_UNORM,
-				D2D1_ALPHA_MODE_IGNORE
-			);
-
+			D2D1_PIXEL_FORMAT pixelFormat = D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UNORM, D2D1_ALPHA_MODE_IGNORE);
 			D2D1_RENDER_TARGET_PROPERTIES renderTargetProperties = D2D1::RenderTargetProperties();
-			renderTargetProperties.dpiX = 96;
-			renderTargetProperties.dpiY = 96;
+			renderTargetProperties.dpiX = m_nDPI;
+			renderTargetProperties.dpiY = m_nDPI;
 			renderTargetProperties.pixelFormat = pixelFormat;
 
 			D2D1_HWND_RENDER_TARGET_PROPERTIES hwndRenderTragetproperties
-				= D2D1::HwndRenderTargetProperties(m_hWnd, D2D1::SizeU(rc.right, rc.bottom));
+				= D2D1::HwndRenderTargetProperties(m_hWnd, D2D1::SizeU(m_rectClient.right - m_rectClient.left, m_rectClient.bottom - m_rectClient.top));
 
+			ATLASSERT(nullptr != g_pD2DFactory);
 			hr = g_pD2DFactory->CreateHwndRenderTarget(renderTargetProperties, hwndRenderTragetproperties, &m_pD2DRenderTarget);
 			if (S_OK == hr && nullptr != m_pD2DRenderTarget)
 			{
-				unsigned int pixel[1] = { 0xFF0000FF };
-				SafeRelease(&m_pixelBitmap);
+				U32 pixel[1] = { 0xFFEEEEEE };
+				SafeRelease(&m_pixelBitmap0);
 				hr = m_pD2DRenderTarget->CreateBitmap(
 					D2D1::SizeU(1, 1), pixel, 4, D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)),
-					&m_pixelBitmap);
+					&m_pixelBitmap0);
+				if (S_OK == hr && nullptr != m_pixelBitmap0)
+				{
+					pixel[0] = 0xFFFFFFFF;
+					hr = m_pD2DRenderTarget->CreateBitmap(
+						D2D1::SizeU(1, 1), pixel, 4, D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)),
+						&m_pixelBitmap1);
+					ATLASSERT(S_OK == hr);
+
+					pixel[0] = 0xFF6AEA9E;
+					hr = m_pD2DRenderTarget->CreateBitmap(
+						D2D1::SizeU(1, 1), pixel, 4, D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)),
+						&m_pixelBitmap2);
+					ATLASSERT(S_OK == hr);
+
+					hr = m_pD2DRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x666666), &m_pTextBrush0);
+					if (S_OK == hr && nullptr != m_pTextBrush0)
+					{
+						hr = m_pD2DRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x000000), &m_pTextBrush1);
+					}
+				}
 			}
 		}
 
-		if (S_OK == hr && nullptr != m_pD2DRenderTarget)
+		if (S_OK == hr && nullptr != m_pD2DRenderTarget && nullptr != m_pixelBitmap0 && nullptr != m_pTextBrush0 && nullptr != m_pTextBrush1)
 		{
+			int w, h;
+			U32* src = nullptr;
+
 			m_pD2DRenderTarget->BeginDraw();
+			////////////////////////////////////////////////////////////////////////////////////////////////////
 			m_pD2DRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
-			m_pD2DRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::White));
-			if (nullptr != m_pixelBitmap)
+			//m_pD2DRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::White));
+
+			// draw window 0
+			src = m_win0.GetDUIBuffer();
+			if (nullptr != src)
 			{
-				D2D1_RECT_F rect = D2D1::RectF(
-					static_cast<FLOAT>(rc.left),
-					static_cast<FLOAT>((rc.bottom - 10) / 2),
-					static_cast<FLOAT>(rc.right),
-					static_cast<FLOAT>((rc.bottom - 10) / 2 + 10)
-				);
-				m_pD2DRenderTarget->DrawBitmap(m_pixelBitmap, &rect);
+				ID2D1Bitmap* pBitmap = nullptr;
+				XRECT* xr = m_win0.GetWindowArea();
+				w = xr->right - xr->left; h = xr->bottom - xr->top;
+				hr = m_pD2DRenderTarget->CreateBitmap(D2D1::SizeU(w, h), src, (w << 2),
+					D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)), &pBitmap);
+				if (S_OK == hr && nullptr != pBitmap)
+				{
+					D2D1_RECT_F rect = D2D1::RectF(static_cast<FLOAT>(xr->left), static_cast<FLOAT>(xr->top), static_cast<FLOAT>(xr->right), static_cast<FLOAT>(xr->bottom));
+					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
+				}
+				SafeRelease(&pBitmap);
+				m_win0.SetScreenValide(); // prevent un-necessary draw again
 			}
+
+			// draw window 1
+			src = m_win1.GetDUIBuffer();
+			if (nullptr != src)
+			{
+				ID2D1Bitmap* pBitmap = nullptr;
+				XRECT* xr = m_win1.GetWindowArea();
+				w = xr->right - xr->left; h = xr->bottom - xr->top;
+				hr = m_pD2DRenderTarget->CreateBitmap(D2D1::SizeU(w, h), src, (w << 2),
+					D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)), &pBitmap);
+				if (S_OK == hr && nullptr != pBitmap)
+				{
+					D2D1_RECT_F rect = D2D1::RectF(static_cast<FLOAT>(xr->left), static_cast<FLOAT>(xr->top), static_cast<FLOAT>(xr->right), static_cast<FLOAT>(xr->bottom));
+					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
+				}
+				SafeRelease(&pBitmap);
+				m_win1.SetScreenValide(); // prevent un-necessary draw again
+			}
+
 			hr = m_pD2DRenderTarget->EndDraw();
+			////////////////////////////////////////////////////////////////////////////////////////////////////
 			if (FAILED(hr) || D2DERR_RECREATE_TARGET == hr)
 			{
 				SafeRelease(&m_pD2DRenderTarget);
@@ -225,9 +489,20 @@ private:
 	UINT m_nDPI = 96;
 
 	XWindow0 m_win0;
+	XWindow1 m_win1;
+#if 0
+	XWindow2 m_win2;
+	XWindow3 m_win3;
+	XWindow4 m_win4;
+	XWindow4 m_win5;
+#endif
 private:
 	ID2D1HwndRenderTarget* m_pD2DRenderTarget = nullptr;
-	ID2D1Bitmap* m_pixelBitmap = nullptr;
+	ID2D1Bitmap* m_pixelBitmap0 = nullptr;
+	ID2D1Bitmap* m_pixelBitmap1 = nullptr;
+	ID2D1Bitmap* m_pixelBitmap2 = nullptr;
+	ID2D1SolidColorBrush* m_pTextBrush0 = nullptr;
+	ID2D1SolidColorBrush* m_pTextBrush1 = nullptr;
 
 };
 
@@ -405,7 +680,9 @@ static int InitInstance(HINSTANCE hInstance)
 	if (0 != iRet)
 		return 5;
 
-	return 0;
+	iRet = DUI_Init();
+
+	return iRet;
 }
 
 static void ExitInstance(HINSTANCE hInstance)
@@ -414,6 +691,8 @@ static void ExitInstance(HINSTANCE hInstance)
 
 	// tell all threads to quit
 	InterlockedIncrement(&g_Quit);
+
+	DUI_Term();
 
 	SafeRelease(&g_pDWriteFactory);
 	SafeRelease(&g_pD2DFactory);

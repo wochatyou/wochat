@@ -61,7 +61,7 @@ public:
     U8      m_id[8] = { 0 }; // for debugging 
     XRECT   m_area = { 0 };  // the area of this window in the client area of parent window
 
-    MemoryContext m_pool = nullptr;
+    MemoryPoolContext m_pool = nullptr;
 
     int m_startControl  =  0;  // dui_controlArray[0] is not used. We start from 1
     int m_endControl    = -1;
@@ -122,13 +122,9 @@ public:
             assert(nullptr != xctl);
             xctl->Term();
         }
-#if 0
-        if (nullptr != m_pool)
-        {
-            mempool_destroy(m_pool);
-            m_pool = nullptr;
-        }
-#endif
+
+        mempool_destroy(m_pool);
+        m_pool = nullptr;
     }
 
     static int XControlAction(void* obj, U32 uMsg, U64 wParam, U64 lParam)
@@ -142,7 +138,7 @@ public:
         return ret;
     }
 
-    void InitControl(void* ptr) {}
+    void InitControl() {}
 #if 0
     tagXTextDrawInfo* GetTextDrawInfo(U16* count)
     {
@@ -368,7 +364,7 @@ public:
 
             // assert(nullptr != m_screen);
             // fill the whole screen of this virutal window with a single color
-            ScreenClear(m_screen, m_size, m_backgroundColor);
+            DUI_ScreenClear(m_screen, m_size, m_backgroundColor);
 
             if (DUI_STATUS_VSCROLL & m_status) // We have the vertical scroll bar to draw
             {
@@ -384,8 +380,8 @@ public:
                     thumb_height = DUI_MINIMAL_THUMB_SIZE; // we keep the thumb mini size to some pixels
 
                 // Draw the vertical scroll bar
-                ScreenFillRect(m_screen, w, h, m_scrollbarColor, m_scrollWidth, h, w - m_scrollWidth, 0);
-                ScreenFillRectRound(m_screen, w, h, m_thumbColor, thumb_width, thumb_height, w - m_scrollWidth + 1, thumb_start, m_scrollbarColor, 0xFFD6D3D2);
+                DUI_ScreenFillRect(m_screen, w, h, m_scrollbarColor, m_scrollWidth, h, w - m_scrollWidth, 0);
+                DUI_ScreenFillRectRound(m_screen, w, h, m_thumbColor, thumb_width, thumb_height, w - m_scrollWidth + 1, thumb_start, m_scrollbarColor, 0xFFD6D3D2);
             }
 
             // draw the controls within this window
@@ -997,7 +993,12 @@ public:
                 initSize = DUI_ALLOCSET_DEFAULT_INITSIZE;
                 maxSize = DUI_ALLOCSET_DEFAULT_MAXSIZE;
             }
-            m_pool = mempool_create(0, initSize, maxSize);
+            
+            if(m_id[0] != '\0')
+                m_pool = mempool_create((const char*)m_id, 0, initSize, maxSize);
+            else 
+                m_pool = mempool_create("DUI_WIN", 0, initSize, maxSize);
+
             if (nullptr != m_pool)
             {
                 pT->InitControl();

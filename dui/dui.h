@@ -13,6 +13,7 @@
 
 #define DUI_DEBUG	1
 #define DUI_OK      0
+#define DUI_FAILED  0xFF
 
 #define S8      int8_t
 #define S16     int16_t
@@ -25,7 +26,7 @@
 #define U64     uint64_t
 
 /* DUI_ALIGN() is only to be used to align on a power of 2 boundary */
-#define DUI_ALIGN(size, boundary) (((size) + ((boundary) -1)) & ~((boundary) - 1))
+#define DUI_ALIGN(size, boundary)   (((size) + ((boundary) -1)) & ~((boundary) - 1))
 #define DUI_ALIGN_DEFAULT32(size)   DUI_ALIGN(size, 4)
 #define DUI_ALIGN_DEFAULT64(size)   DUI_ALIGN(size, 8)      /** Default alignment */
 #define DUI_ALIGN_PAGE(size)        DUI_ALIGN(size, (1<<16))
@@ -85,6 +86,11 @@ class XControl;
 extern XControl* dui_controlArray[DUI_MAX_CONTROLS];
 extern XBitmap   dui_bitmapArray[DUI_MAX_BUTTON_BITMAPS];
 extern U16* dui_tooltip[DUI_MAX_CONTROLS];
+extern HCURSOR	dui_hCursorWE;
+extern HCURSOR	dui_hCursorNS;
+extern HCURSOR	dui_hCursorHand;
+extern HCURSOR	dui_hCursorIBeam;
+
 
 #define DUI_GLOBAL_STATE_IN_NONE_MODE   0x0000000000000000
 #define DUI_GLOBAL_STATE_NEED_REDRAW    0x0000000000000001
