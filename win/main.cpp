@@ -111,8 +111,11 @@ public:
 	XWindow()
 	{
 		m_rectClient.left = m_rectClient.right = m_rectClient.top = m_rectClient.bottom = 0;
+
 		m_win0.SetWindowId((const U8*)"DUIWin0", 7);
 		m_win1.SetWindowId((const U8*)"DUIWin1", 7);
+
+		m_win1.SetMode(WIN1_MODE_SHOWSEARCH);
 #if 0
 		m_win2.SetWindowId((const U8*)"DUIWin2", 7);
 		m_win3.SetWindowId((const U8*)"DUIWin3", 7);
@@ -320,6 +323,42 @@ public:
 				Invalidate();
 				return 0;
 			}
+
+			if (m_splitterVPos < 0)
+			{
+				m_splitterVPos = (XWIN0_WIDTH + XWIN1_WIDTH);
+				if (m_splitterVPos < m_splitterVPosToLeft)
+					m_splitterVPos = m_splitterVPosToLeft;
+
+				if (m_splitterVPos > (m_rectClient.right - m_rectClient.left - m_splitterVPosToRight))
+				{
+					m_splitterVPos = (m_rectClient.right - m_rectClient.left - m_splitterVPosToRight);
+					ATLASSERT(m_splitterVPos > m_splitterVPosToLeft);
+				}
+				m_splitterVPosOld = m_splitterVPos;
+			}
+
+			m_splitterVPos = m_splitterVPosOld;
+
+			if (m_splitterHPos < 0)
+			{
+				m_splitterHPos = m_rectClient.bottom - m_rectClient.top - m_splitterHPosToBottom;
+				if (m_splitterHPos < m_splitterHPosToTop)
+					m_splitterHPos = m_splitterHPosToTop;
+
+				if (m_splitterHPos > (m_rectClient.bottom - m_rectClient.top - m_splitterHPosToBottom))
+				{
+					m_splitterHPos = m_rectClient.bottom - m_rectClient.top - m_splitterHPosToBottom;
+					ATLASSERT(m_splitterHPos > m_splitterHPosToTop);
+				}
+				m_splitterHPosOld = (m_rectClient.bottom - m_rectClient.top) - m_splitterHPos;
+			}
+
+			if (m_splitterHPos > 0) // if(m_splitterHPos <= 0) then windows 5 is hidden
+			{
+				m_splitterHPos = (m_rectClient.bottom - m_rectClient.top) - m_splitterHPosOld;
+			}
+
 
 			if (nullptr != m_screenBuff)
 			{

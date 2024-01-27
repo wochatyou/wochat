@@ -117,6 +117,9 @@ int XButton::Draw()
 
 int XLabel::DrawText(int dx, int dy, DUI_Surface surface, DUI_Brush brush, U32 flag)
 {
+    if (XCONTROL_STATE_HIDDEN == m_status)
+        return 0;
+
     if (nullptr != m_pTextLayout)
     {
         ID2D1HwndRenderTarget* pD2DRenderTarget = (ID2D1HwndRenderTarget*)surface;

@@ -15,11 +15,17 @@ wchar_t testxt[] = {
 0x0041,0x0030,0x0033,0x0035,0x0045,0
 };
 
+enum Win1Mode
+{
+	WIN1_MODE_SHOWME = 0,
+	WIN1_MODE_SHOWSEARCH
+};
 
 class XWindow1 : public XWindowT <XWindow1>
 {
-#if 0
 private:
+	Win1Mode m_mode = WIN1_MODE_SHOWSEARCH;
+#if 0
 	IDWriteTextFormat* m_pTextFormat = nullptr;
 	IDWriteTextLayout* m_pTextLayout = nullptr;
 #endif
@@ -54,6 +60,9 @@ public:
 	}
 
 	~XWindow1()	{}
+
+	Win1Mode GetMode() { return m_mode;  }
+	void SetMode(Win1Mode mode) { m_mode = mode; }
 
 	void InitBitmap()
 	{
@@ -95,6 +104,7 @@ public:
 			{
 				lb->setId(id);
 				lb->setText((U16*)testxt, wcslen(testxt));
+				lb->setStatus(XCONTROL_STATE_HIDDEN);
 			}
 			m_controlArray[id] = lb;
 		}
@@ -168,6 +178,11 @@ public:
 		dy = 20;
 		dx = 10;
 		xctl->setPosition(dx, dy);
+
+		if (WIN1_MODE_SHOWME != m_mode)
+		{
+			xctl->setStatus(XCONTROL_STATE_HIDDEN);
+		}
 	}
 
 	int Do_DUI_CHAR(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)

@@ -220,7 +220,7 @@ enum XControlProperty
     XCONTROL_PROP_CARET = 0x00000004,
     XCONTROL_PROP_EDIT = 0x00000008,
     XCONTROL_PROP_PASSWD = 0x00000010,
-    XCONTROL_PROP_TEXT = 0x00000020
+    XCONTROL_PROP_TEXT = 0x00000020,
 };
 
 enum XControlState
@@ -376,10 +376,10 @@ public:
     int setStatus(U32 newStatus, U8 mouse_event = XMOUSE_NULL)
     {
         int r = 0;
+#if 0
         if (!(XCONTROL_PROP_STATIC & m_property))
         {
             U32 oldStatus = m_status;
-
             if (XCONTROL_PROP_EDIT & m_property) // for edit box
             {
                 if (XCONTROL_STATE_PRESSED == m_status)
@@ -394,10 +394,12 @@ public:
                     }
                 }
             }
-
+        }
+#endif
+        if (m_status != newStatus)
+        {
             m_status = newStatus;
-            if (oldStatus != newStatus)
-                r = 1;
+            r = 1;
         }
         return r;
     }
