@@ -2,15 +2,6 @@
 #define IDR_DEFAULTFONT			129
 #define IDR_ASCIIFONT           130
 
-#define XWIN0_BUTTON_ME             1
-#define XWIN0_BUTTON_TALK           2
-#define XWIN0_BUTTON_FRIEND         3
-#define XWIN0_BUTTON_QUAN           4
-#define XWIN0_BUTTON_COIN           5
-#define XWIN0_BUTTON_FAVORITE       6
-#define XWIN0_BUTTON_FILE           7
-#define XWIN0_BUTTON_SETTING        8
-#define XWIN0_BUTTON_NETWORK        9
 
 #define XWIN1_EDITBOX_SEARCH        15
 #define XWIN1_BUTTON_SEARCH         16

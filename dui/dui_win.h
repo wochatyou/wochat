@@ -9,6 +9,9 @@
 #define DUI_ALLOCSET_SMALL_INITSIZE     (1 * 1024)
 #define DUI_ALLOCSET_SMALL_MAXSIZE	    (8 * 1024)
 
+#define DUI_MAX_CONTROLS            16 
+#define DUI_MAX_BUTTON_BITMAPS      (DUI_MAX_CONTROLS << 2)
+
 enum
 {
     DUI_STATUS_NODRAW    = 0x00000000,    // do not need to draw, any value not zero need redraw      
@@ -63,9 +66,14 @@ public:
 
     MemoryPoolContext m_pool = nullptr;
 
-    int m_startControl  =  0;  // dui_controlArray[0] is not used. We start from 1
-    int m_endControl    = -1;
-    int m_activeControl = -2;
+    XControl* m_controlArray[DUI_MAX_CONTROLS];
+    U16*      m_tooltip[DUI_MAX_CONTROLS];
+    XBitmap   m_bitmapArray[DUI_MAX_BUTTON_BITMAPS];
+
+    //int m_startControl  =  0;  // m_controlArray[0] is not used. We start from 1
+    //int m_endControl    = -1;
+    int m_maxControl = 0;
+    int m_activeControl = -1;
 
     //ProcessOSMessage m_messageFuncPointerTab[256] = { 0 };  // we only handle 255 messages that should be enough
 
@@ -116,9 +124,9 @@ public:
     ~XWindowT()
     {
         XControl* xctl;
-        for (int i = m_startControl; i <= m_endControl; i++)
+        for (int i = 0; i < m_maxControl; i++)
         {
-            xctl = dui_controlArray[i];
+            xctl = m_controlArray[i];
             assert(nullptr != xctl);
             xctl->Term();
         }
@@ -325,9 +333,9 @@ public:
         if (DUI_PROP_BTNACTIVE & m_property)
         {
             U32 ctlStatus;
-            for (int i = m_startControl; i <= m_endControl; i++)
+            for (int i = 0; i < m_maxControl; i++)
             {
-                xctl = dui_controlArray[i];
+                xctl = m_controlArray[i];
                 assert(nullptr != xctl);
                 assert(xctl->m_id == i);
                 ctlStatus = (i != m_activeControl) ? status : XCONTROL_STATE_ACTIVE;
@@ -336,9 +344,9 @@ public:
         }
         else
         {
-            for (int i = m_startControl; i <= m_endControl; i++)
+            for (int i = 0; i < m_maxControl; i++)
             {
-                xctl = dui_controlArray[i];
+                xctl = m_controlArray[i];
                 assert(nullptr != xctl);
                 assert(xctl->m_id == i);
                 ret += xctl->setStatus(status, mouse_event);
@@ -349,14 +357,28 @@ public:
 
     void UpdateControlPosition() {}
 
-    int DoDraw(DUI_Surface surface, DUI_Brush brush) { return 0; }
-    int Draw(DUI_Surface surface, DUI_Brush brush)
+    int DoDrawText(DUI_Surface surface, DUI_Brush brush) { return 0; }
+    int DrawText(DUI_Surface surface, DUI_Brush brush)
     {
         if (nullptr != surface)
         {
+            U32 prop, status;
+            XControl* xctl;
+            for (int i = 0; i < m_maxControl; i++)
+            {
+                xctl = m_controlArray[i];
+                assert(nullptr != xctl);
+                assert(xctl->m_id == i);
+                status = xctl->getStatus();
+                prop = xctl->getProperty();
+                if ((status != XCONTROL_STATE_HIDDEN) && (prop & XCONTROL_PROP_TEXT))
+                {
+                    xctl->DrawText(m_area.left, m_area.top, surface, brush);
+                }
+            }
             // the derived class will draw its content
             T* pT = static_cast<T*>(this);
-            pT->DoDraw(surface, brush);
+            pT->DoDrawText(surface, brush);
         }
         return 0;
     }
@@ -396,9 +418,9 @@ public:
             }
 
             // draw the controls within this window
-            for (int i = m_startControl; i <= m_endControl; i++)
+            for (int i = 0; i < m_maxControl; i++)
             {
-                xctl = dui_controlArray[i];
+                xctl = m_controlArray[i];
                 assert(nullptr != xctl);
                 assert(xctl->m_id == i);
                 xctl->Draw();
@@ -440,9 +462,9 @@ public:
             int h = r->bottom - r->top;
             assert(w > 0);
             assert(h > 0);
-            for (int i = m_startControl; i <= m_endControl; i++)
+            for (int i = 0; i < m_maxControl; i++)
             {
-                xctl = dui_controlArray[i];
+                xctl = m_controlArray[i];
                 assert(nullptr != xctl);
                 assert(xctl->m_id == i);
                 xctl->AttachParent(m_screen, w, h);
@@ -451,12 +473,14 @@ public:
             T* pT = static_cast<T*>(this);
             pT->UpdateControlPosition();
 
+#if 0
             // enable tool tips
             if (m_startControl > 0 && m_message != DUI_NULL)
             {
                 assert(m_endControl >= m_startControl);
                 PostWindowMessage(m_message, (U64)m_startControl, (U64)m_endControl);
             }
+#endif
         }
         m_status |= DUI_STATUS_NEEDRAW;  // need to redraw this virtual window
         InvalidateDUIWindow();
@@ -570,9 +594,9 @@ public:
                     yPos -= m_area.top;
                     assert(xPos >= 0);
                     assert(yPos >= 0);
-                    for (int i = m_startControl; i <= m_endControl; i++)
+                    for (int i = 0; i < m_maxControl; i++)
                     {
-                        xctl = dui_controlArray[i];
+                        xctl = m_controlArray[i];
                         assert(nullptr != xctl);
                         if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
                         {
@@ -692,9 +716,9 @@ public:
 
                 SetAllControlStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBDOWN);
                 hit = -1;
-                for (int i = m_startControl; i <= m_endControl; i++)
+                for (int i = 0; i < m_maxControl; i++)
                 {
-                    xctl = dui_controlArray[i];
+                    xctl = m_controlArray[i];
                     assert(nullptr != xctl);
                     assert(xctl->m_id == i);
                     if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
@@ -751,7 +775,7 @@ public:
 
         if (XWinPointInRect(xPos, yPos, &m_area))
         {
-            if (m_startControl > 0)
+            if (m_maxControl > 0)
             {
                 int hit = -1;
                     // transfer the coordination from real window to local virutal window
@@ -759,11 +783,10 @@ public:
                     yPos -= m_area.top;
                     assert(xPos >= 0);
                     assert(yPos >= 0);
-                    assert(m_endControl >= m_startControl);
 
-                    for (int i = m_startControl; i <= m_endControl; i++)
+                    for (int i = 0; i < m_maxControl; i++)
                     {
-                        xctl = dui_controlArray[i];
+                        xctl = m_controlArray[i];
                         assert(nullptr != xctl);
                         assert(xctl->m_id == i);
                         if (xctl->IsOverMe(xPos, yPos))  // we find the control that the mouse is hovering
@@ -781,9 +804,8 @@ public:
                         m_activeControl = hit;
                         if (oldActive >= 0)
                         {
-                            assert(oldActive >= m_startControl);
-                            assert(oldActive <= m_endControl);
-                            XControl* xctlOld = dui_controlArray[oldActive];
+                            assert(oldActive < m_maxControl);
+                            XControl* xctlOld = m_controlArray[oldActive];
                             r += xctlOld->setStatus(XCONTROL_STATE_NORMAL, XMOUSE_LBUP);
                         }
                         r += xctl->setStatus(XCONTROL_STATE_ACTIVE, XMOUSE_LBUP);
@@ -878,9 +900,9 @@ public:
         // the original xPos/yPos is related to the client area system of the host window. 
         xPos -= m_area.left;
         yPos -= m_area.top;
-        for (int i = m_startControl; i <= m_endControl; i++)
+        for (int i = 0; i < m_maxControl; i++)
         {
-            xctl = dui_controlArray[i];
+            xctl = m_controlArray[i];
             assert(nullptr != xctl);
             if (xctl->IsOverMe(xPos, yPos))
             {
@@ -944,9 +966,9 @@ public:
         if ((DUI_PROP_HANDLETIMER & m_property))
         {
             XControl* xctl;
-            for (int i = m_startControl; i <= m_endControl; i++)
+            for (int i = 0; i < m_maxControl; i++)
             {
-                xctl = dui_controlArray[i];
+                xctl = m_controlArray[i];
                 assert(nullptr != xctl);
                 assert(xctl->m_id == i);
                 r += xctl->OnTimer();
@@ -1014,11 +1036,11 @@ public:
             {
                 pT->InitControl();
                 XControl* xctl;
-                for (int i = m_startControl; i <= m_endControl; i++)
+                for (int i = 0; i < m_maxControl; i++)
                 {
-                    xctl = dui_controlArray[i];
+                    xctl = m_controlArray[i];
                     assert(nullptr != xctl);
-                    assert(xctl->m_id = i);
+                    assert(xctl->m_id == i);
                     xctl->pfAction = XControlAction;
                 }
             }

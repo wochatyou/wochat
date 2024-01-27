@@ -6,6 +6,9 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN 
 #include <windows.h>
+#include <d2d1.h>
+#include <dwrite.h>
+
 #endif 
 
 #include "dui_mempool.h"
@@ -79,13 +82,6 @@ typedef struct XBitmap
 
 extern U8 DUIMessageOSMap[MESSAGEMAP_TABLE_SIZE];
 
-#define DUI_MAX_CONTROLS            64 
-#define DUI_MAX_BUTTON_BITMAPS      (DUI_MAX_CONTROLS << 2)
-
-class XControl;
-extern XControl* dui_controlArray[DUI_MAX_CONTROLS];
-extern XBitmap   dui_bitmapArray[DUI_MAX_BUTTON_BITMAPS];
-extern U16* dui_tooltip[DUI_MAX_CONTROLS];
 extern HCURSOR	dui_hCursorWE;
 extern HCURSOR	dui_hCursorNS;
 extern HCURSOR	dui_hCursorHand;
@@ -223,7 +219,8 @@ enum XControlProperty
     XCONTROL_PROP_STATIC = 0x00000002,
     XCONTROL_PROP_CARET = 0x00000004,
     XCONTROL_PROP_EDIT = 0x00000008,
-    XCONTROL_PROP_PASSWD = 0x00000010
+    XCONTROL_PROP_PASSWD = 0x00000010,
+    XCONTROL_PROP_TEXT = 0x00000020
 };
 
 enum XControlState
@@ -261,7 +258,7 @@ public:
 
     U16  m_tipMessage[32];
 
-    void* m_Cursor;
+    void* m_Cursor = nullptr;
 
     void setId(U8 id)
     {
@@ -270,13 +267,15 @@ public:
 
     int ShowCursor()
     {
+        int ret = 0;
         if (nullptr != m_Cursor)
         {
 #ifdef _WIN32
             ::SetCursor((HCURSOR)m_Cursor);
+            ret = 1;
 #endif 
         }
-        return 0;
+        return ret;
     }
 
     void setRoundColor(U32 c0, U32 c1)
@@ -351,6 +350,11 @@ public:
         m_property |= property;
     }
 
+    U32 getProperty()
+    {
+        return m_property;
+    }
+
     void AttachParent(U32* parentBuf, int parentW, int parentH)
     {
         m_parentBuf = parentBuf;
@@ -398,12 +402,17 @@ public:
         return r;
     }
 
+    U32 getStatus()
+    {
+        return m_status;
+    }
+
     virtual int OnTimer() { return 0; }
     virtual int OnKeyBoard(U16 flag, U16 keycode) { return 0; }
     virtual int  Draw() = 0;
-    virtual int  Init(void* ptr0 = nullptr, void* ptr1 = nullptr, U32 flag = 0) = 0;
+    virtual int  DrawText(int dx, int dy, DUI_Surface surface = nullptr, DUI_Brush brush = nullptr, U32 flag = 0) = 0;
+    virtual int  Init(void* ptr0 = nullptr, void* ptr1 = nullptr, void* ptr2 = nullptr, U32 flag = 0) = 0;
     virtual void Term() = 0;
-    virtual void setBkgFrontColor(U32 c0, U32 c1) = 0;
 
     int (*pfAction) (void* obj, U32 uMsg, U64 wParam, U64 lParam);
 };
@@ -412,13 +421,13 @@ class XButton : public XControl
 {
 public:
     int Draw();
-    int Init(void* ptr0 = nullptr, void* ptr1 = nullptr, U32 flag = 0)
+    int DrawText(int dx, int dy, DUI_Surface surface = nullptr, DUI_Brush brush = nullptr, U32 flag = 0) { return 0; }
+    int Init(void* ptr0 = nullptr, void* ptr1 = nullptr, void* ptr2 = nullptr, U32 flag = 0)
     {
         m_Cursor = ptr0;
         return 0;
     }
     void Term() {}
-    void setBkgFrontColor(U32 c0, U32 c1) {}
 
     // all XBitmpas should have extactly the same size
     XBitmap* imgNormal;
@@ -438,6 +447,38 @@ public:
 
 };
 
+#define DUI_MAX_LABEL_STRING    128
+class XLabel : public XControl
+{
+private:
+    U32  m_bkgColor = 0xFFFFFFFF;
+    U32  m_caretAnchor = 0;
+    U32  m_caretPosition = 0;
+    U32  m_caretPositionOffset = 0;
+    U16  m_Text[DUI_MAX_LABEL_STRING + 1] = { 0 };
+    U16  m_TextLen = 0;
+    IDWriteFactory*    m_pDWriteFactory = nullptr;
+    IDWriteTextFormat* m_pTextFormat = nullptr;
+    IDWriteTextLayout* m_pTextLayout = nullptr;
+public:
+    XLabel()
+    {
+        m_property = XCONTROL_PROP_TEXT;
+    }
+
+    int Draw() { return 0; }
+    int DrawText(int dx, int dy, DUI_Surface surface = nullptr, DUI_Brush brush = nullptr, U32 flag = 0);
+    int Init(void* ptr0 = nullptr, void* ptr1 = nullptr, void* ptr2 = nullptr, U32 flag = 0)
+    {
+        m_Cursor = ptr0;
+        m_pDWriteFactory = (IDWriteFactory*)ptr1;
+        m_pTextFormat = (IDWriteTextFormat*)ptr2;
+        return 0;
+    }
+    void Term() {}
+    void setText(U16* text, U16 len = 0);
+
+};
 
 
 #endif // __WT_DUI_H__

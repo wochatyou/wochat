@@ -623,19 +623,6 @@ MemoryContextResetOnly(MemoryContext context)
 	}
 }
 
-/*
- * CurrentMemoryContext
- *		Default memory context for allocations.
- */
-MemoryContext CurrentMemoryContext = NULL;
-
-/*
- * Standard top-level contexts. For a description of the purpose of each
- * of these contexts, refer to src/backend/utils/mmgr/README
- */
-MemoryContext TopMemoryContext = NULL;
-MemoryContext ErrorContext = NULL;
-
 #define INT64CONST(x)  (x##L)
 #define UINT64CONST(x) (x##UL)
 
@@ -2404,6 +2391,7 @@ MemoryContext AllocSetContextCreateInternal(MemoryContext parent, const char* na
 	Assert(minContextSize == 0 || (minContextSize == MAXALIGN(minContextSize) && minContextSize >= 1024 && minContextSize <= maxBlockSize));
 	Assert(maxBlockSize <= MEMORYCHUNK_MAX_BLOCKOFFSET);
 
+#if 0
 	/*
 	 * Check whether the parameters match either available freelist.  We do
 	 * not need to demand a match of maxBlockSize.
@@ -2414,7 +2402,9 @@ MemoryContext AllocSetContextCreateInternal(MemoryContext parent, const char* na
 		freeListIndex = 1;
 	else
 		freeListIndex = -1;
+#endif
 
+	freeListIndex = -1;
 	/*
 	 * If a suitable freelist entry exists, just recycle that context.
 	 */
@@ -2459,9 +2449,9 @@ MemoryContext AllocSetContextCreateInternal(MemoryContext parent, const char* na
 	set = (AllocSet)malloc(firstBlockSize);
 	if (set == NULL)
 	{
+#if 0
 		if (TopMemoryContext)
 			MemoryContextStats(TopMemoryContext);
-#if 0
 		ereport(ERROR,
 			(errcode(ERRCODE_OUT_OF_MEMORY),
 				errmsg("out of memory"),
@@ -2559,60 +2549,6 @@ MemoryContextAllowInCriticalSection(MemoryContext context, bool allow)
 	context->allowInCritSection = allow;
 }
 
-/*
- * MemoryContextInit
- *		Start up the memory-context subsystem.
- *
- * This must be called before creating contexts or allocating memory in
- * contexts.  TopMemoryContext and ErrorContext are initialized here;
- * other contexts must be created afterwards.
- *
- * In normal multi-backend operation, this is called once during
- * postmaster startup, and not at all by individual backend startup
- * (since the backends inherit an already-initialized context subsystem
- * by virtue of being forked off the postmaster).  But in an EXEC_BACKEND
- * build, each process must do this for itself.
- *
- * In a standalone backend this must be called during backend startup.
- */
-void
-MemoryContextInit(void)
-{
-	Assert(TopMemoryContext == NULL);
-
-	/*
-	 * First, initialize TopMemoryContext, which is the parent of all others.
-	 */
-	TopMemoryContext = AllocSetContextCreate((MemoryContext)NULL,
-		"TopMemoryContext",
-		ALLOCSET_DEFAULT_SIZES);
-
-	/*
-	 * Not having any other place to point CurrentMemoryContext, make it point
-	 * to TopMemoryContext.  Caller should change this soon!
-	 */
-	CurrentMemoryContext = TopMemoryContext;
-
-	/*
-	 * Initialize ErrorContext as an AllocSetContext with slow growth rate ---
-	 * we don't really expect much to be allocated in it. More to the point,
-	 * require it to contain at least 8K at all times. This is the only case
-	 * where retained memory in a context is *essential* --- we want to be
-	 * sure ErrorContext still has some memory even if we've run out
-	 * elsewhere! Also, allow allocations in ErrorContext within a critical
-	 * section. Otherwise a PANIC will cause an assertion failure in the error
-	 * reporting code, before printing out the real cause of the failure.
-	 *
-	 * This should be the last step in this function, as elog.c assumes memory
-	 * management works once ErrorContext is non-null.
-	 */
-	ErrorContext = AllocSetContextCreate(TopMemoryContext,
-		"ErrorContext",
-		8 * 1024,
-		8 * 1024,
-		8 * 1024);
-	MemoryContextAllowInCriticalSection(ErrorContext, true);
-}
 
 void* palloc(MemoryPoolContext cxt, size_t size)
 {

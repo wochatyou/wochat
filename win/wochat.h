@@ -5,6 +5,7 @@
 
 extern ID2D1Factory* g_pD2DFactory;
 extern IDWriteFactory* g_pDWriteFactory;
+extern IDWriteTextFormat* g_pTextFormat0;
 
 int GetSecretKey(LPCTSTR path, U8* sk);
 

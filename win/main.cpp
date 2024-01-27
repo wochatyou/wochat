@@ -17,6 +17,7 @@
 #endif
 
 #include "resource.h"
+#include "wochatdef.h"
 #include "wochat.h"
 #include "xbitmapdata.h"
 
@@ -49,7 +50,7 @@ static ATL::CWndClassInfo& GetWndClassInfo() \
 	}
 
 template <class T>
-void SafeRelease(T** ppT)
+void SafeRelease(T * *ppT)
 {
 	if (nullptr != *ppT)
 	{
@@ -66,6 +67,8 @@ UINT				g_Quit = 0;
 HINSTANCE			g_hInstance = nullptr;
 ID2D1Factory*		g_pD2DFactory = nullptr;
 IDWriteFactory*		g_pDWriteFactory = nullptr;
+IDWriteTextFormat*  g_pTextFormat0 = nullptr;
+
 HCURSOR				g_hCursorWE = nullptr;
 HCURSOR				g_hCursorNS = nullptr;
 HCURSOR				g_hCursorHand = nullptr;
@@ -416,7 +419,6 @@ public:
 					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
 				}
 				SafeRelease(&pBitmap);
-				m_win0.Draw(m_pD2DRenderTarget, m_pTextBrush0);
 				m_win0.SetScreenValide(); // prevent un-necessary draw again
 			}
 
@@ -435,7 +437,7 @@ public:
 					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
 				}
 				SafeRelease(&pBitmap);
-				m_win1.Draw(m_pD2DRenderTarget, m_pTextBrush0);
+				m_win1.DrawText(m_pD2DRenderTarget, m_pTextBrush0);
 				m_win1.SetScreenValide(); // prevent un-necessary draw again
 			}
 
@@ -656,6 +658,25 @@ static int InitInstance(HINSTANCE hInstance)
 		MessageBox(NULL, _T("The calling of DWriteCreateFactory() is failed"), _T("Wochat Error"), MB_OK);
 		return 3;
 	}
+
+	g_pTextFormat0 = nullptr;
+	hr = g_pDWriteFactory->CreateTextFormat(
+		L"Microsoft Yahei",
+		NULL,
+		DWRITE_FONT_WEIGHT_NORMAL,
+		DWRITE_FONT_STYLE_NORMAL,
+		DWRITE_FONT_STRETCH_NORMAL,
+		16.0f,
+		L"en-US",
+		&g_pTextFormat0
+	);
+
+	if (S_OK != hr || nullptr == g_pTextFormat0)
+	{
+		MessageBox(NULL, _T("The calling of CreateTextFormat() is failed"), _T("Wochat Error"), MB_OK);
+		return 4;
+	}
+
 
 	length = GetModuleFileNameW(hInstance, g_AppPath, MAX_PATH);
 	if (length > 0)

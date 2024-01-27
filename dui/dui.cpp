@@ -1,10 +1,8 @@
+#include <algorithm>
 #include "dui.h"
 
 // global variables
 U8          DUIMessageOSMap[MESSAGEMAP_TABLE_SIZE] = { 0 };
-XControl*   dui_controlArray[DUI_MAX_CONTROLS];
-XBitmap     dui_bitmapArray[DUI_MAX_BUTTON_BITMAPS];
-U16*        dui_tooltip[DUI_MAX_CONTROLS];
 U64         dui_status;
 
 HCURSOR	dui_hCursorWE = nullptr;
@@ -24,9 +22,6 @@ int DUI_Init()
 
     if (nullptr == dui_hCursorHand || nullptr == dui_hCursorIBeam)
         return DUI_FAILED;
-
-    for (i = 0; i < DUI_MAX_CONTROLS; i++)
-        dui_controlArray[i] = nullptr;
 
     for (i = 0; i < MESSAGEMAP_TABLE_SIZE; i++)
         p[i] = DUI_NULL;
@@ -117,4 +112,49 @@ int XButton::Draw()
             DUI_ScreenDrawRect(dst, m_parentW, m_parentH, src, bitmap->w, bitmap->h, left, top);
     }
     return 0;
+}
+
+
+int XLabel::DrawText(int dx, int dy, DUI_Surface surface, DUI_Brush brush, U32 flag)
+{
+    if (nullptr != m_pTextLayout)
+    {
+        ID2D1HwndRenderTarget* pD2DRenderTarget = (ID2D1HwndRenderTarget*)surface;
+        ID2D1SolidColorBrush* pTextBrush = (ID2D1SolidColorBrush*)brush;
+        pD2DRenderTarget->DrawTextLayout(D2D1::Point2F(static_cast<FLOAT>(dx + left), static_cast<FLOAT>(dy + top)), m_pTextLayout, pTextBrush);
+    }
+    return 0;
+}
+
+void XLabel::setText(U16* text, U16 len)
+{
+    if (len > 0)
+    {
+        m_TextLen = (len <= DUI_MAX_LABEL_STRING)? len : DUI_MAX_LABEL_STRING;
+
+        for (U16 i = 0; i < m_TextLen; i++)
+            m_Text[i] = text[i];
+        
+        m_Text[m_TextLen] = L'\0';
+
+        if (nullptr != m_pTextLayout)
+        {
+            m_pTextLayout->Release();
+            m_pTextLayout = nullptr;
+        }
+        assert(m_pDWriteFactory);
+        assert(m_pTextFormat);
+        m_pDWriteFactory->CreateTextLayout((const WCHAR*)m_Text, m_TextLen, m_pTextFormat, (FLOAT)1, (FLOAT)1, &m_pTextLayout);
+        if (nullptr != m_pTextLayout)
+        {
+            DWRITE_TEXT_METRICS tm;
+            m_pTextLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+            m_pTextLayout->GetMetrics(&tm);
+            left = 0;
+            right = static_cast<int>(tm.width) + 1;
+            top = 0;
+            bottom = static_cast<int>(tm.height) + 1;
+        }
+    }
+
 }
