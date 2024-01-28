@@ -33,7 +33,8 @@ enum
     DUI_PROP_HANDLEHWHEEL     = 0x00000020,
     DUI_PROP_HANDLETIMER      = 0x00000040,
     DUI_PROP_HANDLEKEYBOARD   = 0x00000080,
-    DUI_PROP_LARGEMEMPOOL     = 0x00000100
+    DUI_PROP_LARGEMEMPOOL     = 0x00000100,
+    DUI_PROP_HASTEXT          = 0x00000200
 };
 
 enum
@@ -70,8 +71,6 @@ public:
     U16*      m_tooltip[DUI_MAX_CONTROLS];
     XBitmap   m_bitmapArray[DUI_MAX_BUTTON_BITMAPS];
 
-    //int m_startControl  =  0;  // m_controlArray[0] is not used. We start from 1
-    //int m_endControl    = -1;
     int m_maxControl = 0;
     int m_activeControl = -1;
 
@@ -94,11 +93,11 @@ public:
     U32  m_scrollbarColor  = DEFAULT_SCROLLBKG_COLOR;
     U32  m_thumbColor      = DEFAULT_SCROLLTHUMB_COLOR;
 
-    //XTextDrawInfo* m_textDrawInfo = nullptr;
-    U16            m_textDrawInfoCount = 0;
 public:
     XWindowT()
     {
+        for (int i = 0; i < DUI_MAX_CONTROLS; i++)
+            m_controlArray[i] = nullptr;
 #if 0        
         //m_messageFuncPointerTab[DUI_NULL] = nullptr;
         for (int i = 0; i < 256; i++) 
@@ -135,6 +134,12 @@ public:
         m_pool = nullptr;
     }
 
+#if 0
+    U32 getProperty() 
+    {   
+        return m_property;
+    }
+#endif
     static int XControlAction(void* obj, U32 uMsg, U64 wParam, U64 lParam)
     {
         int ret = 0;
@@ -147,20 +152,15 @@ public:
     }
 
     void InitControl() {}
-#if 0
-    tagXTextDrawInfo* GetTextDrawInfo(U16* count)
-    {
-        if (nullptr != count)
-            *count = m_textDrawInfoCount;
-        return m_textDrawInfo;
-    }
-#endif
+
     // < 0 : I do not handle this message
     // = 0 : I handled, but I do not need to upgrade the screen
     // > 0 : I handled this message, and need the host window to upgrade the screen
     int HandleOSMessage(U32 uMsg, U64 wParam, U64 lParam, void* lpData = nullptr)
     {
         int r = -1;
+
+        assert(uMsg <= 0xFFFF);
 
         U16 msgIdOS = (U16)uMsg;
         U8 msgId = DUIMessageOSMap[msgIdOS];  // lookup the message map from Platform to our DUI message
@@ -247,7 +247,7 @@ public:
         for(U8 i = 0; i < bytes; i++)
             m_id[i] = *id++;
 
-        m_id[bytes] = 0;
+        m_id[bytes] = 0; // zero-terminated string
     }
 
     bool IsVisible() const
@@ -310,20 +310,6 @@ public:
         return 0;
     }
 
-#if 0
-    int CreatePlatformThread(ThreadFunc threadfunc, void* udata)
-    {
-        int ret = 0;
-#ifdef _WIN32
-        DWORD dwThreadID;
-        HANDLE hThread = ::CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)threadfunc, udata, 0, &dwThreadID);
-        if (nullptr == hThread)
-            ret = 1;
-#endif
-        return ret;
-    }
-#endif
-
     // scan the whole control array and reset them to the status one by one
     int SetAllControlStatus(U32 status, U8 mouse_event) 
     { 
@@ -357,28 +343,29 @@ public:
 
     void UpdateControlPosition() {}
 
-    int DoDrawText(DUI_Surface surface, DUI_Brush brush) { return 0; }
-    int DrawText(DUI_Surface surface, DUI_Brush brush)
+    int DoDrawText(DUI_Surface surface, DUI_Brush brush, DUI_Brush brushSel) { return 0; }
+    int DrawText(DUI_Surface surface, DUI_Brush brush, DUI_Brush brushSel)
     {
         if (nullptr != surface)
         {
-            U32 prop, status;
+            U32 prop;
             XControl* xctl;
             for (int i = 0; i < m_maxControl; i++)
             {
                 xctl = m_controlArray[i];
                 assert(nullptr != xctl);
                 assert(xctl->m_id == i);
-                status = xctl->getStatus();
                 prop = xctl->getProperty();
-                if ((status != XCONTROL_STATE_HIDDEN) && (prop & XCONTROL_PROP_TEXT))
+                if (prop & XCONTROL_PROP_HIDDEN)
+                    continue;
+                if (prop & XCONTROL_PROP_TEXT)
                 {
-                    xctl->DrawText(m_area.left, m_area.top, surface, brush);
+                    xctl->DrawText(m_area.left, m_area.top, surface, brush, brushSel);
                 }
             }
             // the derived class will draw its content
             T* pT = static_cast<T*>(this);
-            pT->DoDrawText(surface, brush);
+            pT->DoDrawText(surface, brush, brushSel);
         }
         return 0;
     }

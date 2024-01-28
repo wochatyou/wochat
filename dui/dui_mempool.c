@@ -11,20 +11,15 @@ typedef signed char int8;		/* == 8 bits */
 typedef signed short int16;		/* == 16 bits */
 typedef signed int int32;		/* == 32 bits */
 
-/*
- * bitsN
- *		Unit of bitwise operation, AT LEAST N BITS IN SIZE.
- */
-typedef uint8 bits8;			/* >= 8 bits */
-typedef uint16 bits16;			/* >= 16 bits */
-typedef uint32 bits32;			/* >= 32 bits */
-
-#ifndef HAVE_INT64
 typedef long long int int64;
-#endif
-#ifndef HAVE_UINT64
+
 typedef unsigned long long int uint64;
-#endif
+
+/*
+ * Size
+ *		Size of any memory resident object, as returned by sizeof.
+ */
+typedef size_t Size;
 
 /* ----------------
  * Alignment macros: align a length or address appropriately for a given type.
@@ -45,14 +40,8 @@ typedef unsigned long long int uint64;
 
  /* Define as the maximum alignment requirement of any C data type. */
 #define MAXIMUM_ALIGNOF 8
-
 #define MAXALIGN(LEN)			TYPEALIGN(MAXIMUM_ALIGNOF, (LEN))
 
-/*
- * Size
- *		Size of any memory resident object, as returned by sizeof.
- */
-typedef size_t Size;
 
 #define Assert(condition)	((void)true)
 #define StaticAssertDecl(condition, errmessage)	((void)true)
@@ -163,23 +152,23 @@ typedef size_t Size;
 			memset(_start, _val, _len); \
 	} while (0)
 
-	/*
-	 * MaxAllocSize, MaxAllocHugeSize
-	 *		Quasi-arbitrary limits on size of allocations.
-	 *
-	 * Note:
-	 *		There is no guarantee that smaller allocations will succeed, but
-	 *		larger requests will be summarily denied.
-	 *
-	 * palloc() enforces MaxAllocSize, chosen to correspond to the limiting size
-	 * of varlena objects under TOAST.  See VARSIZE_4B() and related macros in
-	 * postgres.h.  Many datatypes assume that any allocatable size can be
-	 * represented in a varlena header.  This limit also permits a caller to use
-	 * an "int" variable for an index into or length of an allocation.  Callers
-	 * careful to avoid these hazards can access the higher limit with
-	 * MemoryContextAllocHuge().  Both limits permit code to assume that it may
-	 * compute twice an allocation's size without overflow.
-	 */
+/*
+ * MaxAllocSize, MaxAllocHugeSize
+ *		Quasi-arbitrary limits on size of allocations.
+ *
+ * Note:
+ *		There is no guarantee that smaller allocations will succeed, but
+ *		larger requests will be summarily denied.
+ *
+ * palloc() enforces MaxAllocSize, chosen to correspond to the limiting size
+ * of varlena objects under TOAST.  See VARSIZE_4B() and related macros in
+ * postgres.h.  Many datatypes assume that any allocatable size can be
+ * represented in a varlena header.  This limit also permits a caller to use
+ * an "int" variable for an index into or length of an allocation.  Callers
+ * careful to avoid these hazards can access the higher limit with
+ * MemoryContextAllocHuge().  Both limits permit code to assume that it may
+ * compute twice an allocation's size without overflow.
+ */
 #define MaxAllocSize	((Size) 0x3fffffff) /* 1 gigabyte - 1 */
 
 #define AllocSizeIsValid(size)	((Size) (size) <= MaxAllocSize)
@@ -351,10 +340,10 @@ typedef enum MemoryContextMethodID
 
 /* These functions implement the MemoryContext API for AllocSet context. */
 void* AllocSetAlloc(MemoryContext context, Size size);
-void AllocSetFree(void* pointer);
+void  AllocSetFree(void* pointer);
 void* AllocSetRealloc(void* pointer, Size size);
-void AllocSetReset(MemoryContext context);
-void AllocSetDelete(MemoryContext context);
+void  AllocSetReset(MemoryContext context);
+void  AllocSetDelete(MemoryContext context);
 MemoryContext AllocSetGetChunkContext(void* pointer);
 Size AllocSetGetChunkSpace(void* pointer);
 bool AllocSetIsEmpty(MemoryContext context);
@@ -576,8 +565,7 @@ void MemoryContextCreate(MemoryContext node, NodeTag tag, MemoryContextMethodID 
  * MemoryContextCallResetCallbacks
  *		Internal function to call all registered callbacks for context.
  */
-static void
-MemoryContextCallResetCallbacks(MemoryContext context)
+static void MemoryContextCallResetCallbacks(MemoryContext context)
 {
 	MemoryContextCallback* cb;
 
@@ -598,8 +586,7 @@ MemoryContextCallResetCallbacks(MemoryContext context)
  *		Release all space allocated within a context.
  *		Nothing is done to the context's descendant contexts.
  */
-void
-MemoryContextResetOnly(MemoryContext context)
+void MemoryContextResetOnly(MemoryContext context)
 {
 	Assert(MemoryContextIsValid(context));
 
@@ -657,8 +644,7 @@ MemoryContextResetOnly(MemoryContext context)
  *		Set 'chunk' as an externally managed chunk.  Here we only record the
  *		MemoryContextMethodID and set the external chunk bit.
  */
-static inline void
-MemoryChunkSetHdrMaskExternal(MemoryChunk* chunk, MemoryContextMethodID methodid)
+static inline void MemoryChunkSetHdrMaskExternal(MemoryChunk* chunk, MemoryContextMethodID methodid)
 {
 	Assert((int)methodid <= MEMORY_CONTEXT_METHODID_MASK);
 
@@ -697,8 +683,7 @@ static inline void MemoryChunkSetHdrMask(MemoryChunk* chunk, void* block, Size v
  * MemoryChunkIsExternal
  *		Return true if 'chunk' is marked as external.
  */
-static inline bool
-MemoryChunkIsExternal(MemoryChunk* chunk)
+static inline bool MemoryChunkIsExternal(MemoryChunk* chunk)
 {
 	/*
 	 * External chunks should always store MEMORYCHUNK_MAGIC in the upper
@@ -721,8 +706,7 @@ MemoryChunkIsExternal(MemoryChunk* chunk)
  *		For non-external chunks, returns the pointer to the block as was set
  *		in MemoryChunkSetHdrMask.
  */
-static inline void*
-MemoryChunkGetBlock(MemoryChunk* chunk)
+static inline void* MemoryChunkGetBlock(MemoryChunk* chunk)
 {
 	Assert(!HdrMaskIsExternal(chunk->hdrmask));
 
@@ -737,8 +721,7 @@ MemoryChunkGetBlock(MemoryChunk* chunk)
  *		For non-external chunks, returns the value field as it was set in
  *		MemoryChunkSetHdrMask.
  */
-static inline Size
-MemoryChunkGetValue(MemoryChunk* chunk)
+static inline Size MemoryChunkGetValue(MemoryChunk* chunk)
 {
 	Assert(!HdrMaskIsExternal(chunk->hdrmask));
 
@@ -1015,8 +998,7 @@ static const uint8 pg_leftmost_one_pos[256] = {
  *		that size <= ALLOC_CHUNK_LIMIT.
  * ----------
  */
-static inline int
-AllocSetFreeIndex(Size size)
+static inline int AllocSetFreeIndex(Size size)
 {
 	int			idx;
 
@@ -1999,6 +1981,7 @@ void AllocSetStats(MemoryContext context,
 	MemoryContextCounters* totals,
 	bool print_to_stderr)
 {
+#if 0
 	AllocSet	set = (AllocSet)context;
 	Size		nblocks = 0;
 	Size		freechunks = 0;
@@ -2059,6 +2042,7 @@ void AllocSetStats(MemoryContext context,
 		totals->totalspace += totalspace;
 		totals->freespace += freespace;
 	}
+#endif
 }
 
 #ifdef MEMORY_CONTEXT_CHECKING
@@ -2405,6 +2389,7 @@ MemoryContext AllocSetContextCreateInternal(MemoryContext parent, const char* na
 #endif
 
 	freeListIndex = -1;
+#if 0
 	/*
 	 * If a suitable freelist entry exists, just recycle that context.
 	 */
@@ -2434,7 +2419,7 @@ MemoryContext AllocSetContextCreateInternal(MemoryContext parent, const char* na
 			return (MemoryContext)set;
 		}
 	}
-
+#endif
 	/* Determine size of initial block */
 	firstBlockSize = MAXALIGN(sizeof(AllocSetContext)) + ALLOC_BLOCKHDRSZ + ALLOC_CHUNKHDRSZ;
 	if (minContextSize != 0)

@@ -34,7 +34,7 @@ public:
 	{
 		m_backgroundColor = 0xFFEAECED;
 		m_backgroundColor = 0xFFFFFFFF;
-		m_property |= (DUI_PROP_MOVEWIN |DUI_PROP_HANDLETIMER | DUI_PROP_HANDLEKEYBOARD);
+		m_property |= (DUI_PROP_MOVEWIN |DUI_PROP_HANDLETIMER | DUI_PROP_HANDLEKEYBOARD | DUI_PROP_HASTEXT);
 		m_message = WM_XWINDOWS01;
 #if 0
 		g_pDWriteFactory->CreateTextFormat(
@@ -104,7 +104,7 @@ public:
 			{
 				lb->setId(id);
 				lb->setText((U16*)testxt, wcslen(testxt));
-				lb->setStatus(XCONTROL_STATE_HIDDEN);
+				//lb->setStatus(XCONTROL_STATE_HIDDEN);
 			}
 			m_controlArray[id] = lb;
 		}
@@ -181,7 +181,7 @@ public:
 
 		if (WIN1_MODE_SHOWME != m_mode)
 		{
-			xctl->setStatus(XCONTROL_STATE_HIDDEN);
+			//xctl->setStatus(XCONTROL_STATE_HIDDEN);
 		}
 	}
 
@@ -249,7 +249,7 @@ public:
 		return 0; 
 	}
 
-	int DoDrawText(DUI_Surface surface, DUI_Brush brush)
+	int DoDrawText(DUI_Surface surface, DUI_Brush brush, DUI_Brush brushSel)
 	{ 
 #if 0
 		ID2D1HwndRenderTarget* pD2DRenderTarget = (ID2D1HwndRenderTarget*)surface;

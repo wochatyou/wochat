@@ -6,18 +6,21 @@
 /* fill the whole screen with one color */
 int DUI_ScreenClear(uint32_t* dst, uint32_t size, uint32_t color)
 {
-	uint32_t i;
-	uint64_t newColor = (uint64_t)(color); 
-	newColor <<= 32;
-	newColor |= (uint64_t)color;
+	uint32_t i, half_size;
+	uint64_t newColor;
+	uint64_t* p64;
 
 	if (NULL == dst)
-		return 0;
+		return 1;
+
+	newColor = (((uint64_t)(color)) << 32) | ((uint64_t)color);
 
 	// because using pointer 64 bit is 2 times faster than pointer 32 bit
 	// so we use pointer 64 to speed up the copying
-	uint64_t* p64 = (uint64_t*)dst;  
-	for (i = 0; i < (size >> 1); i++)
+	p64 = (uint64_t*)dst;  
+	half_size = (size >> 1);
+
+	for (i = 0; i < half_size; i++)
 		*p64++ = newColor;
 
 	if (1 & size)  // fix the last pixel if the whole size is not even number
@@ -36,11 +39,11 @@ int DUI_ScreenDrawRect(uint32_t* dst, int w, int h, uint32_t* src, int sw, int s
 	uint32_t* p;
 	int SW, SH;
 
-	if (NULL == dst)
-		return 0;
+	if (NULL == dst || NULL == src)
+		return 1;
 
 	if (dx >= w || dy >= h) // not in the scope
-		return 0;
+		return 2;
 
 	if (dy < 0)
 	{

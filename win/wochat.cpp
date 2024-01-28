@@ -1,7 +1,7 @@
 #include "pch.h"
 
 #include "wochat.h"
-
+#include "duilib/core/box.h"
 
 int GetSecretKey(LPCTSTR path, U8* sk)
 {

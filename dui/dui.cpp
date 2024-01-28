@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <vector>
+
 #include "dui.h"
 
 // global variables
@@ -115,22 +117,71 @@ int XButton::Draw()
 }
 
 
-int XLabel::DrawText(int dx, int dy, DUI_Surface surface, DUI_Brush brush, U32 flag)
+int XLabel::DrawText(int dx, int dy, DUI_Surface surface, DUI_Brush brush, DUI_Brush brushSel, U32 flag)
 {
-    if (XCONTROL_STATE_HIDDEN == m_status)
-        return 0;
+    ID2D1HwndRenderTarget* pD2DRenderTarget = (ID2D1HwndRenderTarget*)surface;
+    ID2D1SolidColorBrush* pTextBrush = (ID2D1SolidColorBrush*)brush;
+    ID2D1SolidColorBrush* pTextBrushSel = (ID2D1SolidColorBrush*)brushSel;
 
-    if (nullptr != m_pTextLayout)
+    if (nullptr == m_pTextLayout || nullptr == pD2DRenderTarget || nullptr == pTextBrush || nullptr == pTextBrushSel)
+        return 1;
+    
+    if (m_SelRange.length > 0)
     {
-        ID2D1HwndRenderTarget* pD2DRenderTarget = (ID2D1HwndRenderTarget*)surface;
-        ID2D1SolidColorBrush* pTextBrush = (ID2D1SolidColorBrush*)brush;
-        pD2DRenderTarget->DrawTextLayout(D2D1::Point2F(static_cast<FLOAT>(dx + left), static_cast<FLOAT>(dy + top)), m_pTextLayout, pTextBrush);
+        U32 actualHitTestCount;
+        m_pTextLayout->HitTestTextRange(
+            m_SelRange.startPosition,
+            m_SelRange.length,
+            0,
+            0,
+            NULL,
+            0,
+            &actualHitTestCount
+        );
+        std::vector<DWRITE_HIT_TEST_METRICS> hitTestMetrics(actualHitTestCount);
+
+        m_pTextLayout->HitTestTextRange(
+            m_SelRange.startPosition,
+            m_SelRange.length,
+            0,
+            0,
+            &hitTestMetrics[0], 
+            static_cast<UINT32>(hitTestMetrics.size()),
+            &actualHitTestCount
+        );
+        // Draw the selection ranges behind the text.
+        if (actualHitTestCount > 0)
+        {
+            pD2DRenderTarget->SetAntialiasMode(D2D1_ANTIALIAS_MODE_ALIASED);
+
+            for (U32 i = 0; i < actualHitTestCount; ++i)
+            {
+                const DWRITE_HIT_TEST_METRICS& htm = hitTestMetrics[i];
+                FLOAT L = static_cast<FLOAT>(dx + left + htm.left);
+                FLOAT T = static_cast<FLOAT>(dy + top + htm.top);
+
+                D2D1_RECT_F highlightRect = {
+                    L,
+                    T,
+                    (L + htm.width),
+                    (T + htm.height)
+                };
+                pD2DRenderTarget->FillRectangle(highlightRect, pTextBrushSel);
+            }
+            pD2DRenderTarget->SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+        }
     }
+
+    pD2DRenderTarget->DrawTextLayout(D2D1::Point2F(static_cast<FLOAT>(dx + left), static_cast<FLOAT>(dy + top)), m_pTextLayout, pTextBrush);
+
     return 0;
 }
 
 void XLabel::setText(U16* text, U16 len)
 {
+    m_SelRange.startPosition = 0;
+    m_SelRange.length = 0;
+
     if (len > 0)
     {
         m_TextLen = (len <= DUI_MAX_LABEL_STRING)? len : DUI_MAX_LABEL_STRING;
@@ -139,6 +190,11 @@ void XLabel::setText(U16* text, U16 len)
             m_Text[i] = text[i];
         
         m_Text[m_TextLen] = L'\0';
+        if (m_TextLen > 64)
+        {
+            m_SelRange.startPosition = 1;
+            m_SelRange.length = 50;
+        }
 
         if (nullptr != m_pTextLayout)
         {

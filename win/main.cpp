@@ -213,6 +213,7 @@ public:
 	{
 		KillTimer(XWIN_666MS_TIMER);
 
+		SafeRelease(&m_pTextBrushSel);
 		SafeRelease(&m_pTextBrush0);
 		SafeRelease(&m_pTextBrush1);
 		SafeRelease(&m_pixelBitmap0);
@@ -428,12 +429,16 @@ public:
 					if (S_OK == hr && nullptr != m_pTextBrush0)
 					{
 						hr = m_pD2DRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x000000), &m_pTextBrush1);
+						if (S_OK == hr && nullptr != m_pTextBrush1)
+						{
+							hr = m_pD2DRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x87CEFA), &m_pTextBrushSel);
+						}
 					}
 				}
 			}
 		}
 
-		if (S_OK == hr && nullptr != m_pD2DRenderTarget && nullptr != m_pixelBitmap0 && nullptr != m_pTextBrush0 && nullptr != m_pTextBrush1)
+		if (S_OK == hr && nullptr != m_pD2DRenderTarget && nullptr != m_pixelBitmap0 && nullptr != m_pTextBrush0 && nullptr != m_pTextBrush1 && nullptr != m_pTextBrushSel)
 		{
 			int w, h;
 			U32* src = nullptr;
@@ -476,7 +481,7 @@ public:
 					m_pD2DRenderTarget->DrawBitmap(pBitmap, &rect);
 				}
 				SafeRelease(&pBitmap);
-				m_win1.DrawText(m_pD2DRenderTarget, m_pTextBrush0);
+				m_win1.DrawText(m_pD2DRenderTarget, m_pTextBrush0, m_pTextBrushSel);
 				m_win1.SetScreenValide(); // prevent un-necessary draw again
 			}
 
@@ -544,6 +549,7 @@ private:
 	ID2D1Bitmap* m_pixelBitmap0 = nullptr;
 	ID2D1Bitmap* m_pixelBitmap1 = nullptr;
 	ID2D1Bitmap* m_pixelBitmap2 = nullptr;
+	ID2D1SolidColorBrush* m_pTextBrushSel = nullptr;
 	ID2D1SolidColorBrush* m_pTextBrush0 = nullptr;
 	ID2D1SolidColorBrush* m_pTextBrush1 = nullptr;
 

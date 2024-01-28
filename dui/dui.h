@@ -221,6 +221,7 @@ enum XControlProperty
     XCONTROL_PROP_EDIT = 0x00000008,
     XCONTROL_PROP_PASSWD = 0x00000010,
     XCONTROL_PROP_TEXT = 0x00000020,
+    XCONTROL_PROP_HIDDEN = 0x00000040,
 };
 
 enum XControlState
@@ -235,6 +236,12 @@ enum XControlState
 
 typedef void* DUI_Surface;
 typedef void* DUI_Brush;
+
+typedef struct DUI_TEXT_RANGE 
+{
+    U32 startPosition;
+    U32 length;
+} DUI_TEXT_RANGE;
 
 class XControl
 {
@@ -412,7 +419,7 @@ public:
     virtual int OnTimer() { return 0; }
     virtual int OnKeyBoard(U16 flag, U16 keycode) { return 0; }
     virtual int  Draw() = 0;
-    virtual int  DrawText(int dx, int dy, DUI_Surface surface = nullptr, DUI_Brush brush = nullptr, U32 flag = 0) = 0;
+    virtual int  DrawText(int dx, int dy, DUI_Surface surface = nullptr, DUI_Brush brush = nullptr, DUI_Brush brushSel = nullptr, U32 flag = 0) = 0;
     virtual int  Init(void* ptr0 = nullptr, void* ptr1 = nullptr, void* ptr2 = nullptr, U32 flag = 0) = 0;
     virtual void Term() = 0;
 
@@ -423,7 +430,7 @@ class XButton : public XControl
 {
 public:
     int Draw();
-    int DrawText(int dx, int dy, DUI_Surface surface = nullptr, DUI_Brush brush = nullptr, U32 flag = 0) { return 0; }
+    int DrawText(int dx, int dy, DUI_Surface surface = nullptr, DUI_Brush brush = nullptr, DUI_Brush brushSel = nullptr, U32 flag = 0) { return 0; }
     int Init(void* ptr0 = nullptr, void* ptr1 = nullptr, void* ptr2 = nullptr, U32 flag = 0)
     {
         m_Cursor = ptr0;
@@ -459,6 +466,7 @@ private:
     U32  m_caretPositionOffset = 0;
     U16  m_Text[DUI_MAX_LABEL_STRING + 1] = { 0 };
     U16  m_TextLen = 0;
+    DUI_TEXT_RANGE m_SelRange;
     IDWriteFactory*    m_pDWriteFactory = nullptr;
     IDWriteTextFormat* m_pTextFormat = nullptr;
     IDWriteTextLayout* m_pTextLayout = nullptr;
@@ -469,7 +477,7 @@ public:
     }
 
     int Draw() { return 0; }
-    int DrawText(int dx, int dy, DUI_Surface surface = nullptr, DUI_Brush brush = nullptr, U32 flag = 0);
+    int DrawText(int dx, int dy, DUI_Surface surface = nullptr, DUI_Brush brush = nullptr, DUI_Brush brushSel = nullptr, U32 flag = 0);
     int Init(void* ptr0 = nullptr, void* ptr1 = nullptr, void* ptr2 = nullptr, U32 flag = 0)
     {
         m_Cursor = ptr0;
