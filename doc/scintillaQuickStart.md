@@ -123,3 +123,9 @@ ExitThisApplication:
 cl tte.cpp /I..\include libscintilla.lib
 ```
 生成的是tte.exe文件。你运行它，就会发现立马拥有了一个功能丰富的文本编辑软件了。
+
+Applying 5 million pixel updates per second with Rust & wgpu
+
+https://maxisom.me/posts/applying-5-million-pixel-updates-per-second
+
+
